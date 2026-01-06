@@ -1,0 +1,91 @@
+# ========================================
+# Python 相关
+# ========================================
+# 字节码文件
+__pycache__/
+*.py[cod]
+*$py.class
+
+# 虚拟环境
+venv/
+env/
+ENV/
+.venv/
+
+# Python 分发/打包
+*.egg-info/
+dist/
+build/
+*.egg
+
+# PyInstaller 构建产物
+*.manifest
+build/
+dist/
+
+
+# ========================================
+# IDE 和编辑器配置
+# ========================================
+# PyCharm
+.idea/
+*.iml
+*.iws
+
+# VS Code
+.vscode/
+*.code-workspace
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+
+# ========================================
+# 操作系统文件
+# ========================================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Linux
+*~
+.directory
+
+
+# ========================================
+# 项目特定
+# ========================================
+# 备份文件
+*.backup
+*.bak
+*.old
+
+# 测试和临时文件
+*.log
+*.tmp
+*.temp
+PROJECT_STRUCTURE.txt
+
+# SSH 测试密钥（如有）
+test_keys/
+*.pem
+*.key
+
+# 构建脚本生成的文件
+sshm.bat
+sshm_gui.bat
+
+
+# ========================================
+# Git 相关
+# ========================================
+*.orig
+*.rej
