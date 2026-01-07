@@ -7,7 +7,7 @@
 [![Python Version](https://img.shields.io/badge/python-3.6%2B-blue)](https://www.python.org/downloads/)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey)](https://github.com)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Version](https://img.shields.io/badge/version-2.0.1-brightgreen)](https://github.com/yourusername/SSHManager/releases)
+[![Version](https://img.shields.io/badge/version-2.1.0-brightgreen)](https://github.com/yourusername/SSHManager/releases)
 
 [快速开始](#-快速开始) • [功能特性](#-功能特性) • [使用文档](#-使用文档) • [常见问题](#-常见问题) • [开发者文档](docs/DEVELOPER.md)
 
@@ -56,7 +56,7 @@ SSH Key Manager 是一个专业的 SSH 密钥管理工具，专为需要管理�
 
 ### 方式 1：下载可执行文件（推荐）
 
-从 [Releases](https://github.com/yourusername/SSHManager/releases) 页面下载对应平台的文件：
+从 [Releases](https://github.com/365tools/SSHKeyManager/releases) 页面下载对应平台的文件：
 
 **Windows**
 ```cmd
@@ -115,7 +115,11 @@ sshm add github-company work@company.com -H github.com
 # 3️⃣ 查看并复制公钥
 sshm list -a
 
-# 4️⃣ 使用别名克隆仓库（推荐）
+# 4️⃣ 为当前项目配置密钥（推荐）
+cd ~/my-project
+sshm use github-personal              # 自动配置项目使用个人账号
+
+# 或使用别名手动克隆
 git clone git@github-personal:user/repo.git
 git clone git@github-company:company/repo.git
 ```
@@ -248,6 +252,156 @@ sshm switch github-personal
 
 # 手动指定类型
 sshm switch github-personal -t rsa
+```
+
+#### `use` - 为 Git 仓库配置密钥 ⭐ NEW
+
+```bash
+sshm use <标签> [-p <路径>] [-y]
+
+选项:
+  -p, --path PATH       Git 仓库路径（默认当前目录）
+  -y, --yes             跳过确认直接执行
+
+示例:
+  # 为当前仓库配置使用 github-personal 密钥
+  cd ~/my-project
+  sshm use github-personal
+  
+  # 为指定仓库配置
+  sshm use github-company -p ~/work-project
+  
+  # 自动确认模式
+  sshm use github-personal -y
+```
+
+**功能说明**：
+
+1. 📂 **自动识别** Git 仓库信息
+2. 🔍 **智能解析** 当前 remote URL
+3. 🔄 **自动替换** 为对应的 SSH config 别名
+4. ✅ **测试连接** 验证配置是否成功
+5. 📊 **结果展示** 清晰显示配置结果
+
+**使用场景**：
+
+- 🎯 克隆仓库后快速配置使用特定密钥
+- 🔄 切换项目使用的 GitHub 账号
+- ⚡ 避免手动拼接 SSH URL 出错
+
+**示例流程**：
+
+```bash
+# 1. 克隆仓库（使用任意账号）
+git clone https://github.com/user/repo.git
+cd repo
+
+# 2. 配置使用指定密钥
+sshm use github-personal
+
+# 输出：
+# 📂 仓库路径: /home/user/repo
+# 🔗 当前 Remote URL: https://github.com/user/repo.git
+# 📊 解析信息:
+#    平台: github
+#    用户/组织: user
+#    仓库: repo
+# 🔧 新的 Remote URL: git@github-personal:user/repo.git
+# ✅ Remote URL 已更新
+# 🧪 测试 SSH 连接...
+# ✅ SSH 连接测试成功！
+#    Hi personal-user! You've successfully authenticated...
+
+# 3. 直接推送，自动使用 github-personal 密钥
+git push
+```
+
+#### `info` - 查看仓库配置信息 🔍
+
+```bash
+sshm info [-p <路径>]
+
+选项:
+  -p, --path PATH       Git 仓库路径（默认当前目录）
+
+示例:
+  # 查看当前仓库配置
+  cd ~/my-project
+  sshm info
+  
+  # 查看指定仓库配置
+  sshm info -p ~/work-project
+```
+
+**输出信息**：
+
+- 📂 仓库路径
+- 🔗 Remote URL
+- 📊 平台/用户/仓库解析
+- 🔑 当前使用的 SSH 别名
+- 🗝️ 密钥详细信息（标签、类型、路径）
+- 📝 SSH Config 配置内容
+
+**使用场景**：
+
+- 🔍 **快速确认** 当前仓库使用的密钥
+- 🐛 **调试问题** 验证 SSH 配置是否正确
+- 📋 **查看详情** 了解完整的密钥和配置信息
+
+#### `test` - 测试 SSH 连接 ✅
+
+```bash
+sshm test [标签] [-p <路径>] [-a]
+
+选项:
+  标签                    测试指定密钥（不指定则测试当前仓库）
+  -p, --path PATH       Git 仓库路径（默认当前目录）
+  -a, --all             测试所有密钥
+
+示例:
+  # 测试当前仓库的 SSH 连接
+  cd ~/my-project
+  sshm test
+  
+  # 测试指定密钥
+  sshm test github-personal
+  
+  # 测试所有密钥
+  sshm test --all
+```
+
+**功能说明**：
+
+1. ✅ **验证配置** - 测试 SSH 连接是否正常
+2. 👤 **显示用户** - 显示认证成功的用户名
+3. 📊 **批量测试** - 一次性测试所有密钥状态
+4. 🐛 **诊断问题** - 快速定位连接问题
+
+**示例输出**：
+
+```bash
+$ sshm test
+================================================================================
+测试当前仓库 SSH 连接
+================================================================================
+📂 仓库路径: /home/user/my-project
+🔗 Remote URL: git@github-personal:user/repo.git
+
+🧪 正在测试 github-personal...
+✅ 认证成功! (Hi personal-user!)
+
+$ sshm test --all
+================================================================================
+测试所有 SSH 密钥连接
+================================================================================
+
+======================================================================
+测试结果汇总:
+======================================================================
+✅ personal             (github-personal               ) [rsa]
+✅ company              (github-company                ) [ed25519]
+❌ old-key              (github-old-key                ) [rsa]
+    连接失败: Permission denied (publickey)
 ```
 
 #### `tag` - 备份默认密钥
