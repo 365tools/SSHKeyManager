@@ -35,7 +35,8 @@ def build():
         "--name", "sshm",      # 输出文件名
         "--console",           # 控制台程序
         "--clean",             # 清理临时文件
-        "ssh_manager.py"
+        "--paths", "src",      # 添加 src 到 Python 路径
+        "src/run_sshm.py"      # PyInstaller 专用入口点（使用绝对导入）
     ]
     
     print(f"\n🔧 执行命令: {' '.join(cmd)}")

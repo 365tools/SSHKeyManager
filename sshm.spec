@@ -2,8 +2,8 @@
 
 
 a = Analysis(
-    ['ssh_manager.py'],
-    pathex=[],
+    ['src\\run_sshm.py'],
+    pathex=['src'],
     binaries=[],
     datas=[],
     hiddenimports=[],
