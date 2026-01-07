@@ -69,6 +69,8 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write  # 允许创建 release
     
     steps:
       - name: Checkout code
@@ -79,8 +81,13 @@ jobs:
         with:
           path: artifacts
 
-      - name: Display structure of downloaded files
-        run: ls -R artifacts
+      - name: Prepare release files
+        run: |
+          mkdir -p release
+          cp artifacts/sshm-windows-amd64.exe/sshm.exe release/sshm-windows-amd64.exe
+          cp artifacts/sshm-linux-amd64/sshm release/sshm-linux-amd64
+          cp artifacts/sshm-macos-amd64/sshm release/sshm-macos-amd64
+          ls -lh release/
 
       - name: Create Release
         id: create_release
@@ -89,7 +96,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ github.ref_name }}
-          release_name: Release ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
           body: |
             ## SSH Key Manager ${{ github.ref_name }}
             
@@ -144,10 +151,10 @@ jobs:
             
             ---
             
-            **完整更新日志** 请查看 [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md)
+            **完整更新日志** 请查看 [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/docs/CHANGELOG.md)
           draft: false
           prerelease: false
           files: |
-            artifacts/sshm-windows-amd64.exe/sshm.exe
-            artifacts/sshm-linux-amd64/sshm
-            artifacts/sshm-macos-amd64/sshm
+            release/sshm-windows-amd64.exe
+            release/sshm-linux-amd64
+            release/sshm-macos-amd64
