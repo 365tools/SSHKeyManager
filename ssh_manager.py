@@ -32,7 +32,7 @@ import io
 # 常量定义
 # ============================================================================
 
-VERSION = "2.0.1"
+VERSION = "2.1.0"
 SUPPORTED_KEY_TYPES = ['ed25519', 'rsa', 'ecdsa', 'dsa']
 DEFAULT_KEY_TYPE = 'ed25519'
 STATE_FILE_NAME = '.sshm_state'
@@ -699,6 +699,392 @@ class SSHKeyManager:
         
         print(f"✅ 已重命名: {old_label} -> {new_label}")
     
+    def use_key_for_repo(self, label: str, repo_path: str = '.', 
+                         skip_confirm: bool = False):
+        """为指定 Git 仓库配置使用特定密钥
+        
+        Args:
+            label: 密钥标签
+            repo_path: Git 仓库路径
+            skip_confirm: 是否跳过确认
+        """
+        repo_path = Path(repo_path).resolve()
+        
+        # 检查是否是 Git 仓库
+        git_dir = repo_path / '.git'
+        if not git_dir.exists():
+            print(f"❌ 不是 Git 仓库: {repo_path}")
+            print("   请在 Git 仓库目录下执行此命令")
+            return
+        
+        # 检查密钥是否存在
+        key_type = self._detect_key_type_for_label(label)
+        if not key_type:
+            print(f"❌ 未找到标签 '{label}' 的密钥")
+            return
+        
+        print_section_header(f"为 Git 仓库配置密钥: {label}")
+        print(f"📂 仓库路径: {repo_path}\n")
+        
+        try:
+            # 获取当前 remote URL
+            result = subprocess.run(
+                ['git', '-C', str(repo_path), 'remote', 'get-url', 'origin'],
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            current_url = result.stdout.strip()
+            print(f"🔗 当前 Remote URL:\n   {current_url}\n")
+            
+            # 解析 URL
+            parsed = self._parse_git_url(current_url)
+            if not parsed:
+                print("❌ 无法解析 Git URL")
+                return
+            
+            platform, user, repo = parsed
+            print(f"📊 解析信息:")
+            print(f"   平台: {platform}")
+            print(f"   用户/组织: {user}")
+            print(f"   仓库: {repo}\n")
+            
+            # 生成新的 SSH URL
+            hostname = self._get_hostname_for_label(label)
+            host_alias = f"{hostname.split('.')[0]}-{label}"
+            new_url = f"git@{host_alias}:{user}/{repo}.git"
+            
+            print(f"🔧 新的 Remote URL:")
+            print(f"   {new_url}\n")
+            
+            # 确认
+            if not skip_confirm:
+                if not prompt_confirm("是否更新 Remote URL？"):
+                    print("❌ 操作已取消")
+                    return
+            
+            # 更新 remote URL
+            subprocess.run(
+                ['git', '-C', str(repo_path), 'remote', 'set-url', 'origin', new_url],
+                check=True
+            )
+            print("✅ Remote URL 已更新\n")
+            
+            # 测试连接
+            print("🧪 测试 SSH 连接...")
+            test_result = subprocess.run(
+                ['ssh', '-T', f'git@{host_alias}'],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            
+            # 显示测试结果
+            output = test_result.stderr + test_result.stdout
+            if 'successfully authenticated' in output.lower() or \
+               'you\'ve successfully authenticated' in output.lower():
+                print("✅ SSH 连接测试成功！")
+                # 提取认证信息
+                for line in output.split('\n'):
+                    if 'Hi' in line or 'Welcome' in line:
+                        print(f"   {line.strip()}")
+            else:
+                print("⚠️  SSH 连接测试:")
+                print(f"   {output.strip()}")
+            
+            print("\n" + "=" * 70)
+            print("✅ 配置完成！现在可以使用以下命令:")
+            print(f"   cd {repo_path}")
+            print(f"   git push")
+            print("=" * 70)
+            
+        except subprocess.CalledProcessError as e:
+            if 'No such remote' in str(e.stderr):
+                print("❌ 未找到 origin remote")
+                print("   请先添加 remote: git remote add origin <url>")
+            else:
+                print(f"❌ Git 命令执行失败: {e}")
+        except subprocess.TimeoutExpired:
+            print("⚠️  SSH 连接测试超时")
+        except Exception as e:
+            print(f"❌ 错误: {e}")
+    
+    def show_repo_info(self, repo_path: str = '.'):
+        """显示当前 Git 仓库的 SSH 配置信息"""
+        print_section_header("Git 仓库配置信息")
+        
+        repo_path = Path(repo_path).resolve()
+        
+        # 检查是否是 Git 仓库
+        if not (repo_path / '.git').exists():
+            print(f"❌ 不是有效的 Git 仓库: {repo_path}")
+            return
+        
+        print(f"📂 仓库路径: {repo_path}")
+        
+        try:
+            # 获取 remote URL
+            result = subprocess.run(
+                ['git', 'remote', 'get-url', 'origin'],
+                cwd=repo_path,
+                capture_output=True,
+                text=True,
+                check=True
+            )
+            remote_url = result.stdout.strip()
+            print(f"🔗 Remote URL: {remote_url}")
+            
+            # 解析 URL
+            parsed = self._parse_git_url(remote_url)
+            if parsed:
+                platform, user, repo = parsed
+                print(f"\n📊 解析信息:")
+                print(f"  ├─ 平台: {platform}")
+                print(f"  ├─ 用户/组织: {user}")
+                print(f"  └─ 仓库: {repo}")
+                
+                # 检测使用的别名
+                ssh_pattern = r'git@([^:]+):'
+                match = re.match(ssh_pattern, remote_url)
+                if match:
+                    host_alias = match.group(1)
+                    if '-' in host_alias:  # 是 SSH config 别名
+                        label = host_alias.split('-', 1)[1]
+                        print(f"\n🔑 当前使用别名: {host_alias}")
+                        
+                        # 查找对应的密钥信息
+                        key_type = self._detect_key_type_for_label(label)
+                        if key_type:
+                            key_file = self.ssh_dir / f"id_{key_type}.{label}"
+                            pub_file = self.ssh_dir / f"id_{key_type}.{label}.pub"
+                            
+                            print(f"\n🗝️  密钥信息:")
+                            print(f"  ├─ 标签: {label}")
+                            print(f"  ├─ 类型: {key_type}")
+                            print(f"  ├─ 私钥: {key_file}")
+                            print(f"  └─ 公钥: {pub_file}")
+                            
+                            # 显示 SSH config
+                            ssh_config = self.config_manager.config_file
+                            if ssh_config.exists():
+                                with open(ssh_config, 'r', encoding='utf-8') as f:
+                                    content = f.read()
+                                    if f"Host {host_alias}" in content:
+                                        print(f"\n📝 SSH Config:")
+                                        lines = content.split('\n')
+                                        in_host = False
+                                        for line in lines:
+                                            if f"Host {host_alias}" in line:
+                                                in_host = True
+                                            if in_host:
+                                                print(f"  {line}")
+                                                if line.strip() and not line.startswith(' ') and not line.startswith('\t') and not f"Host {host_alias}" in line:
+                                                    break
+                        else:
+                            print(f"\n⚠️  未找到标签 '{label}' 对应的密钥文件")
+                    else:
+                        print(f"\n💡 提示: 当前使用标准 SSH URL，未配置 SSH config 别名")
+                        print(f"   可以使用 'sshm use <标签>' 配置密钥")
+                else:
+                    print(f"\n💡 提示: 使用的是 HTTPS URL")
+                    print(f"   可以使用 'sshm use <标签>' 转换为 SSH 并配置密钥")
+            else:
+                print("\n⚠️  无法解析 remote URL")
+                
+        except subprocess.CalledProcessError as e:
+            if 'No such remote' in str(e.stderr):
+                print("\n⚠️  未配置 origin remote")
+            else:
+                print(f"\n❌ Git 命令执行失败: {e}")
+        except Exception as e:
+            print(f"\n❌ 错误: {e}")
+    
+    def test_connection(self, label: Optional[str] = None, test_all: bool = False, 
+                       repo_path: str = '.'):
+        """测试 SSH 连接
+        
+        Args:
+            label: 指定测试的密钥标签（None 表示测试当前仓库配置）
+            test_all: 是否测试所有密钥
+            repo_path: Git 仓库路径（当 label 为 None 时使用）
+        """
+        if test_all:
+            # 测试所有密钥
+            print_section_header("测试所有 SSH 密钥连接")
+            
+            # 获取所有密钥
+            keys_by_label = self._scan_all_keys()
+            if not keys_by_label:
+                print("❌ 未找到任何密钥")
+                return
+            
+            results = []
+            for label, key_infos in keys_by_label.items():
+                # 推断平台和主机别名
+                platform = self._get_hostname_for_label(label).split('.')[0]
+                host_alias = f"{platform}-{label}"
+                
+                # 测试连接
+                result = self._test_ssh_connection(host_alias)
+                key_types = ', '.join([k['type'] for k in key_infos])
+                results.append((label, host_alias, key_types, result))
+            
+            # 显示结果
+            print("\n" + "=" * 70)
+            print("测试结果汇总:")
+            print("=" * 70)
+            for label, host_alias, key_types, (success, message) in results:
+                status = "✅" if success else "❌"
+                print(f"{status} {label:20} ({host_alias:30}) [{key_types}]")
+                if not success:
+                    print(f"    {message}")
+            
+        elif label:
+            # 测试指定标签
+            print_section_header(f"测试 SSH 连接: {label}")
+            
+            # 检查密钥是否存在
+            key_type = self._detect_key_type_for_label(label)
+            if not key_type:
+                print(f"❌ 未找到标签 '{label}' 对应的密钥")
+                print(f"\n💡 使用 'sshm list' 查看所有可用密钥")
+                return
+            
+            # 推断平台和主机别名
+            platform = self._get_hostname_for_label(label).split('.')[0]
+            host_alias = f"{platform}-{label}"
+            
+            print(f"🔑 密钥: {label}")
+            print(f"🌐 主机: {host_alias}")
+            print(f"\n🧪 正在测试连接...")
+            
+            success, message = self._test_ssh_connection(host_alias)
+            if success:
+                print(f"✅ {message}")
+            else:
+                print(f"❌ {message}")
+        
+        else:
+            # 测试当前仓库配置
+            print_section_header("测试当前仓库 SSH 连接")
+            
+            repo_path = Path(repo_path).resolve()
+            
+            # 检查是否是 Git 仓库
+            if not (repo_path / '.git').exists():
+                print(f"❌ 不是有效的 Git 仓库: {repo_path}")
+                return
+            
+            print(f"📂 仓库路径: {repo_path}")
+            
+            try:
+                # 获取 remote URL
+                result = subprocess.run(
+                    ['git', 'remote', 'get-url', 'origin'],
+                    cwd=repo_path,
+                    capture_output=True,
+                    text=True,
+                    check=True
+                )
+                remote_url = result.stdout.strip()
+                print(f"🔗 Remote URL: {remote_url}")
+                
+                # 提取主机别名
+                ssh_pattern = r'git@([^:]+):'
+                match = re.match(ssh_pattern, remote_url)
+                if match:
+                    host_alias = match.group(1)
+                    print(f"\n🧪 正在测试 {host_alias}...")
+                    
+                    success, message = self._test_ssh_connection(host_alias)
+                    if success:
+                        print(f"✅ {message}")
+                    else:
+                        print(f"❌ {message}")
+                        print(f"\n💡 提示: 请检查密钥配置是否正确")
+                        print(f"   使用 'sshm info' 查看配置详情")
+                else:
+                    print("\n⚠️  当前使用的不是 SSH URL，无法测试连接")
+                    print("   使用 'sshm use <标签>' 转换为 SSH URL")
+                    
+            except subprocess.CalledProcessError as e:
+                if 'No such remote' in str(e.stderr):
+                    print("\n⚠️  未配置 origin remote")
+                else:
+                    print(f"\n❌ Git 命令执行失败: {e}")
+            except Exception as e:
+                print(f"\n❌ 错误: {e}")
+    
+    def _test_ssh_connection(self, host: str) -> Tuple[bool, str]:
+        """测试 SSH 连接
+        
+        Args:
+            host: SSH 主机（如 github-personal, gitlab-work）
+        
+        Returns:
+            (success, message) - 成功标志和消息
+        """
+        try:
+            result = subprocess.run(
+                ['ssh', '-T', f'git@{host}'],
+                capture_output=True,
+                text=True,
+                timeout=10
+            )
+            
+            output = result.stdout + result.stderr
+            
+            # GitHub/GitLab 等会返回特定消息
+            if 'successfully authenticated' in output.lower():
+                # 提取用户名
+                match = re.search(r'Hi ([^!]+)!', output)
+                username = match.group(1) if match else 'User'
+                return (True, f"认证成功! (Hi {username}!)")
+            elif 'welcome to' in output.lower():
+                return (True, "连接成功!")
+            elif result.returncode == 1 and 'permission denied' not in output.lower():
+                # 有些服务器会返回退出码 1 但认证成功
+                return (True, "连接成功!")
+            else:
+                return (False, f"连接失败: {output.strip()[:100]}")
+                
+        except subprocess.TimeoutExpired:
+            return (False, "连接超时")
+        except FileNotFoundError:
+            return (False, "未找到 ssh 命令")
+        except Exception as e:
+            return (False, f"错误: {str(e)}")
+    
+    def _parse_git_url(self, url: str) -> Optional[Tuple[str, str, str]]:
+        """解析 Git URL
+        
+        Returns:
+            (platform, user, repo) 或 None
+        """
+        # SSH 格式: git@github.com:user/repo.git 或 git@github-label:user/repo.git
+        ssh_pattern = r'git@([^:]+):([^/]+)/(.+?)(?:\.git)?$'
+        match = re.match(ssh_pattern, url)
+        if match:
+            hostname, user, repo = match.groups()
+            # 提取平台名称（去除可能的标签后缀）
+            # github-365tools -> github
+            # github.com -> github
+            if '-' in hostname:
+                platform = hostname.split('-')[0]
+            else:
+                platform = hostname.split('.')[0]
+            return (platform, user, repo)
+        
+        # HTTPS 格式: https://github.com/user/repo.git
+        https_pattern = r'https?://([^/]+)/([^/]+)/(.+?)(?:\.git)?$'
+        match = re.match(https_pattern, url)
+        if match:
+            hostname, user, repo = match.groups()
+            platform = hostname.split('.')[0]
+            return (platform, user, repo)
+        
+        return None
+    
     # ------------------------------------------------------------------------
     # 辅助方法
     # ------------------------------------------------------------------------
@@ -1083,8 +1469,14 @@ def create_parser() -> argparse.ArgumentParser:
         epilog="""
 示例:
   sshm list                                           # 查看所有密钥
-  sshm add github email@example.com -H github.com     # 创建 github 密钥
+  sshm add github email@example.com                   # 创建 github 密钥
   sshm switch github                                  # 切换到 github 密钥
+  sshm use github                                     # 为当前仓库配置使用 github 密钥
+  sshm use work -p ~/project                          # 为指定仓库配置使用 work 密钥
+  sshm info                                           # 查看当前仓库配置信息
+  sshm test                                           # 测试当前仓库 SSH 连接
+  sshm test github                                    # 测试指定密钥连接
+  sshm test --all                                     # 测试所有密钥连接
   sshm --help                                         # 查看完整帮助
 """
     )
@@ -1137,6 +1529,28 @@ def create_parser() -> argparse.ArgumentParser:
     rename_parser.add_argument('-t', '--type', choices=SUPPORTED_KEY_TYPES,
                              default=DEFAULT_KEY_TYPE, help='密钥类型')
     
+    # use 命令
+    use_parser = subparsers.add_parser('use', help='为当前 Git 仓库配置指定密钥')
+    use_parser.add_argument('label', help='密钥标签')
+    use_parser.add_argument('-p', '--path', default='.', 
+                          help='Git 仓库路径（默认当前目录）')
+    use_parser.add_argument('-y', '--yes', action='store_true',
+                          help='跳过确认直接执行')
+    
+    # info 命令
+    info_parser = subparsers.add_parser('info', help='显示 Git 仓库配置信息')
+    info_parser.add_argument('-p', '--path', default='.', 
+                           help='Git 仓库路径（默认当前目录）')
+    
+    # test 命令
+    test_parser = subparsers.add_parser('test', help='测试 SSH 连接')
+    test_parser.add_argument('label', nargs='?', 
+                           help='密钥标签（不指定则测试当前仓库配置）')
+    test_parser.add_argument('-p', '--path', default='.', 
+                           help='Git 仓库路径（默认当前目录）')
+    test_parser.add_argument('-a', '--all', action='store_true',
+                           help='测试所有密钥')
+    
     return parser
 
 
@@ -1187,6 +1601,15 @@ def main():
         
         elif args.command == 'rename':
             manager.rename_tag(args.old_label, args.new_label, args.type)
+        
+        elif args.command == 'use':
+            manager.use_key_for_repo(args.label, args.path, args.yes)
+        
+        elif args.command == 'info':
+            manager.show_repo_info(args.path)
+        
+        elif args.command == 'test':
+            manager.test_connection(args.label, args.all, args.path)
     
     except KeyboardInterrupt:
         print("\n\n⚠️  操作已取消")

@@ -1,6 +1,6 @@
 # 开发者文档
 
-> SSH Key Manager v2.0.1 - 开发、构建和维护指南
+> SSH Key Manager v2.1.0 - 开发、构建和维护指南
 
 ## 📋 目录
 
@@ -21,7 +21,7 @@
 ssh_manager.py (890 行)
 │
 ├── 📦 常量定义
-│   ├── VERSION = "2.0.1"
+│   ├── VERSION = "2.1.0"
 │   ├── SUPPORTED_KEY_TYPES = ['ed25519', 'rsa', 'ecdsa', 'dsa']
 │   └── 其他配置常量
 │
