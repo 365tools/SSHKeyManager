@@ -40,12 +40,12 @@ jobs:
       - name: Build with PyInstaller (Windows)
         if: matrix.os == 'windows-latest'
         run: |
-          pyinstaller --onefile --name sshm --icon=NONE --console ssh_manager.py
+          pyinstaller --onefile --name sshm --icon=NONE --console --paths src src/run_sshm.py
 
       - name: Build with PyInstaller (Unix)
         if: matrix.os != 'windows-latest'
         run: |
-          pyinstaller --onefile --name sshm --console ssh_manager.py
+          pyinstaller --onefile --name sshm --console --paths src src/run_sshm.py
 
       - name: Test executable (Windows)
         if: matrix.os == 'windows-latest'

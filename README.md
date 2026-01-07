@@ -86,22 +86,32 @@ sudo mv sshm /usr/local/bin/
 sshm list
 ```
 
-### 方式 2：从源码安装
+### 方式 2：从源码运行（开发者）
 
 ```bash
 # 克隆仓库
-git clone https://github.com/yourusername/SSHManager.git
+git clone https://github.com/365tools/SSHKeyManager.git
 cd SSHManager
 
-# Windows 用户：直接使用（推荐添加到 PATH）
-.\sshm list
-
-# Linux/macOS 用户：赋予执行权限
-chmod +x sshm.sh
-./sshm.sh list
+# 运行（需要 Python 3.6+）
+python -m sshm list
+python -m sshm add github email@example.com
 ```
 
-> 💡 **提示**：可执行文件无需 Python 环境，开箱即用！
+### 方式 3：本地构建
+
+```bash
+# 安装依赖
+pip install pyinstaller
+
+# 构建可执行文件
+python scripts/build_local.py
+
+# 使用构建的文件
+./dist/sshm list
+```
+
+> 💡 **推荐**：生产环境使用可执行文件，开发环境使用 `python -m sshm`
 
 ### 30 秒上手
 
