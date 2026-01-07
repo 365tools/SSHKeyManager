@@ -7,7 +7,7 @@
 [![Python Version](https://img.shields.io/badge/python-3.6%2B-blue)](https://www.python.org/downloads/)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey)](https://github.com)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Version](https://img.shields.io/badge/version-2.0.0-brightgreen)](https://github.com/yourusername/SSHManager/releases)
+[![Version](https://img.shields.io/badge/version-2.0.1-brightgreen)](https://github.com/yourusername/SSHManager/releases)
 
 [快速开始](#-快速开始) • [功能特性](#-功能特性) • [使用文档](#-使用文档) • [常见问题](#-常见问题) • [开发者文档](docs/DEVELOPER.md)
 
