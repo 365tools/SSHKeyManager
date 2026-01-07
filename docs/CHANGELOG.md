@@ -7,6 +7,36 @@
 
 ---
 
+## [2.0.1] - 2026-01-07
+
+### ✨ 新增功能
+- **交互式菜单环境变量配置** - 新增"添加到环境变量"选项
+  - Windows: 自动修改用户环境变量（无需管理员权限）
+  - Unix/Linux/macOS: 自动写入 shell 配置文件（.bashrc/.zshrc/config.fish）
+  - 智能检测并更新已存在的路径
+  - 支持路径变更时自动覆盖旧配置
+
+### 🐛 Bug 修复
+- 修复 `remove` 命令删除 default 标签时无法指定类型的问题
+- 修复 SSH config 路径在 Windows 下的转义问题（反斜杠 → POSIX 格式）
+- 修复 `rename` 命令未同步更新 SSH config 别名的问题
+- 修复 GitHub Actions release 权限和参数错误（403 错误）
+
+### 🔧 改进优化
+- **密钥列表显示优化** - 新增"别名"字段，直接显示 SSH config 使用方式
+  ```
+  别名: git@github-365tools:user/repo.git
+  ```
+- **多类型密钥管理** - `remove` 命令支持 `--type` 参数按类型删除
+  ```bash
+  # 只删除 DEFAULT 标签下的 ed25519 密钥
+  sshm remove default --type ed25519
+  ```
+- **自动 SSH config 别名管理** - switch/rename/remove 操作自动同步更新
+- **文档结构优化** - 合并散乱文档，建立清晰的三文档体系
+
+---
+
 ## [2.0.0] - 2026-01-07
 
 ### 🎉 重大更新
