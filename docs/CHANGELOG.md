@@ -205,6 +205,6 @@ def __init__(self, ssh_dir: Optional[Path] = None):
 
 ## 支持与反馈
 
-- 📫 报告问题：[GitHub Issues](https://github.com/yourusername/SSHManager/issues)
-- 💬 功能建议：[GitHub Discussions](https://github.com/yourusername/SSHManager/discussions)
+- 📫 报告问题：[GitHub Issues](https://github.com/365tools/SSHKeyManager/issues)
+- 💬 功能建议：[GitHub Discussions](https://github.com/365tools/SSHKeyManager/discussions)
 - 📖 文档：[README.md](README.md) / [DEVELOPER.md](DEVELOPER.md)
