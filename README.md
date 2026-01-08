@@ -7,7 +7,7 @@
 [![Python Version](https://img.shields.io/badge/python-3.6%2B-blue)](https://www.python.org/downloads/)
 [![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey)](https://github.com)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Version](https://img.shields.io/badge/version-2.1.0-brightgreen)](https://github.com/yourusername/SSHManager/releases)
+[![Version](https://img.shields.io/badge/version-2.1.0-brightgreen)](https://github.com/365tools/SSHKeyManager/releases)
 
 [快速开始](#-快速开始) • [功能特性](#-功能特性) • [使用文档](#-使用文档) • [常见问题](#-常见问题) • [开发者文档](docs/DEVELOPER.md)
 
@@ -69,7 +69,7 @@ sshm list
 **Linux**
 ```bash
 # 下载 sshm-linux-amd64
-wget https://github.com/yourusername/SSHManager/releases/latest/download/sshm-linux-amd64
+wget https://github.com/365tools/SSHKeyManager/releases/latest/download/sshm-linux-amd64
 chmod +x sshm-linux-amd64
 sudo mv sshm-linux-amd64 /usr/local/bin/sshm
 
@@ -79,7 +79,7 @@ sshm list
 **macOS**
 ```bash
 # 下载 sshm-macos-amd64
-curl -L -o sshm https://github.com/yourusername/SSHManager/releases/latest/download/sshm-macos-amd64
+curl -L -o sshm https://github.com/365tools/SSHKeyManager/releases/latest/download/sshm-macos-amd64
 chmod +x sshm
 sudo mv sshm /usr/local/bin/
 

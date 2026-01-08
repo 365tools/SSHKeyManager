@@ -387,9 +387,9 @@ def test_list_keys():
 ## 🔗 相关链接
 
 - [主文档](README.md) - 用户使用手册
-- [GitHub Releases](https://github.com/yourusername/SSHManager/releases) - 下载最新版本
-- [GitHub Issues](https://github.com/yourusername/SSHManager/issues) - 报告问题
-- [GitHub Actions](https://github.com/yourusername/SSHManager/actions) - CI/CD 状态
+- [GitHub Releases](https://github.com/365tools/SSHKeyManager/releases) - 下载最新版本
+- [GitHub Issues](https://github.com/365tools/SSHKeyManager/issues) - 报告问题
+- [GitHub Actions](https://github.com/365tools/SSHKeyManager/actions) - CI/CD 状态
 
 ---
 

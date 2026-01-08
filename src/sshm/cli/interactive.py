@@ -108,5 +108,5 @@ SSH Key Manager v{VERSION} - 多账号 Git SSH 密钥管理工具
   sshm test --all                                     # 测试所有密钥连接
 
 详细帮助: sshm <command> --help
-项目主页: https://github.com/yourusername/SSHManager
+项目主页: https://github.com/365tools/SSHKeyManager
 """)
