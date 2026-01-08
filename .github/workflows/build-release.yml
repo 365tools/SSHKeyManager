@@ -97,12 +97,11 @@ jobs:
         with:
           tag_name: ${{ github.ref_name }}
           name: Release ${{ github.ref_name }}
+          generate_release_notes: true  # 自动生成从上一个 tag 的变更记录
           body: |
             ## SSH Key Manager ${{ github.ref_name }}
             
-            ### 🎉 新版本发布！
-            
-            #### 📦 下载说明
+            ### 📦 下载说明
             
             **Windows 用户**
             - 下载 `sshm-windows-amd64.exe`
@@ -150,8 +149,6 @@ jobs:
             查看完整文档：[README.md](https://github.com/${{ github.repository }}/blob/main/README.md)
             
             ---
-            
-            **完整更新日志** 请查看 [CHANGELOG.md](https://github.com/${{ github.repository }}/blob/main/docs/CHANGELOG.md)
           draft: false
           prerelease: false
           files: |
