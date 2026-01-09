@@ -39,11 +39,11 @@ def create_parser() -> argparse.ArgumentParser:
     list_parser.add_argument('-a', '--all', action='store_true',
                             help='显示公钥内容')
     
-    # back 命令
-    subparsers.add_parser('back', help='备份所有 SSH 密钥')
+    # backup 命令
+    subparsers.add_parser('backup', help='备份所有 SSH 密钥到归档')
     
     # backups 命令
-    subparsers.add_parser('backups', help='列出所有备份')
+    subparsers.add_parser('backups', help='列出所有备份归档')
     
     # add 命令
     add_parser = subparsers.add_parser('add', help='创建新的 SSH 密钥')
@@ -66,7 +66,7 @@ def create_parser() -> argparse.ArgumentParser:
                               help='指定删除的密钥类型（默认删除所有类型）')
     
     # tag 命令
-    tag_parser = subparsers.add_parser('tag', help='给默认密钥添加标签')
+    tag_parser = subparsers.add_parser('tag', help='将当前默认密钥另存为指定标签')
     tag_parser.add_argument('label', help='新标签名')
     tag_parser.add_argument('-t', '--type', choices=SUPPORTED_KEY_TYPES,
                           help='密钥类型（默认自动检测）')
