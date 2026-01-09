@@ -101,49 +101,37 @@ jobs:
           body: |
             ## SSH Key Manager ${{ github.ref_name }}
             
-            ### 📦 下载说明
+            ### 🚀 快速安装
             
             **Windows 用户**
-            - 下载 `sshm-windows-amd64.exe`
-            - 重命名为 `sshm.exe`（可选）
-            - 双击运行或在 CMD/PowerShell 中使用
             
-            **Linux 用户**
-            ```bash
-            # 下载
-            wget https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/sshm-linux-amd64
-            
-            # 赋予执行权限
-            chmod +x sshm-linux-amd64
-            
-            # 移动到系统路径（可选）
-            sudo mv sshm-linux-amd64 /usr/local/bin/sshm
-            
-            # 使用
-            sshm --help
+            ```powershell
+            # 一键安装脚本
+            irm https://raw.githubusercontent.com/365tools/SSHKeyManager/main/scripts/install.ps1 | iex
             ```
             
-            **macOS 用户**
+            **Linux / macOS 用户**
+            
             ```bash
-            # 下载
-            curl -LO https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/sshm-macos-amd64
-            
-            # 赋予执行权限
-            chmod +x sshm-macos-amd64
-            
-            # 移动到系统路径（可选）
-            sudo mv sshm-macos-amd64 /usr/local/bin/sshm
-            
-            # 使用
-            sshm --help
+            # 一键安装脚本
+            curl -fsSL https://raw.githubusercontent.com/365tools/SSHKeyManager/main/scripts/install.sh | bash
             ```
             
-            #### ✨ 功能特性
-            - 多账号 SSH 密钥管理
-            - 自动维护 SSH config
-            - 一键切换密钥
-            - 自动备份保护
-            - 跨平台支持
+            ### 📦 手动下载
+            
+            如果您无法访问在线安装脚本，可以直接下载下方 Asset 中的文件：
+            
+            - **Windows**: 下载 `sshm-windows-amd64.exe` (双击即可使用)
+            - **Linux**: 下载 `sshm-linux-amd64`
+            - **macOS**: 下载 `sshm-macos-amd64`
+            
+            #### ✨ 核心功能
+            - **🏷️ 多账号管理**：标签化管理无限个 SSH 密钥
+            - **🤖 智能仓库配置**：自动识别 Git 仓库并配置专用密钥
+            - **🔄 一键切换**：快速切换全局默认身份
+            - **⚙️ 自动配置**：自动生成和维护 SSH Connect 配置
+            - **🛡️ 安全备份**：操作前自动备份，安全无忧
+            - **🖥️ 交互界面**：提供图形化菜单和命令行双模式
             
             #### 📝 使用文档
             查看完整文档：[README.md](https://github.com/${{ github.repository }}/blob/main/README.md)
