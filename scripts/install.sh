@@ -62,38 +62,30 @@ uninstall_sshm() {
     info "================================="
     echo ""
     
-    SSHM_PATH="$INSTALL_DIR/sshm"
-    PLATFORM_FILE=""
+    # 定义需要清理的文件列表 (覆盖所有可能平台的二进制文件名)
+    FILES_TO_REMOVE=(
+        "$INSTALL_DIR/sshm"
+        "$INSTALL_DIR/sshm-linux-amd64"
+        "$INSTALL_DIR/sshm-macos-amd64"
+    )
     
-    # 检测平台
-    OS="$(uname -s)"
-    case "$OS" in
-        Linux*)     PLATFORM_FILE="$INSTALL_DIR/sshm-linux-amd64";;
-        Darwin*)    PLATFORM_FILE="$INSTALL_DIR/sshm-macos-amd64";;
-    esac
+    SUMMARY_DELETED=0
     
-    # 删除文件
-    if [ -f "$SSHM_PATH" ]; then
-        if [ -w "$INSTALL_DIR" ]; then
-            rm -f "$SSHM_PATH"
-            success "✅ 已删除: $SSHM_PATH"
-        else
-            sudo rm -f "$SSHM_PATH"
-            success "✅ 已删除: $SSHM_PATH (需要 sudo)"
+    for FILE in "${FILES_TO_REMOVE[@]}"; do
+        if [ -f "$FILE" ]; then
+            if [ -w "$INSTALL_DIR" ]; then
+                rm -f "$FILE"
+                success "✅ 已删除: $FILE"
+            else
+                sudo rm -f "$FILE"
+                success "✅ 已删除: $FILE (需要 sudo)"
+            fi
+            SUMMARY_DELETED=$((SUMMARY_DELETED + 1))
         fi
-    else
-        warning "⚠️  未找到: $SSHM_PATH"
-    fi
+    done
     
-    # 删除平台标识文件（如果存在）
-    if [ -f "$PLATFORM_FILE" ]; then
-        if [ -w "$INSTALL_DIR" ]; then
-            rm -f "$PLATFORM_FILE"
-            success "✅ 已删除: $PLATFORM_FILE"
-        else
-            sudo rm -f "$PLATFORM_FILE"
-            success "✅ 已删除: $PLATFORM_FILE (需要 sudo)"
-        fi
+    if [ $SUMMARY_DELETED -eq 0 ]; then
+        warning "⚠️  未在 $INSTALL_DIR 发现任何 SSH Manager 相关文件"
     fi
     
     echo ""

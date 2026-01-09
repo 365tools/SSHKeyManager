@@ -33,7 +33,7 @@ irm https://raw.githubusercontent.com/365tools/SSHKeyManager/main/scripts/instal
 powershell -ExecutionPolicy Bypass -File .\scripts\install.ps1
 
 # 方式 3: 指定版本
-.\scripts\install.ps1 -Version v2.1.0
+.\scripts\install.ps1 -Version v2.1.1
 
 # 方式 4: 自定义安装路径
 .\scripts\install.ps1 -InstallDir "C:\Tools\sshm"
@@ -62,7 +62,7 @@ curl -fsSL https://raw.githubusercontent.com/365tools/SSHKeyManager/main/scripts
 bash scripts/install.sh
 
 # 方式 3: 指定版本
-bash scripts/install.sh --version v2.1.0
+bash scripts/install.sh --version v2.1.1
 
 # 方式 4: 自定义安装路径
 bash scripts/install.sh --install-dir ~/.local/bin
@@ -85,7 +85,7 @@ bash scripts/install.sh --uninstall
 
 | 参数 | 说明 | 默认值 | 示例 |
 |------|------|--------|------|
-| `-Version` | 安装版本 | `latest` | `-Version v2.1.0` |
+| `-Version` | 安装版本 | `latest` | `-Version v2.1.1` |
 | `-InstallDir` | 安装目录 | `$env:LOCALAPPDATA\Programs\sshm` | `-InstallDir "C:\Tools\sshm"` |
 | `-NoAddPath` | 不添加到 PATH | `false` | `-NoAddPath` |
 | `-Uninstall` | 卸载模式 | `false` | `-Uninstall` |
@@ -94,7 +94,7 @@ bash scripts/install.sh --uninstall
 
 | 参数 | 说明 | 默认值 | 示例 |
 |------|------|--------|------|
-| `--version` | 安装版本 | `latest` | `--version v2.1.0` |
+| `--version` | 安装版本 | `latest` | `--version v2.1.1` |
 | `--install-dir` | 安装目录 | `/usr/local/bin` | `--install-dir ~/.local/bin` |
 | `--no-add-path` | 不添加到 PATH | `false` | `--no-add-path` |
 | `--uninstall` | 卸载模式 | `false` | `--uninstall` |

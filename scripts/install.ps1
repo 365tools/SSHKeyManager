@@ -13,8 +13,10 @@
 .PARAMETER Uninstall
     卸载模式
 .EXAMPLE
-    # 安装
+    # 安装 (默认安装最新版)
     .\install.ps1
+    
+    # 安装指定版本
     .\install.ps1 -Version v2.1.0
     
     # 卸载

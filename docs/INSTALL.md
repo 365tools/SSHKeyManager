@@ -29,10 +29,10 @@ powershell -ExecutionPolicy Bypass -File .\scripts\install.ps1
 **自定义安装**
 ```powershell
 # 指定版本安装
-powershell -ExecutionPolicy Bypass -File .\install.ps1 -Version v2.1.0
+powershell -ExecutionPolicy Bypass -File .\install.ps1 -Version v2.1.1
 
 # 指定版本安装
-powershell -ExecutionPolicy Bypass -File install.ps1 -Version v2.1.0
+powershell -ExecutionPolicy Bypass -File install.ps1 -Version v2.1.1
 
 # 指定安装目录
 powershell -ExecutionPolicy Bypass -File .\install.ps1 -InstallDir "C:\Tools\sshm"
@@ -58,7 +58,7 @@ chmod +x install.sh
 ./install.sh
 
 # 指定版本安装
-./install.sh --version v2.1.0
+./install.sh --version v2.1.1
 
 # 指定安装目录
 ./install.sh --install-dir ~/.local/bin
@@ -216,7 +216,7 @@ stage('Install sshm') {
 
 | 参数 | 类型 | 说明 | 示例 |
 |------|------|------|------|
-| `-Version` | String | 指定版本 | `-Version v2.1.0` |
+| `-Version` | String | 指定版本 | `-Version v2.1.1` |
 | `-InstallDir` | String | 安装目录 | `-InstallDir "C:\Tools"` |
 | `-NoAddPath` | Switch | 不添加到 PATH | `-NoAddPath` |
 | `-Uninstall` | Switch | 卸载 | `-Uninstall` |
@@ -225,7 +225,7 @@ stage('Install sshm') {
 
 | 参数 | 类型 | 说明 | 示例 |
 |------|------|------|------|
-| `--version` | String | 指定版本 | `--version v2.1.0` |
+| `--version` | String | 指定版本 | `--version v2.1.1` |
 | `--install-dir` | String | 安装目录 | `--install-dir ~/.local/bin` |
 | `--no-add-path` | Flag | 不添加到 PATH | `--no-add-path` |
 | `--uninstall` | Flag | 卸载 | `--uninstall` |
