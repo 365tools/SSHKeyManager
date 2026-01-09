@@ -17,7 +17,7 @@ def handle_command(args):
         if args.command == 'list':
             manager.list_keys(show_content=args.all)
         
-        elif args.command == 'back':
+        elif args.command == 'backup':
             manager.backup_keys()
         
         elif args.command == 'backups':
