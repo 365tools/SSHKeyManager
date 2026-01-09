@@ -26,6 +26,8 @@ def create_parser() -> argparse.ArgumentParser:
   sshm test                                           # 测试当前仓库 SSH 连接
   sshm test github                                    # 测试指定密钥连接
   sshm test --all                                     # 测试所有密钥连接
+  sshm update                                         # 更新到最新版本
+  sshm update --check                                 # 仅检查是否有更新
   sshm --help                                         # 查看完整帮助
 """
     )
@@ -99,5 +101,12 @@ def create_parser() -> argparse.ArgumentParser:
                            help='Git 仓库路径（默认当前目录）')
     test_parser.add_argument('-a', '--all', action='store_true',
                            help='测试所有密钥')
+    
+    # update 命令
+    update_parser = subparsers.add_parser('update', help='检查并更新到最新版本')
+    update_parser.add_argument('--check', action='store_true',
+                             help='仅检查更新，不执行更新')
+    update_parser.add_argument('--force', action='store_true',
+                             help='强制检查，忽略缓存')
     
     return parser
