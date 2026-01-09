@@ -15,6 +15,7 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from sshm.cli.parser import create_parser
 from sshm.cli.commands import handle_command
 from sshm.cli.interactive import show_interactive_menu
+from sshm.utils.updater import UpdateManager
 
 
 def main():
@@ -31,6 +32,15 @@ def main():
     if not args.command:
         parser.print_help()
         return
+    
+    # 非 update 命令时，静默检查更新（不干扰用户）
+    if args.command != 'update':
+        try:
+            updater = UpdateManager()
+            updater.check_and_notify()
+        except:
+            # 静默失败，不影响正常使用
+            pass
     
     # 处理命令
     handle_command(args)
