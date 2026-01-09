@@ -37,21 +37,21 @@ def show_interactive_menu():
     
     while True:
         print("\n请选择操作：")
-        print("  [1] 查看所有密钥 (list)")
-        print("  [2] 创建新密钥 (add)")
-        print("  [3] 切换默认密钥 (switch)")
-        print("  [4] 删除密钥 (remove)")
-        print("  [5] 备份所有密钥 (backup)")
-        print("  [6] 查看备份列表 (backups)")
-        print("  [7] 将默认密钥另存为标签 (tag)")
-        print("  [8] 重命名标签 (rename)")
-        print("  [9] 配置仓库密钥 (use)")
+        print("  [01] 查看所有密钥 (list)")
+        print("  [02] 创建新密钥 (add)")
+        print("  [03] 切换默认密钥 (switch)")
+        print("  [04] 删除密钥 (remove)")
+        print("  [05] 备份所有密钥 (backup)")
+        print("  [06] 查看备份列表 (backups)")
+        print("  [07] 将默认密钥另存为标签 (tag)")
+        print("  [08] 重命名标签 (rename)")
+        print("  [09] 配置仓库密钥 (use)")
         print("  [10] 查看当前配置 (info)")
         print("  [11] 测试连接 (test)")
         print("  [12] 检查更新 (update)")
         print("  [13] 添加到环境变量 (PATH)")
         print("  [14] 查看完整帮助")
-        print("  [Q] 退出")
+        print("  [Q]  退出")
         
         print("\n请输入选项: ", end='', flush=True)
         
@@ -62,10 +62,10 @@ def show_interactive_menu():
         
         try:
             # 处理选项
-            if choice == '1':
+            if choice in ['1', '01']:
                 manager.list_keys(show_content=False)
                 
-            elif choice == '2':
+            elif choice in ['2', '02']:
                 print("--- 创建新密钥 ---")
                 label = get_input("请输入密钥标签 (如: github, work): ")
                 email = get_input("请输入邮箱地址: ")
@@ -76,33 +76,33 @@ def show_interactive_menu():
                 
                 manager.add_key(label, email, ktype, host if host else None)
                 
-            elif choice == '3':
+            elif choice in ['3', '03']:
                 print("--- 切换默认密钥 ---")
                 manager.list_keys(show_content=False)
                 print()
                 label = get_input("请输入要切换到的标签: ")
                 manager.switch_key(label)
                 
-            elif choice == '4':
+            elif choice in ['4', '04']:
                 print("--- 删除密钥 ---")
                 manager.list_keys(show_content=False)
                 print()
                 label = get_input("请输入要删除的标签: ")
                 manager.remove_key(label)
                 
-            elif choice == '5':
+            elif choice in ['5', '05']:
                 manager.backup_keys()
                 
-            elif choice == '6':
+            elif choice in ['6', '06']:
                 manager.list_backups()
                 
-            elif choice == '7':
+            elif choice in ['7', '07']:
                 print("--- 另存为标签 ---")
                 label = get_input("请输入新标签名: ")
                 switch = input("添加后是否立即切换? [y/N]: ").lower() == 'y'
                 manager.tag_key(None, label, switch)
                 
-            elif choice == '8':
+            elif choice in ['8', '08']:
                 print("--- 重命名标签 ---")
                 manager.list_keys(show_content=False)
                 print()
@@ -110,7 +110,7 @@ def show_interactive_menu():
                 new_label = get_input("请输入新标签名: ")
                 manager.rename_tag(old_label, new_label)
             
-            elif choice == '9':
+            elif choice in ['9', '09']:
                 print("--- 配置仓库密钥 ---")
                 manager.list_keys(show_content=False)
                 print()
