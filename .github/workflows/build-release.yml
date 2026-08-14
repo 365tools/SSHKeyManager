@@ -1,0 +1,168 @@
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - 'v*'  # 当推送 v* 标签时触发（如 v1.0.0）
+  workflow_dispatch:  # 允许手动触发
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            artifact_name: sshm.exe
+            asset_name: sshm-windows-amd64.exe
+          - os: ubuntu-latest
+            artifact_name: sshm
+            asset_name: sshm-linux-amd64
+          - os: macos-latest
+            artifact_name: sshm
+            asset_name: sshm-macos-amd64
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller
+
+      - name: Build with PyInstaller (Windows)
+        if: matrix.os == 'windows-latest'
+        run: pyinstaller --onefile --name sshm --icon=NONE --console --paths src src/run_sshm.py
+
+      - name: Build with PyInstaller (Unix)
+        if: matrix.os != 'windows-latest'
+        run: pyinstaller --onefile --name sshm --icon=NONE --console --paths src src/run_sshm.py
+
+      - name: Test executable (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          .\dist\sshm.exe --help
+
+      - name: Test executable (Unix)
+        if: matrix.os != 'windows-latest'
+        run: |
+          chmod +x ./dist/sshm
+          ./dist/sshm --help
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.asset_name }}
+          path: dist/${{ matrix.artifact_name }}
+
+  release:
+    name: Create Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    permissions:
+      contents: write  # 允许创建 release
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Prepare release files
+        run: |
+          mkdir -p release
+          # 遍历所有构建产物，按产物名生成 release 资产（无需逐个硬编码，增删平台自动适配）
+          for dir in artifacts/*/; do
+            name="$(basename "$dir")"
+            cp "${dir}"* "release/$name"
+          done
+          ls -lh release/
+
+      - name: Prepare release body
+        id: release_body
+        run: |
+          VER="${GITHUB_REF_NAME#v}"
+          # 1) 静态头部（安装说明 + 功能简介）
+          cat > body.md <<'BODY'
+          ## sshm ${{ github.ref_name }}
+
+          ### 🚀 快速安装
+
+          **Windows 用户**
+
+          ```powershell
+          # 一键安装脚本
+          irm https://raw.githubusercontent.com/eavelabs/sshm/main/scripts/install.ps1 | iex
+          ```
+
+          **Linux / macOS 用户**
+
+          ```bash
+          # 一键安装脚本
+          curl -fsSL https://raw.githubusercontent.com/eavelabs/sshm/main/scripts/install.sh | bash
+          ```
+
+          > 💡 **`sshm` 显示旧版本 / 运行报错？** 可能是 PATH 残留了旧目录，重装并加清理参数：
+          > - **Windows**: `powershell -File install.ps1 -CleanPath`
+          > - **Linux/macOS**: `bash install.sh --clean-path`
+          > 清理后请重新打开终端。
+
+          ### 📦 手动下载
+
+          如果您无法访问在线安装脚本，可以直接下载下方 Asset 中的文件：
+
+          - **Windows**: 下载 `sshm-windows-amd64.exe` (双击即可使用)
+          - **Linux**: 下载 `sshm-linux-amd64`
+          - **macOS**: 下载 `sshm-macos-amd64`
+
+          #### ✨ 核心功能
+          - **🏷️ 多账号管理**：标签化管理无限个 SSH 密钥
+          - **🤖 智能仓库配置**：自动识别 Git 仓库并配置专用密钥
+          - **🔄 一键切换**：快速切换全局默认身份
+          - **⚙️ 自动配置**：自动生成和维护 SSH Connect 配置
+          - **🛡️ 安全备份**：操作前自动备份，安全无忧
+          - **🖥️ 交互界面**：提供图形化菜单和命令行双模式
+
+          #### 📝 使用文档
+          查看完整文档：[README.md](https://github.com/${{ github.repository }}/blob/main/README.md)
+
+          ---
+          BODY
+          # 2) 追加当前版本对应的 CHANGELOG 段落（存在时）
+          awk -v ver="[$VER]" '/^## / { if (shown) exit; if (index($0, "## " ver) == 1) shown = 1 } shown { print }' docs/CHANGELOG.md > /tmp/chg.md
+          if [ -s /tmp/chg.md ]; then
+            printf '\n### 📋 本次更新（CHANGELOG）\n\n' >> body.md
+            cat /tmp/chg.md >> body.md
+          fi
+          # 3) 导出为多行输出（body）
+          echo "body<<EOF" >> "$GITHUB_OUTPUT"
+          cat body.md >> "$GITHUB_OUTPUT"
+          echo "EOF" >> "$GITHUB_OUTPUT"
+
+      - name: Create Release
+        id: create_release
+        uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          generate_release_notes: true  # 自动生成从上一个 tag 的 commit 记录，追加在 body 之后
+          body: ${{ steps.release_body.outputs.body }}
+          draft: false
+          prerelease: false
+          files: |
+            release/sshm-windows-amd64.exe
+            release/sshm-linux-amd64
+            release/sshm-macos-amd64
