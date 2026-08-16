@@ -124,7 +124,9 @@ def check_pytest() -> tuple[bool, str]:
 
 def check_pyright() -> tuple[bool, str]:
     """类型检查：basedpyright 0 error / 0 warning / 0 note。"""
-    ok, detail = _run(sys.executable, '-m', 'basedpyright')
+    # 显式指定解释器：避免 basedpyright 自动探测到空/损坏的 .venv 而解析不到依赖
+    ok, detail = _run(sys.executable, '-m', 'basedpyright',
+                      '--pythonpath', sys.executable)
     return ok, detail
 
 

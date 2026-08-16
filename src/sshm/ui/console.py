@@ -22,32 +22,38 @@ except ImportError:  # pragma: no cover - wcwidth 为正式依赖，缺失时降
 def setup_windows_console() -> None:
     """修复 Windows 控制台 UTF-8 编码问题。
 
-    设置控制台代码页为 UTF-8，并重新包装 stdout/stderr 为 UTF-8 编码，
-    以支持 emoji 输出。注意：必须在任何 Typer/click 输出之前完成。
+    设置控制台代码页为 UTF-8，并正确处理 stdout/stderr 编码：
+    - tty（真实控制台）：切换为 UTF-8，配合 SetConsoleOutputCP(65001)，
+      中文与 emoji 均正确显示；
+    - 非 tty（管道/重定向）：保留系统编码（如 GBK，管道消费方可读中文），
+      仅放宽 errors='replace'，使 emoji 等无法编码的字符替换为 '?' 而非崩溃。
+
+    通过 `reconfigure` 原地修改现有流对象（而非替换），避免破坏 pytest
+    捕获等场景；流对象不支持 reconfigure 时自动跳过。必须在任何输出之前完成。
     """
     if sys.platform != 'win32':
         return
 
     try:
         import ctypes
-        import io
         kernel32 = ctypes.windll.kernel32
         # 设置控制台代码页为 UTF-8 (65001)
         kernel32.SetConsoleOutputCP(65001)
         kernel32.SetConsoleCP(65001)
-
-        # 仅当 stdout/stderr 是真实交互控制台时才重新包装，
-        # 避免在测试（pytest 捕获）等非 tty 环境下破坏输出对象。
-        if hasattr(sys.stdout, 'buffer') and getattr(sys.stdout, 'isatty', lambda: False)():
-            sys.stdout = io.TextIOWrapper(
-                sys.stdout.buffer, encoding='utf-8', errors='replace',
-                line_buffering=True, write_through=True)
-        if hasattr(sys.stderr, 'buffer') and getattr(sys.stderr, 'isatty', lambda: False)():
-            sys.stderr = io.TextIOWrapper(
-                sys.stderr.buffer, encoding='utf-8', errors='replace',
-                line_buffering=True, write_through=True)
     except Exception:
-        pass  # 静默失败
+        pass  # 静默失败（如无 ctypes / 控制台句柄异常）
+
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, 'reconfigure', None)
+        if reconfigure is None:
+            continue
+        try:
+            if getattr(stream, 'isatty', lambda: False)():
+                reconfigure(encoding='utf-8', errors='replace')
+            else:
+                reconfigure(errors='replace')
+        except Exception:
+            pass  # 静默失败（如流不支持该操作）
 
 
 def get_key_pattern() -> re.Pattern[str]:

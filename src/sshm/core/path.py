@@ -9,7 +9,7 @@ import sys
 from pathlib import Path
 
 from ..i18n import _
-from .console import print_section_header, prompt_confirm
+from ..ui.console import print_section_header, prompt_confirm
 
 
 def add_to_path() -> None:

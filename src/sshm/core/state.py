@@ -5,8 +5,9 @@
 """
 
 import json
+import os
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Optional
 
 
 class StateManager:
@@ -17,14 +18,20 @@ class StateManager:
 
     def __init__(self, state_file: Path):
         self.state_file = state_file
+        # 进程内缓存：CLI 单进程场景下避免每个操作都重读磁盘
+        self._cache: Optional[dict] = None
 
     def _read_state(self) -> dict:
-        """读取完整状态文件（兼容旧格式）"""
+        """读取完整状态文件（兼容旧格式），带进程内缓存"""
+        if self._cache is not None:
+            return self._cache
         if not self.state_file.exists():
-            return {}
+            self._cache = {}
+            return self._cache
         try:
             data = json.loads(self.state_file.read_text(encoding='utf-8'))
             if isinstance(data, dict):
+                self._cache = data
                 return data
         except (json.JSONDecodeError, IOError):
             # 状态文件损坏：备份原文件，避免后续写入静默覆盖丢失数据
@@ -33,11 +40,22 @@ class StateManager:
                 self.state_file.rename(corrupt_backup)
             except OSError:
                 pass
-        return {}
+        self._cache = {}
+        return self._cache
 
     def _write_state(self, state: dict):
-        """写入完整状态文件"""
-        self.state_file.write_text(json.dumps(state, indent=2), encoding='utf-8')
+        """原子写入完整状态文件（临时文件 + os.replace，避免崩溃/断电损坏）"""
+        self._cache = state
+        tmp = self.state_file.with_suffix('.state.tmp')
+        try:
+            tmp.write_text(json.dumps(state, indent=2), encoding='utf-8')
+            os.replace(tmp, self.state_file)
+        finally:
+            try:
+                if tmp.exists():
+                    tmp.unlink()
+            except OSError:
+                pass
 
     # ------------------------------------------------------------------
     # active_keys 相关

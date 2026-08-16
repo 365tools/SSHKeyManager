@@ -385,6 +385,7 @@ KEYS: Tuple[str, ...] = (
     'err.no_backups_restore',
     'err.use_backup_cmd',
     'err.backup_not_found',
+    'err.invalid_backup_name',
     'err.use_backups_cmd',
     'err.no_recoverable',
     'err.delete_default',

@@ -7,9 +7,8 @@
 from ..constants import VERSION, DEFAULT_KEY_TYPE
 from ..core import SSHKeyManager
 from ..i18n import _
-from ..utils import print_separator, print_section_header, wait_for_key
-from ..utils.system import add_to_path
-from ..utils.updater import UpdateManager
+from ..ui.console import print_separator, print_section_header, wait_for_key
+from ..core.updater import UpdateManager
 
 
 def get_input(prompt: str, required: bool = True) -> str:
@@ -192,7 +191,7 @@ def show_interactive_menu() -> None:
                     print("\n✅ " + _("upd.up_to_date"))
 
             elif choice == '15':
-                add_to_path()
+                manager.add_to_path()
 
             elif choice == '16':
                 show_help()
@@ -217,10 +216,13 @@ def show_interactive_menu() -> None:
 def show_help() -> None:
     """显示帮助信息（由 Typer 自动生成，命令清单/示例/参数说明全自动聚合）"""
     import click
+    from typing import cast
     from typer.main import get_command
 
     from .cli import app
     # 通过 Click 命令对象渲染帮助文本（避免依赖 typer.testing 测试工具）
-    cmd = get_command(app)
+    # typer 返回的 Command 带 typer._click 类型桩，与 click 包类型不兼容，
+    # 用 cast 收窄为 click.Command 以满足类型检查（运行时为同一对象）。
+    cmd = cast(click.Command, get_command(app))
     ctx = click.Context(cmd, info_name='sshm')
     print(cmd.get_help(ctx))

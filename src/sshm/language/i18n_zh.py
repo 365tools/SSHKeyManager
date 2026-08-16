@@ -374,6 +374,7 @@ ZH: Dict[str, str] = {
     "err.no_backups_restore": "暂无备份可恢复",
     "err.use_backup_cmd": "使用 'sshm backup' 创建备份",
     "err.backup_not_found": "未找到备份:",
+    "err.invalid_backup_name": "无效的备份名称：{name}",
     "err.use_backups_cmd": "使用 'sshm backups' 查看可用备份",
     "err.no_recoverable": "备份中没有可恢复的密钥文件",
     "err.delete_default": "即将删除默认密钥 ({type})，是否继续？",

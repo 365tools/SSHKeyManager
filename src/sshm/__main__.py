@@ -5,12 +5,14 @@
 """
 
 import sys
+import threading
 from pathlib import Path
 
 from .constants import STATE_FILE_NAME
+from .core.errors import SSHMError
 from .core.state import StateManager
 from .i18n import load_from_state
-from .utils.updater import UpdateManager
+from .core.updater import UpdateManager
 
 def _load_lang_before_parse() -> None:
     """在解析参数/显示帮助前应用语言（环境变量优先于状态文件）"""
@@ -32,14 +34,16 @@ def _silent_update_check() -> None:
 
 
 def _should_silent_check() -> bool:
-    """判断是否需要静默更新检查（排除版本/帮助/更新命令自身）"""
-    if 'update' in sys.argv:
-        return False
-    # 只检查第一个参数（命令行入口）
+    """判断是否需要静默更新检查（排除版本/帮助/更新命令自身）
+
+    仅当首个非选项参数是实际业务命令时才检查；`sshm update` 自身、
+    以及 `-v` / `--help` 等无命令调用均跳过，避免把命令参数里的
+    "update" 字样误判（如 `sshm add my-update-key`）。
+    """
     args = [a for a in sys.argv[1:] if not a.startswith('-')]
     if not args:
         return False  # 无子命令（如 -v / --help / 空）
-    return True
+    return args[0] != 'update'
 
 
 def main() -> None:
@@ -53,13 +57,21 @@ def main() -> None:
         show_interactive_menu()
         return
 
-    # 实际执行业务命令时静默检查更新
+    # 实际执行业务命令时静默检查更新（后台线程，避免网络等待阻塞命令执行）
     if _should_silent_check():
-        _silent_update_check()
+        threading.Thread(target=_silent_update_check, daemon=True).start()
 
-    # 运行 Typer 应用
+    # 运行 Typer 应用（统一捕获业务异常，避免裸 traceback 抛给用户）
     from .cli.cli import app
-    app()
+    try:
+        app()
+    except SSHMError as e:
+        try:
+            print(f"❌ {e}")
+        except UnicodeEncodeError:
+            # 非 tty / GBK 管道场景无法输出 emoji，回退为纯文本
+            print(f"Error: {e}", file=sys.stderr)
+        raise SystemExit(e.exit_code)
 
 
 if __name__ == '__main__':

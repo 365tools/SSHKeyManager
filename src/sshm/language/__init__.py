@@ -20,8 +20,10 @@ from .i18n_language import (
     KEY_GROUPS,
     LanguageDict,
 )
+from .keys import K
 
 __all__ = [
     'EN', 'ZH',
     'KEYS', 'LANGUAGES', 'KEY_GROUPS', 'LanguageDict',
+    'K',
 ]

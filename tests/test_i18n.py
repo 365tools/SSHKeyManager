@@ -126,18 +126,42 @@ def test_supported_languages():
 # --------------------------------------------------------------------------
 
 _SRC_ROOT = Path(__file__).resolve().parent.parent / 'src'
+# 兼容两种写法：_(cmd.list) 字面量 与 _(K.cmd.list) 常量（点号前缀分组）
 _STR_RE = re.compile(r"_\(\s*['\"]([^'\"]+)['\"]")
+_K_RE = re.compile(r"_\(\s*K\.(\w+)\.(\w+)")
 
 
 def _used_keys_from_source() -> frozenset:
-    """扫描 src/sshm 下所有 `_('...')` 调用，提取用到的翻译 key。"""
+    """扫描 src/sshm 下所有 `_('...')` / `_(K.group.rest)` 调用，提取用到的翻译 key。"""
     keys = set()
     for path in _SRC_ROOT.rglob('*.py'):
         if '__pycache__' in path.parts:
             continue
         text = path.read_text(encoding='utf-8')
         keys.update(_STR_RE.findall(text))
+        # K.cmd.list -> 'cmd.list'
+        keys.update(f"{g}.{r}" for g, r in _K_RE.findall(text))
     return frozenset(keys)
+
+
+def _walk_k(ns, collected: set):
+    """递归收集嵌套 K 命名空间的所有叶子值（完整 key 字符串）"""
+    for name, value in vars(ns).items():
+        if isinstance(value, str):
+            collected.add(value)
+        else:
+            _walk_k(value, collected)
+
+
+def test_k_constants_cover_all_keys():
+    """嵌套 K 命名空间覆盖 KEYS 模版全部 key，且无多余（防手写漏同步）"""
+    from sshm.language import K
+    collected: set = set()
+    _walk_k(K, collected)
+    assert collected == set(KEYS), (
+        f"K 与 KEYS 不一致: 缺 {sorted(set(KEYS) - collected)} "
+        f"多 {sorted(collected - set(KEYS))}"
+    )
 
 
 def test_used_keys_are_all_in_template():

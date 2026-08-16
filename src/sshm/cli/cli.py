@@ -12,10 +12,11 @@ import typer
 from ..constants import VERSION, DEFAULT_KEY_TYPE
 from ..core import SSHKeyManager
 from ..i18n import _
+from ..language import K
 
 app = typer.Typer(
     name="sshm",
-    help=_("cmd.app_help"),
+    help=_(K.cmd.app_help),
     add_completion=True,
     no_args_is_help=True,
     rich_markup_mode="rich",
@@ -40,7 +41,7 @@ def _fail_exit(manager: SSHKeyManager) -> None:
 # 密钥管理命令
 # ===========================================================================
 
-@app.command("list", help=_("cmd.list"))
+@app.command("list", help=_(K.cmd.list))
 def cmd_list(
     all: bool = typer.Option(False, "--all", "-a", help=_("opt.all")),
     current: bool = typer.Option(False, "--current", "-c", help=_("opt.current")),
@@ -54,21 +55,21 @@ def cmd_list(
     _fail_exit(manager)
 
 
-@app.command("backup", help=_("cmd.backup"))
+@app.command("backup", help=_(K.cmd.backup))
 def cmd_backup() -> None:
     manager = _manager()
     manager.backup_keys()
     _fail_exit(manager)
 
 
-@app.command("backups", help=_("cmd.backups"))
+@app.command("backups", help=_(K.cmd.backups))
 def cmd_backups() -> None:
     manager = _manager()
     manager.list_backups()
     _fail_exit(manager)
 
 
-@app.command("restore", help=_("cmd.restore"))
+@app.command("restore", help=_(K.cmd.restore))
 def cmd_restore(
     backup: str = typer.Argument(None, help=_("opt.backup_name")),
     type: str = typer.Option(None, "--type", "-t", help=_("opt.type_only")),
@@ -79,7 +80,7 @@ def cmd_restore(
     _fail_exit(manager)
 
 
-@app.command("add", help=_("cmd.add"))
+@app.command("add", help=_(K.cmd.add))
 def cmd_add(
     label: str = typer.Argument(..., help=_("opt.label")),
     email: str = typer.Argument(..., help=_("opt.email")),
@@ -92,7 +93,7 @@ def cmd_add(
     _fail_exit(manager)
 
 
-@app.command("remove", help=_("cmd.remove"))
+@app.command("remove", help=_(K.cmd.remove))
 def cmd_remove(
     label: str = typer.Argument(..., help=_("opt.label")),
     type: str = typer.Option(None, "--type", "-t", help=_("opt.type_all")),
@@ -102,7 +103,7 @@ def cmd_remove(
     _fail_exit(manager)
 
 
-@app.command("tag", help=_("cmd.tag"))
+@app.command("tag", help=_(K.cmd.tag))
 def cmd_tag(
     label: str = typer.Argument(..., help=_("opt.new_label")),
     type: str = typer.Option(None, "--type", "-t", help=_("opt.type_auto")),
@@ -113,7 +114,7 @@ def cmd_tag(
     _fail_exit(manager)
 
 
-@app.command("rename", help=_("cmd.rename"))
+@app.command("rename", help=_(K.cmd.rename))
 def cmd_rename(
     old_label: str = typer.Argument(..., help=_("opt.old_label")),
     new_label: str = typer.Argument(..., help=_("opt.new_label_name")),
@@ -128,7 +129,7 @@ def cmd_rename(
 # Git 仓库命令
 # ===========================================================================
 
-@app.command("use", help=_("cmd.use"))
+@app.command("use", help=_(K.cmd.use))
 def cmd_use(
     label: str = typer.Argument(..., help=_("opt.label")),
     path: str = typer.Option(".", "--path", "-p", help=_("opt.path")),
@@ -150,7 +151,7 @@ def cmd_use(
     _fail_exit(manager)
 
 
-@app.command("clone", help=_("cmd.clone"))
+@app.command("clone", help=_(K.cmd.clone))
 def cmd_clone(
     label: str = typer.Argument(..., help=_("opt.clone_label")),
     url: str = typer.Argument(..., help=_("opt.url")),
@@ -162,7 +163,7 @@ def cmd_clone(
     _fail_exit(manager)
 
 
-@app.command("info", help=_("cmd.info"))
+@app.command("info", help=_(K.cmd.info))
 def cmd_info(
     path: str = typer.Option(".", "--path", "-p", help=_("opt.path")),
 ):
@@ -171,7 +172,7 @@ def cmd_info(
     _fail_exit(manager)
 
 
-@app.command("test", help=_("cmd.test"))
+@app.command("test", help=_(K.cmd.test))
 def cmd_test(
     label: str = typer.Argument(None, help=_("opt.test_label")),
     path: str = typer.Option(".", "--path", "-p", help=_("opt.path")),
@@ -186,7 +187,7 @@ def cmd_test(
 # 作者命令
 # ===========================================================================
 
-@app.command("auto-author", help=_("cmd.auto_author"))
+@app.command("auto-author", help=_(K.cmd.auto_author))
 def cmd_auto_author(
     on: str = typer.Argument(None, help=_("opt.on_off")),
     show: bool = typer.Option(False, "--show", "-s", help=_("opt.show_status")),
@@ -205,20 +206,20 @@ def cmd_auto_author(
 
 author_app = typer.Typer(
     name="author",
-    help=_("cmd.author"),
+    help=_(K.cmd.author),
     no_args_is_help=False,
     rich_markup_mode="rich",
 )
 
 
-@author_app.command("list", help=_("cmd.author_list"))
+@author_app.command("list", help=_(K.cmd.author_list))
 def author_list() -> None:
     manager = _manager()
     manager.list_authors()
     _fail_exit(manager)
 
 
-@author_app.command("add", help=_("cmd.author_add"))
+@author_app.command("add", help=_(K.cmd.author_add))
 def author_add(
     label: str = typer.Argument(..., help=_("opt.author_label")),
     name: str = typer.Option(None, "--name", "-n", help=_("opt.author_name")),
@@ -229,7 +230,7 @@ def author_add(
     _fail_exit(manager)
 
 
-@author_app.command("remove", help=_("cmd.author_remove"))
+@author_app.command("remove", help=_(K.cmd.author_remove))
 def author_remove(
     label: str = typer.Argument(..., help=_("opt.author_label")),
     yes: bool = typer.Option(False, "--yes", "-y", help=_("opt.yes")),
@@ -239,7 +240,7 @@ def author_remove(
     _fail_exit(manager)
 
 
-@author_app.command("use", help=_("cmd.author_use"))
+@author_app.command("use", help=_(K.cmd.author_use))
 def author_use(
     label: str = typer.Argument(..., help=_("opt.author_label")),
     path: str = typer.Option(".", "--path", "-p", help=_("opt.path")),
@@ -254,7 +255,7 @@ def author_use(
     _fail_exit(manager)
 
 
-@author_app.command("unset", help=_("cmd.author_unset"))
+@author_app.command("unset", help=_(K.cmd.author_unset))
 def author_unset(
     path: str = typer.Option(".", "--path", "-p", help=_("opt.path")),
     global_: bool = typer.Option(False, "--global", "-g", help=_("opt.clear_global")),
@@ -265,7 +266,7 @@ def author_unset(
     _fail_exit(manager)
 
 
-@author_app.command("fix", help=_("cmd.author_fix"))
+@author_app.command("fix", help=_(K.cmd.author_fix))
 def author_fix(
     path: str = typer.Option(".", "--path", "-p", help=_("opt.path")),
     old_name: str = typer.Option(None, "--old-name", help=_("opt.old_name")),
@@ -286,7 +287,7 @@ app.add_typer(author_app)
 # 系统命令
 # ===========================================================================
 
-@app.command("lang", help=_("cmd.lang"))
+@app.command("lang", help=_(K.cmd.lang))
 def cmd_lang(
     lang: str = typer.Argument(None, help=_("opt.lang_value")),
 ):
@@ -310,57 +311,16 @@ def cmd_lang(
     _fail_exit(manager)
 
 
-@app.command("update", help=_("cmd.update"))
+@app.command("update", help=_(K.cmd.update))
 def cmd_update(
     check: bool = typer.Option(False, "--check", help=_("opt.check_only")),
     force: bool = typer.Option(False, "--force", help=_("opt.force_check")),
 ):
-    from ..utils.updater import UpdateManager
-    updater = UpdateManager()
-    print("=" * 80)
-    print(_("hdr.update"))
-    print("=" * 80)
-    print(f"\n{_('lbl.current_version')} v{updater.current_version}")
-    print(f"{_('lbl.platform')} {updater.platform}")
-
-    print("\n" + _("upd.checking"))
-    update_info = updater.check_update(force=force)
-
-    if not update_info:
-        print("✅ " + _("upd.up_to_date"))
-        return
-
-    print(f"\n🎉 {_('upd.new_version', version=update_info['version'])}")
-    print(f"{_('upd.release_date')} {update_info.get('published_at') or _('msg.unknown')}")
-
-    if update_info.get("body"):
-        print(f"\n{_('upd.update_notes')}")
-        for line in update_info["body"].split("\n")[:10]:
-            print(f"  {line}")
-        if len(update_info["body"].split("\n")) > 10:
-            print("  ...")
-
-    if check:
-        hint = _("upd.run_update")
-        print(f"\n💡 {hint}")
-        return
-
-    print()
-    try:
-        response = input(_("upd.prompt", version=update_info["version"]))
-        if response.lower() == "n":
-            print("❌ " + _("upd.cancelled"))
-            return
-    except KeyboardInterrupt:
-        print("\n❌ " + _("upd.cancelled"))
-        return
-
-    print()
-    success = updater.download_and_update(update_info["download_url"])
-    if success:
-        raise typer.Exit(code=0)
-    else:
-        raise typer.Exit(code=1)
+    """检查并更新到最新版本（编排委托 SystemCommands）"""
+    manager = _manager()
+    code = manager.update(check=check, force=force)
+    if code is not None:
+        raise typer.Exit(code=code)
 
 
 # ===========================================================================
@@ -378,7 +338,7 @@ def main_callback(
     ctx: typer.Context,
     version: bool = typer.Option(
         False, "--version", "-v",
-        help=_("cmd.version"),
+        help=_(K.cmd.version),
         callback=_version_callback,
         is_eager=True,
     ),

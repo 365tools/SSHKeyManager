@@ -45,7 +45,7 @@ class TestLabelValidation:
             Path(name).write_bytes(b'k')
             Path(name + '.pub').write_bytes(b'p a@b.com')
             return subprocess.CompletedProcess(cmd, 0, b'', b'')
-        monkeypatch.setattr('sshm.core.manager.subprocess.run', fake_run)
+        monkeypatch.setattr('sshm.core.commands.keys.subprocess.run', fake_run)
         manager.add_key('work', 'a@b.com')
         assert any('ssh-keygen' in c for c in calls)
         # host 已持久化（默认 github.com）

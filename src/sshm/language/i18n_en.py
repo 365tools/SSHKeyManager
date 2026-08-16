@@ -373,6 +373,7 @@ EN: Dict[str, str] = {
     "err.no_backups_restore": "No backups to restore",
     "err.use_backup_cmd": "Use 'sshm backup' to create a backup",
     "err.backup_not_found": "Backup not found:",
+    "err.invalid_backup_name": "Invalid backup name: {name}",
     "err.use_backups_cmd": "Use 'sshm backups' to view available backups",
     "err.no_recoverable": "No recoverable key files in backup",
     "err.delete_default": "About to delete default key ({type}), continue?",

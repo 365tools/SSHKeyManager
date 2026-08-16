@@ -15,16 +15,16 @@ flowchart TB
     end
 
     subgraph Core["核心业务层 (src/sshm/core/)"]
-        Manager["manager.py<br/>SSHKeyManager<br/>全部业务逻辑"]
-        Config["config.py<br/>SSHConfigManager<br/>SSH config 读写"]
-        State["state.py<br/>StateManager<br/>状态持久化"]
-        Rewrite["rewrite.py<br/>git 历史重写"]
+        Manager["manager.py<br/>SSHKeyManager 门面"]
+        Commands["commands/<br/>keys / repo / author / system"]
+        Services["服务<br/>keystore / config / state / backup /<br/>gitrepo / author / sshtest / rewrite"]
+        Updater["updater.py<br/>版本更新"]
+        Path["path.py<br/>PATH 管理"]
     end
 
-    subgraph Utils["工具层 (src/sshm/utils/)"]
+    subgraph UI["展示层 (src/sshm/ui/)"]
+        Output["output.py<br/>Output 抽象"]
         Console["console.py<br/>表格/对齐/编码/确认"]
-        System["system.py<br/>PATH 管理"]
-        Updater["updater.py<br/>版本更新"]
     end
 
     subgraph External["外部系统"]
@@ -45,22 +45,18 @@ flowchart TB
     CLIAPP --> Manager
     Interactive --> Manager
 
-    %% 核心层内部
-    Manager --> Config
-    Manager --> State
-    Manager --> Rewrite
+    %% 门面到命令编排 / 服务 / 展示抽象
+    Manager --> Commands
+    Manager --> Services
+    Manager --> Output
+    Commands --> Services
+    Commands --> Updater
+    Commands --> Path
 
-    %% 核心层到工具层
-    Manager --> Console
-    Manager --> System
-    Manager --> Updater
-
-    %% 核心层到外部
-    Manager --> SSH_DIR
-    Manager --> STATE_FILE
-    Manager --> GIT
-    Config --> SSH_DIR
-    State --> STATE_FILE
+    %% 服务到数据 / 外部
+    Services --> SSH_DIR
+    Services --> STATE_FILE
+    Services --> GIT
     GIT --> SSHD
 
     %% 更新命令专用路径
