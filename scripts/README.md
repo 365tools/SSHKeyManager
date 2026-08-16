@@ -27,7 +27,7 @@
 #### 安装
 ```powershell
 # 方式 1: 在线一键安装
-irm https://raw.githubusercontent.com/eavelabs/sshm/main/scripts/install.ps1 | iex
+irm https://raw.githubusercontent.com/Eavelabs/sshm/main/scripts/install.ps1 | iex
 
 # 方式 2: 本地安装
 powershell -ExecutionPolicy Bypass -File .\scripts\install.ps1
@@ -42,7 +42,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\install.ps1
 #### 卸载
 ```powershell
 # 方式 1: 在线卸载
-irm https://raw.githubusercontent.com/eavelabs/sshm/main/scripts/install.ps1 | iex -Args '-Uninstall'
+irm https://raw.githubusercontent.com/Eavelabs/sshm/main/scripts/install.ps1 | iex -Args '-Uninstall'
 
 # 方式 2: 本地卸载
 powershell -ExecutionPolicy Bypass -File .\scripts\install.ps1 -Uninstall
@@ -56,7 +56,7 @@ powershell -ExecutionPolicy Bypass -File .\scripts\install.ps1 -Uninstall
 #### 安装
 ```bash
 # 方式 1: 在线一键安装
-curl -fsSL https://raw.githubusercontent.com/eavelabs/sshm/main/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/Eavelabs/sshm/main/scripts/install.sh | bash
 
 # 方式 2: 本地安装
 bash scripts/install.sh
@@ -71,7 +71,7 @@ bash scripts/install.sh --install-dir ~/.local/bin
 #### 卸载
 ```bash
 # 方式 1: 在线卸载
-curl -fsSL https://raw.githubusercontent.com/eavelabs/sshm/main/scripts/install.sh | bash -s -- --uninstall
+curl -fsSL https://raw.githubusercontent.com/Eavelabs/sshm/main/scripts/install.sh | bash -s -- --uninstall
 
 # 方式 2: 本地卸载
 bash scripts/install.sh --uninstall

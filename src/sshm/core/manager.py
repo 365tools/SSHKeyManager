@@ -28,6 +28,7 @@ from ..utils import (
 )
 from ..i18n import _
 from .config import SSHConfigManager
+from .rewrite import RewriteConfig, rewrite_history, get_authors_in_repo
 from .state import StateManager
 
 
@@ -76,7 +77,7 @@ class SSHKeyManager:
     # 标签合法性校验（所有标签入口统一使用）
     # ------------------------------------------------------------------------
 
-    # 保留标签：original 为 switch 的系统备份，default 为默认密钥
+    # 保留标签：original 为 use -g 切换时的系统备份，default 为默认密钥
     RESERVED_LABELS = ('default', 'original')
 
     def _validate_label(self, label: str) -> bool:
@@ -263,7 +264,7 @@ class SSHKeyManager:
             
             key_type = match.group(1)
             label = match.group(2)[1:] if match.group(2) else 'default'
-            # 跳过 switch 命令的系统备份文件（id_*.original），不视为用户标签
+            # 跳过 use -g 切换的系统备份文件（id_*.original），不视为用户标签
             if label.lower() == 'original':
                 continue
             
@@ -580,7 +581,10 @@ class SSHKeyManager:
         
         print(f"✅ {_('Switched to key: {label} ({key_type})', label=label, key_type=key_type)}")
         print(f"📁 {_('File:')} {target_file.name}")
-    
+
+        # 凭据↔人员自动联动：全局切换时自动设置全局 author（若 label 有绑定）
+        self._apply_auto_author(label, repo_path=None, scope='global')
+
     def tag_key(self, key_type: str, new_label: str, switch_after: bool = False):
         """给默认密钥添加标签"""
         self._validate_label(new_label)
@@ -604,11 +608,59 @@ class SSHKeyManager:
                 return
         
         self._copy_key_pair(source_file, target_file)
-        
+
+        # 继承默认密钥的元数据（host 映射 + 作者信息）
+        # 默认密钥通常由 switch_key 从某标签复制而来，active_keys 记录了来源标签。
+        self._inherit_metadata_from_default(key_type, new_label)
+
         print(f"✅ {_('Tag added: {new_label} ({key_type})', new_label=new_label, key_type=key_type)}")
         
         if switch_after:
             self.switch_key(new_label, key_type)
+
+    def _inherit_metadata_from_default(self, key_type: str, new_label: str):
+        """给默认密钥打标签时，把默认密钥对应的 host/author 元数据继承给新标签。
+
+        默认密钥的来源标签由 active_keys 记录；若无记录，则尝试从默认密钥的
+        公钥注释提取 email 作为作者邮箱。
+        """
+        label_lower = new_label.lower()
+        active_keys = self.state_manager.read_active_keys()
+        source_label = active_keys.get(key_type, '')
+
+        # 1. 继承 host 映射（来源标签有记录则继承，否则保留新标签自身兜底）
+        if source_label:
+            hosts = self.state_manager.read_hosts()
+            if hosts.get(source_label):
+                self.state_manager.write_host(label_lower, hosts[source_label])
+
+        # 2. 继承/兜底 author：优先来源标签的 author，其次默认密钥 pubkey 注释 email
+        author = None
+        if source_label:
+            author = self.state_manager.read_authors().get(source_label)
+        if not author:
+            email = self._extract_email_from_pubkey_default(key_type)
+            if email:
+                author = {'name': '', 'email': email}
+        if author:
+            self.state_manager.write_author(label_lower,
+                                            author.get('name', '') or '',
+                                            author.get('email', '') or '')
+
+    def _extract_email_from_pubkey_default(self, key_type: str) -> Optional[str]:
+        """从默认密钥（无标签）的公钥注释提取邮箱"""
+        pub_file = self.ssh_dir / f"id_{key_type}.pub"
+        if not pub_file.exists():
+            return None
+        try:
+            parts = pub_file.read_text(encoding='utf-8').strip().split()
+            if len(parts) >= 3:
+                comment = parts[-1]
+                if re.match(r'^[^@\s]+@[^@\s]+$', comment):
+                    return comment
+        except (OSError, UnicodeDecodeError):
+            pass
+        return None
     
     def rename_tag(self, old_label: str, new_label: str, 
                    key_type: str = DEFAULT_KEY_TYPE):
@@ -768,6 +820,9 @@ class SSHKeyManager:
             print(f"   cd {repo_path}")
             print(f"   git push")
             print("=" * 70)
+
+            # 凭据↔人员自动联动：局部切换时自动设置仓库 author（若 label 有绑定）
+            self._apply_auto_author(label, repo_path=str(repo_path), scope='local')
             
         except subprocess.CalledProcessError as e:
             if 'No such remote' in str(e.stderr):
@@ -778,10 +833,239 @@ class SSHKeyManager:
         except subprocess.TimeoutExpired:
             self._fail("⚠️  " + _("SSH connection test timed out"))
         except Exception as e:
-            self._fail(f"❌ {_('error')}: {e}")    
+            self._fail(f"❌ {_('error')}: {e}")
+
+    # ------------------------------------------------------------------------
+    # Git 仓库克隆 (clone)
+    # ------------------------------------------------------------------------
+
+    def clone_with_label(self, label: str, url: str,
+                         target_dir: Optional[str] = None,
+                         skip_confirm: bool = False):
+        """使用指定密钥标签克隆 Git 仓库，并在克隆后为该仓库配置该密钥
+
+        典型场景：本机默认用 A 账号，但想用 B 账号的密钥拉取 B 的仓库。
+        流程：
+        1. 校验标签存在可用密钥
+        2. 解析 URL，得到平台 / 用户 / 仓库
+        3. 对齐标签到仓库的真实 hostname（适配私有化 Git）
+        4. 生成/复用 SSH config 别名（别名指向该标签私钥）
+        5. 把 URL 中的 hostname 重写为别名（git@{alias}:user/repo.git），
+           使 SSH 走该标签密钥
+        6. git clone（可带自定义目录名）
+        7. 克隆完成后为仓库设置作者（若标签有作者信息）
+        """
+        # 校验标签存在密钥
+        key_type = self._detect_key_type_for_label(label)
+        if not key_type:
+            msg = _("No key found for label '{label}'", label=label)
+            self._fail(f"❌ {msg}")
+            print("   " + _("Use 'sshm list' to view all available keys"))
+            return
+
+        # 解析 URL
+        parsed = self._parse_git_url(url)
+        if not parsed:
+            self._fail("❌ " + _("Failed to parse Git URL"))
+            return
+        _platform, user, repo = parsed
+        repo_name = repo.rstrip('.git') or repo
+
+        print_section_header(_("Clone with Key: {label}", label=label))
+        print(f"🔑 {_('key label')}: {label} ({key_type})")
+        print(f"🔗 {_('Source URL:')} {url}\n")
+
+        # 对齐 hostname（适配私有化 Git），并确保 SSH config 别名存在
+        repo_hostname = self._resolve_repo_hostname(url)
+        if not self._align_hostname_with_repo(label, repo_hostname, skip_confirm):
+            return
+
+        key_file = self.ssh_dir / f"id_{key_type}.{label}"
+        self._update_ssh_config_alias(label, key_file)
+
+        # 重写为别名 URL：git@{alias}:user/repo.git
+        host_alias = self._get_host_alias(label)
+        new_url = f"git@{host_alias}:{user}/{repo_name}.git"
+
+        print(f"🔧 {_('Clone URL:')}")
+        print(f"   {new_url}\n")
+
+        if not skip_confirm:
+            if not prompt_confirm(_("Clone with this URL and configure the key?")):
+                self._fail("❌ " + _("operation cancelled"))
+                return
+
+        # 执行 git clone（支持可选的目录名）
+        clone_args = ['git', 'clone', new_url]
+        if target_dir:
+            clone_args.append(target_dir)
+        try:
+            subprocess.run(clone_args, check=True)
+        except subprocess.CalledProcessError as e:
+            detail = ((e.stderr or b'').decode('utf-8', 'replace').strip()
+                      or str(e))
+            self._fail(f"❌ {_('Clone failed: {err}', err=detail)}")
+            return
+
+        # 克隆完成后定位仓库目录（用于后续 author 设置）
+        cloned_dir = target_dir or repo_name
+        print(f"\n✅ {_('Clone complete!')} {cloned_dir}")
+        print("   " + _("This repo now uses key: {label}", label=label))
+
+        # 设置作者（若标签有显式作者信息）。
+        # 注意：这里禁用 remote 推断，因为 clone 的 remote 是 sshm 别名 URL，
+        # 其 user 段是组织名而非作者名，推断会把 org 名错设成 user.name。
+        author = self._get_author_info(label, repo_path=cloned_dir,
+                                       infer_from_remote=False)
+        if author and (author.get('name') or author.get('email')):
+            print()
+            self.set_repo_author(label, cloned_dir, skip_confirm=True,
+                                 infer_from_remote=False)
+
+        print("\n" + "=" * 70)
+        print("✅ " + _("Configuration complete! Now you can use:"))
+        print(f"   cd {cloned_dir}")
+        print(f"   git push")
+        print("=" * 70)
+
+    def _apply_auto_author(self, label: str, repo_path: Optional[str] = None,
+                           scope: str = 'local', skip_confirm: bool = True):
+        """凭据↔人员自动联动：切换凭据时，若该 label 绑定了 author，则自动设置。
+
+        - scope='local'：设置仓库级 author（use_key_for_repo 调用）
+        - scope='global'：设置全局 author（use -g / use --global 调用 switch_key）
+        - 仅当 auto_author 开关开启且 label 有显式 author 绑定时才生效；
+          无绑定则静默跳过，避免噪音。
+        - infer_from_remote 关闭，避免把别名 URL 中的组织名错设成作者名。
+        """
+        if not self.state_manager.read_auto_author():
+            return
+        author = self._get_author_info(label, repo_path=None,
+                                       infer_from_remote=False)
+        if not author or not (author.get('name') or author.get('email')):
+            return  # 无 author 绑定，不联动
+
+        repo = Path(repo_path).resolve() if repo_path else Path.cwd()
+        try:
+            if author.get('name'):
+                subprocess.run(
+                    ['git', '-C', str(repo), 'config', f'--{scope}',
+                     'user.name', author['name']],
+                    check=True, capture_output=True
+                )
+            if author.get('email'):
+                subprocess.run(
+                    ['git', '-C', str(repo), 'config', f'--{scope}',
+                     'user.email', author['email']],
+                    check=True, capture_output=True
+                )
+        except (subprocess.CalledProcessError, OSError) as e:
+            self._fail(f"⚠️  {_('auto author switch failed: {err}', err=e)}")
+            return
+
+        print(f"👤 {_('Auto-set author for key {label}', label=label)}: "
+              f"{author.get('name', '') or ''} <{author.get('email', '') or ''}>")
+
+    def show_auto_author(self):
+        """显示凭据↔人员自动联动开关状态"""
+        enabled = self.state_manager.read_auto_author()
+        print_section_header(_("Auto-Switch Author with Key"))
+        status = _("on") if enabled else _("off")
+        print(f"🔀 {_('Auto-author switch: {status}', status=status)}")
+        if enabled:
+            print("   " + _("When you switch a key, its bound author is auto-applied."))
+        else:
+            print("   " + _("Switch a key will NOT change author. Use 'sshm author use' manually."))
+        print(f"   💡 {_('Usage: sshm auto-author on|off')}")
+
+    def set_auto_author(self, enabled: bool):
+        """开启/关闭凭据↔人员自动联动"""
+        self.state_manager.write_auto_author(enabled)
+        status = _("on") if enabled else _("off")
+        print(f"🔀 {_('Auto-author switch: {status}', status=status)}")
+        print("   " + (_("Now switching a key will auto-apply its bound author.")
+                       if enabled else
+                       _("Now switching a key will NOT change author.")))
+
     # ------------------------------------------------------------------------
     # Git 仓库作者相关操作 (author)
     # ------------------------------------------------------------------------
+
+    def fix_author(self, repo_path: str = '.', old_name: Optional[str] = None,
+                   new_name: Optional[str] = None,
+                   old_email: Optional[str] = None,
+                   new_email: Optional[str] = None,
+                   skip_confirm: bool = False):
+        """重写 Git 历史中的作者/邮箱（修改所有历史中的这两处）。
+
+        底层使用 git fast-export/fast-import（纯 Python，无外部依赖）。
+        这是破坏性操作：会改写历史 commit hash，需强制推送。
+        """
+        repo_path = Path(repo_path).resolve()
+        if not (repo_path / '.git').exists():
+            self._fail(f"❌ {_('Not a git repository: {path}', path=repo_path)}")
+            return
+
+        if not old_name and not old_email:
+            self._fail("❌ " + _("Specify --old-name or --old-email to match"))
+            return
+        if not new_name and not new_email:
+            self._fail("❌ " + _("Specify --new-name or --new-email to replace"))
+            return
+
+        print_section_header(_("Rewrite Author History"))
+        print(f"📁 {_('Repository:')} {repo_path}")
+
+        # 预览：列出历史中的作者
+        authors = get_authors_in_repo(repo_path)
+        print(f"\n🧑 {_('Current authors in history:')}")
+        for a in authors:
+            print(f"   - {a}")
+
+        # 构造规则并预估受影响提交
+        cfg = RewriteConfig(old_name=old_name, new_name=new_name,
+                            old_email=old_email, new_email=new_email)
+        match_desc = []
+        if old_name:
+            match_desc.append(f"{_('name')} '{old_name}' -> '{new_name or old_name}'")
+        if old_email:
+            match_desc.append(f"{_('email')} '{old_email}' -> '{new_email or old_email}'")
+        print(f"\n🔀 {_('Rules:')} {', '.join(match_desc)}")
+
+        # 用 dry-run 预估（fast-export 到临时流，不导入）
+        try:
+            export = subprocess.run(
+                ['git', '-C', str(repo_path), 'fast-export', '--all'],
+                capture_output=True, text=True, encoding='utf-8',
+                errors='replace')
+            from .rewrite import _count_matches
+            matched = _count_matches(export.stdout or '', cfg)
+        except Exception:
+            matched = 0
+        if matched == 0:
+            self._fail(f"⚠️  {_('No commits match the given old author/email. Nothing to rewrite.')}")
+            return
+        print(f"ℹ️  {_('Will rewrite {count} commits.', count=matched)}")
+
+        # 破坏性操作确认
+        print(f"\n⚠️  {_('This rewrites git history (commit hashes change).')}")
+        print("   " + _("You must force-push afterwards: git push --force"))
+        if not skip_confirm:
+            if not prompt_confirm(_("Continue rewriting history?")):
+                self._fail("❌ " + _("operation cancelled"))
+                return
+
+        try:
+            result = rewrite_history(repo_path, cfg)
+        except Exception as e:
+            self._fail(f"❌ {_('Rewrite failed: {err}', err=e)}")
+            return
+
+        print(f"\n✅ {_('History rewritten!')}")
+        print(f"   {_('Matched commits: {count}', count=result.get('matched_commits', 0))}")
+        print(f"   {_('Rewritten lines: {count}', count=result.get('rewritten', 0))}")
+        print(f"\n⚠️  {_('Original refs are backed up under refs/original/.')}")
+        print(f"   {_('To publish, force-push all branches: git push --force --all')}")
 
     def show_repo_author(self, repo_path: str = '.'):
         """显示当前 Git 仓库的作者配置"""
@@ -820,8 +1104,13 @@ class SSHKeyManager:
 
     def set_repo_author(self, label: str, repo_path: str = '.',
                         name: Optional[str] = None, email: Optional[str] = None,
-                        scope: str = 'local', skip_confirm: bool = False):
-        """为指定 Git 仓库设置作者信息（global 作用域不需要仓库）"""
+                        scope: str = 'local', skip_confirm: bool = False,
+                        infer_from_remote: bool = True):
+        """为指定 Git 仓库设置作者信息（global 作用域不需要仓库）
+
+        infer_from_remote：是否允许在标签无显式作者名时从 remote URL 推断。
+        clone 场景应传 False，避免把别名 URL 中的组织名错设成作者名。
+        """
         repo_path = Path(repo_path).resolve()
 
         if scope != 'global' and not (repo_path / '.git').exists():
@@ -829,7 +1118,8 @@ class SSHKeyManager:
             print("   " + _("Please run this command inside a Git repository"))
             return
 
-        author = self._get_author_info(label, name, email, repo_path)
+        author = self._get_author_info(label, name, email, repo_path,
+                                       infer_from_remote)
         if not author:
             return
 
@@ -1087,8 +1377,14 @@ class SSHKeyManager:
 
     def _get_author_info(self, label: str, name: Optional[str] = None,
                          email: Optional[str] = None,
-                         repo_path: Optional[Path] = None) -> Optional[Dict[str, str]]:
-        """按优先级获取标签对应的作者信息"""
+                         repo_path: Optional[Path] = None,
+                         infer_from_remote: bool = True) -> Optional[Dict[str, str]]:
+        """按优先级获取标签对应的作者信息
+
+        infer_from_remote：当标签无显式作者名时，是否从 remote URL 推断用户名。
+        在 clone 场景应传 False，因为 clone 的 remote 是 sshm 别名 URL
+        （git@github-work:org/repo.git），其 user 段是组织名而非作者名。
+        """
         label_lower = label.lower()
         result = {'name': name or '', 'email': email or ''}
 
@@ -1105,7 +1401,7 @@ class SSHKeyManager:
             result['email'] = self._extract_email_from_pubkey(label_lower)
 
         # 3. 从 remote URL 推断用户名（最低优先级）
-        if not result['name'] and repo_path is not None:
+        if not result['name'] and repo_path is not None and infer_from_remote:
             result['name'] = self._infer_author_name_from_remote(repo_path) or ''
 
         if not (result['name'] or result['email']):
@@ -1478,7 +1774,7 @@ class SSHKeyManager:
     def _get_host_alias(self, label: str) -> str:
         """生成 SSH config 别名（统一小写，避免大小写变体冲突）
 
-        别名格式为 '{主域名}-{label}'，如 github.com-eavelabs、
+        别名格式为 '{主域名}-{label}'，如 github.com-Eavelabs、
         gitlab.com-xxx、git.build.ingka.ikea.com-allureyc。
         主域名 = 完整 hostname 移除最后一个 '.' 之后的 TLD 段，
         再把剩余的 '.' 替换为 '-'。这样生成的别名：
@@ -1517,7 +1813,7 @@ class SSHKeyManager:
 
         返回 SSH 实际连接的目标 hostname：
         - 真实 hostname（git@github.com:... → github.com）
-        - 简短别名（git@github-eavelabs:...）：若 SSH config 有该 Host 块，
+        - 简短别名（git@github-Eavelabs:...）：若 SSH config 有该 Host 块，
           反查其 HostName 得到真实域名（最准）；否则视为真实 hostname
 
         已配置 SSH config 的别名，HostName 就是 SSH 真正连接的域名，

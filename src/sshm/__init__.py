@@ -12,7 +12,7 @@ sshm - 企业级多账号 SSH 密钥管理工具
 - 🔍 Git 仓库配置管理
 - ✅ SSH 连接测试
 
-作者: eavelabs
+作者: Eavelabs
 版本: 0.0.1
 许可: MIT
 """

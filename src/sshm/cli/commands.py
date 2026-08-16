@@ -57,6 +57,16 @@ def handle_command(args):
                     print()
                     manager.set_repo_author(args.label, args.path, skip_confirm=args.yes)
         
+        elif args.command == 'clone':
+            manager.clone_with_label(args.label, args.url, args.target, args.yes)
+
+        elif args.command == 'auto-author':
+            if getattr(args, 'show', False) or getattr(args, 'on', None) is None:
+                # 仅查看状态
+                manager.show_auto_author()
+            else:
+                manager.set_auto_author(getattr(args, 'on') == 'on')
+
         elif args.command == 'author':
             action = getattr(args, 'action', None)
             if action == 'list':
@@ -74,6 +84,15 @@ def handle_command(args):
             elif action == 'unset':
                 scope = 'global' if args.global_ else 'local'
                 manager.unset_repo_author(args.path, scope)
+            elif action == 'fix':
+                manager.fix_author(
+                    args.path,
+                    old_name=args.old_name,
+                    new_name=args.new_name,
+                    old_email=args.old_email,
+                    new_email=args.new_email,
+                    skip_confirm=args.yes,
+                )
             else:
                 manager.show_repo_author(args.path)
         

@@ -91,6 +91,41 @@ sshm use <标签> [选项]
 
 `use` 会自动完成：解析仓库 remote URL → 生成别名 → 更新 SSH Config → 测试连接。
 
+> 💡 **凭据-作者自动联动**：若开启 `auto-author`（默认开启），`use`/`use --global` 切换凭据时，
+> 会自动把该凭据绑定的作者应用到当前仓库（局部）或全局（`--global`），无需再手动 `sshm author use`。
+
+---
+
+#### `clone` - 用指定密钥克隆仓库
+
+```bash
+sshm clone <标签> <git-url> [目标目录] [选项]
+
+选项:
+  -y, --yes   跳过确认直接执行
+
+示例:
+  # 本机默认用 A 账号，但想用 work 密钥克隆 B 仓库
+  sshm clone work git@github.com:company/repo.git
+
+  # 克隆到指定目录，跳过确认
+  sshm clone work git@github.com:company/repo.git myrepo -y
+```
+
+`clone` 会用指定凭据克隆，**克隆后仓库的 origin 直接就是 sshm 别名**，即该仓库自动使用该凭据，无需再手动 `sshm use`。若该凭据绑定了作者，也会一并设置。
+
+---
+
+#### `auto-author` - 凭据与作者自动联动开关
+
+```bash
+sshm auto-author          # 查看当前状态
+sshm auto-author on       # 开启（默认）
+sshm auto-author off      # 关闭：切换凭据不再自动改作者
+```
+
+开启后，`use`、`use --global`、`clone` 切换凭据时，会**自动应用该凭据绑定的作者**，实现"换凭据即换人"。关闭后需手动 `sshm author use`。
+
 ---
 
 #### `author` - 管理 Git 作者信息
@@ -112,6 +147,25 @@ sshm author unset [-p 路径] [--global]
 
 # 移除作者
 sshm author remove <标签> [-y]
+
+# 重写历史中的作者名/邮箱（改名/改邮箱）
+sshm author fix [-p 路径] [--old-name 旧名] [--new-name 新名] [--old-email 旧邮箱] [--new-email 新邮箱] [-y]
+```
+
+> ⚠️ **`author fix` 是破坏性操作**：会改写 Git 历史（提交哈希改变），所有匹配旧作者/邮箱的提交都会被替换。
+> 原 refs 会备份到 `refs/original/`，执行后需强制推送 `git push --force --all`。
+> `--old-name` / `--old-email` 至少指定一个作为匹配条件，`--new-name` / `--new-email` 至少指定一个作为替换值。
+
+```bash
+# 示例：把历史中 Alice 的名字和邮箱都改掉
+sshm author fix --old-name "Alice" --old-email "alice@x.com" \
+                 --new-name "Carol" --new-email "carol@z.com"
+
+# 只改邮箱（名字不动）
+sshm author fix --old-email "bob@y.com" --new-email "bob@z.com"
+
+# 指定仓库 + 跳过确认
+sshm author fix -p ~/repo --old-name "旧名" --new-name "新名" -y
 ```
 
 ---
@@ -216,6 +270,21 @@ sshm use work
 
 # 4. 测试
 sshm test
+```
+
+### 案例一补充：用指定凭据克隆（无需先配密钥）
+
+```bash
+# 本机默认用 personal 账号，但现在想拉取 work 账号权限的仓库
+# 直接 git clone 会因权限不足报错，用 sshm clone 指定 work 凭据即可
+sshm clone work git@github.com:company/repo.git
+
+# 完成后：
+#   - 仓库已克隆到 ./repo
+#   - 该仓库 origin 是 sshm 别名，自动使用 work 密钥
+#   - 若 work 绑定了作者，也已自动设置
+cd repo
+git push   # 直接可推
 ```
 
 ### 案例二：为历史项目配置密钥
