@@ -23,7 +23,7 @@ from ..i18n import _
 class UpdateManager:
     """更新管理器"""
     
-    GITHUB_API = "https://api.github.com/repos/365tools/sshm/releases/latest"
+    GITHUB_API = "https://api.github.com/repos/Eavelabs/sshm/releases/latest"
     CACHE_FILE = Path.home() / ".sshm_update_cache"
     CACHE_VALID_HOURS = 24
     

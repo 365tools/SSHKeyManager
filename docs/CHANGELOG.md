@@ -18,6 +18,26 @@
 
 ---
 
+## [0.0.2] - 2026-08-16
+
+### ✨ 新功能
+
+- **🔗 指定凭据克隆**（`sshm clone`）：直接用某个标签的密钥克隆仓库，无需先 `sshm use`。克隆后仓库 origin 自动指向 sshm 别名，即该仓库直接使用对应凭据。支持 `git@host:user/repo.git`（scp）、`ssh://`（ssh2）、`https://` 三种 URL，可指定目标目录与 `-y` 跳过确认
+- **👤 凭据-作者自动联动**（`sshm auto-author`）：新增开关（默认开启）。`sshm use`（局部）/ `sshm use --global`（全局）切换凭据时，自动应用该凭据绑定的作者，实现"换凭据即换人"。无绑定则自动跳过，不影响
+- **✏️ 历史作者重写**（`sshm author fix`）：重写所有历史中的作者名/邮箱，支持单独改名、改邮箱，或两者同时处理。底层用 git fast-export/import 纯 Python 实现，不依赖外部工具，兼容打包分发。原 refs 备份到 `refs/original/` 便于回滚
+
+### 🐛 修复
+
+- **`tag` 元数据继承**：`sshm tag` 创建的标签现在继承默认密钥的 host 映射与作者信息，避免私有 Git hostname 错乱、作者信息缺失
+- **`clone` 作者推断副作用**：克隆后设置作者时不再从别名 remote URL 推断用户名，避免把组织名错设成 `user.name`
+
+### 📝 文档
+
+- 新增完整架构图 `docs/architecture.mmd`，并嵌入开发者文档
+- README 与使用指南补充 `clone`、`auto-author` 命令说明及实战案例
+
+---
+
 ## [0.0.1] - 2026-08-14
 
 ### 🎉 全新发布

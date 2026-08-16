@@ -69,6 +69,8 @@ def create_parser() -> SSHArgumentParser:
   sshm use github                                     # use github key for current repo
   sshm use work -p ~/project                          # use work key for a repo
   sshm use github --author                            # configure key and set author
+  sshm clone work git@github.com:company/repo.git     # clone a repo using the 'work' key
+  sshm clone work git@github.com:company/repo.git myrepo -y  # clone to 'myrepo', no confirm
   sshm author                                         # view current repo author
   sshm author list                                    # list saved authors
   sshm author add github -n "Allure Ye" -e x@y.com    # add/update author
@@ -163,6 +165,25 @@ def create_parser() -> SSHArgumentParser:
     use_parser.add_argument('-a', '--author', action='store_true',
                           help=_('configure the key and set author at the same time'))
 
+    # clone 命令
+    clone_parser = subparsers.add_parser('clone', help=_('clone a Git repo using a specific key'))
+    clone_parser.add_argument('label', help=_('key label to use for cloning'))
+    clone_parser.add_argument('url', help=_('Git repo URL (e.g. git@github.com:user/repo.git)'))
+    clone_parser.add_argument('target', nargs='?', default=None,
+                              help=_('target directory name (default: repo name)'))
+    clone_parser.add_argument('-y', '--yes', action='store_true',
+                              help=_('skip confirmation and execute directly'))
+
+    # auto-author 命令：凭据↔人员自动联动开关
+    auto_author_parser = subparsers.add_parser(
+        'auto-author', help=_('view or toggle auto-switch author with key'))
+    auto_author_group = auto_author_parser.add_mutually_exclusive_group()
+    auto_author_group.add_argument('on', nargs='?', const='on', default=None,
+                                   choices=['on', 'off'],
+                                   help=_("'on' or 'off' to enable/disable, empty to show status"))
+    auto_author_parser.add_argument('-s', '--show', action='store_true',
+                                    help=_('show current status'))
+
     # author 命令（一级子命令体系）
     author_parser = subparsers.add_parser('author', help=_('manage/view/set Git repo author'))
     author_parser.add_argument('-p', '--path', default='.',
@@ -203,6 +224,22 @@ def create_parser() -> SSHArgumentParser:
                                     help=_('Git repo path (default: current directory)'))
     unset_author_parser.add_argument('-g', '--global', dest='global_', action='store_true',
                                     help=_('clear global author config'))
+
+    # author fix - 重写历史中的作者/邮箱
+    fix_author_parser = author_sub.add_parser(
+        'fix', help=_('rewrite author/email in all git history'))
+    fix_author_parser.add_argument('-p', '--path', default='.',
+                                   help=_('Git repo path (default: current directory)'))
+    fix_author_parser.add_argument('--old-name', dest='old_name',
+                                   help=_('old author name to match'))
+    fix_author_parser.add_argument('--new-name', dest='new_name',
+                                   help=_('new author name to replace'))
+    fix_author_parser.add_argument('--old-email', dest='old_email',
+                                   help=_('old email to match'))
+    fix_author_parser.add_argument('--new-email', dest='new_email',
+                                   help=_('new email to replace'))
+    fix_author_parser.add_argument('-y', '--yes', action='store_true',
+                                   help=_('skip confirmation (rewrite all matching history)'))
     
     # info 命令
     info_parser = subparsers.add_parser('info', help=_('display Git repo config info'))

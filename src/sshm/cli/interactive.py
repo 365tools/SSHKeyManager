@@ -253,5 +253,5 @@ def show_help():
   sshm test --all                                     # test all keys
 
 {detailed} sshm <command> --help
-{project} https://github.com/365tools/sshm
+{project} https://github.com/Eavelabs/sshm
 """)

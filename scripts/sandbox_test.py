@@ -48,7 +48,7 @@ def main():
     m.list_keys(show_content=True)
     print()
 
-    # 3. 切换（use --global 等价于旧 switch）
+    # 3. 全局切换（use -g / use --global，无独立 switch 命令）
     print('>>> sshm use work --global')
     m.switch_key('work')
     print()

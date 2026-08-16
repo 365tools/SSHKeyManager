@@ -5,9 +5,9 @@
 **企业级多账号 SSH 密钥管理工具 · 中英双语 · 跨平台**
 
 [![Python Version](https://img.shields.io/badge/python-3.14%2B-blue)](https://www.python.org/downloads/)
-[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey)](https://github.com/365tools/sshm)
+[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey)](https://github.com/Eavelabs/sshm)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.0.1-brightgreen)](https://github.com/365tools/sshm/releases)
+[![Version](https://img.shields.io/badge/version-0.0.1-brightgreen)](https://github.com/Eavelabs/sshm/releases)
 
 [快速开始](#-快速开始) • [功能特性](#-功能特性) • [使用文档](#-使用文档) • [常见问题](docs/FAQ.md) • [开发者文档](docs/DEVELOPER.md)
 
@@ -69,13 +69,13 @@
 **Windows (PowerShell)**
 
 ```powershell
-irm https://raw.githubusercontent.com/365tools/sshm/main/scripts/install.ps1 | iex
+irm https://raw.githubusercontent.com/Eavelabs/sshm/main/scripts/install.ps1 | iex
 ```
 
 **Linux / macOS**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/365tools/sshm/main/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/Eavelabs/sshm/main/scripts/install.sh | bash
 ```
 
 > 💡 **`sshm` 显示旧版本 / 运行报错？** 通常是 PATH 中残留了旧的 sshm 目录（如本地构建产物）抢先命中。重新运行安装脚本并加清理参数即可：
@@ -83,14 +83,14 @@ curl -fsSL https://raw.githubusercontent.com/365tools/sshm/main/scripts/install.
 > **Windows**
 > 
 > ```powershell
-> irm https://raw.githubusercontent.com/365tools/sshm/main/scripts/install.ps1 -OutFile install.ps1
+> irm https://raw.githubusercontent.com/Eavelabs/sshm/main/scripts/install.ps1 -OutFile install.ps1
 > powershell -ExecutionPolicy Bypass -File .\install.ps1 -CleanPath
 > ```
 > 
 > **Linux / macOS**
 > 
 > ```bash
-> curl -fsSL https://raw.githubusercontent.com/365tools/sshm/main/scripts/install.sh -o install.sh
+> curl -fsSL https://raw.githubusercontent.com/Eavelabs/sshm/main/scripts/install.sh -o install.sh
 > bash install.sh --clean-path
 > ```
 > 
@@ -98,12 +98,12 @@ curl -fsSL https://raw.githubusercontent.com/365tools/sshm/main/scripts/install.
 
 #### 方式 B：手动下载
 
-前往 [Releases 页面](https://github.com/365tools/sshm/releases) 下载对应平台文件，重命名为 `sshm` 后放入 PATH 路径即可。
+前往 [Releases 页面](https://github.com/Eavelabs/sshm/releases) 下载对应平台文件，重命名为 `sshm` 后放入 PATH 路径即可。
 
 #### 方式 C：源码运行
 
 ```bash
-git clone https://github.com/365tools/sshm.git
+git clone https://github.com/Eavelabs/sshm.git
 cd SSHManager
 python -m sshm list
 ```
@@ -150,9 +150,12 @@ sshm 遵循标准且安全的目录结构：
 | :--- | :--- |
 | `sshm list [-a]` | 查看所有密钥（`-a` 显示公钥内容） |
 | `sshm add <标签> <邮箱> [-H 主机] [-t 类型]` | 创建新密钥 |
-| `sshm use <标签> --global` | 切换全局默认密钥 |
-| `sshm use <标签> [-p 路径]` | 为 Git 仓库配置专用密钥 |
+| `sshm use <标签> --global` | 切换全局默认密钥（同时自动切换绑定的全局作者） |
+| `sshm use <标签> [-p 路径]` | 为 Git 仓库配置专用密钥（同时自动切换绑定的作者） |
+| `sshm clone <标签> <git-url> [目录] [-y]` | 用指定密钥克隆仓库，克隆后仓库直接使用该密钥 |
+| `sshm auto-author [on|off]` | 查看/开关"凭据-作者"自动联动（默认开启） |
 | `sshm author <子命令>` | 管理/设置仓库与全局 Git 作者 |
+| `sshm author fix` | 重写所有历史中的作者名/邮箱（改名/改邮箱） |
 | `sshm info` | 查看当前仓库配置详情 |
 | `sshm test [标签] [--all]` | 测试 SSH 连接 |
 | `sshm backup / backups / restore` | 备份、列出、恢复密钥 |

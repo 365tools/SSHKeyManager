@@ -23,10 +23,10 @@
     .\install.ps1 -Uninstall
     
     # Online install
-    irm https://raw.githubusercontent.com/365tools/sshm/main/scripts/install.ps1 | iex
+    irm https://raw.githubusercontent.com/Eavelabs/sshm/main/scripts/install.ps1 | iex
     
     # Online uninstall
-    irm https://raw.githubusercontent.com/365tools/sshm/main/scripts/install.ps1 | iex -Args '-Uninstall'
+    irm https://raw.githubusercontent.com/Eavelabs/sshm/main/scripts/install.ps1 | iex -Args '-Uninstall'
 #>
 
 [CmdletBinding()]
@@ -127,7 +127,7 @@ Write-ColorText "SSH Manager Installer" "Cyan"
 Write-ColorText "=================================" "Cyan"
 Write-Host ""
 
-$repo = "365tools/sshm"
+$repo = "Eavelabs/sshm"
 try {
     if ($Version -eq "latest") {
         Write-ColorText "[INFO] Getting latest version..." "Cyan"
@@ -260,7 +260,7 @@ if ($addToPath) {
 }
 
 Write-Host ""
-Write-Host "More help: https://github.com/365tools/sshm" -ForegroundColor DarkGray
+Write-Host "More help: https://github.com/Eavelabs/sshm" -ForegroundColor DarkGray
 Write-Host "Uninstall: powershell -File install.ps1 -Uninstall" -ForegroundColor DarkGray
 Write-Host "Clean stale PATH: powershell -File install.ps1 -CleanPath" -ForegroundColor DarkGray
 Write-Host ""

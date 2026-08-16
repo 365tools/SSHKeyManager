@@ -89,6 +89,70 @@ flowchart LR
     D --> I[i18n 输出]
 ```
 
+### 完整架构图
+
+> 独立文件见 [architecture.mmd](architecture.mmd)，下方为可渲染版本。
+
+```mermaid
+flowchart TB
+    subgraph User["用户交互层"]
+        CLI["CLI 命令行<br/>sshm &lt;command&gt;"]
+        GUI["交互菜单<br/>双击运行 sshm_gui.bat<br/>show_interactive_menu()"]
+        LANG["语言层 i18n.py<br/>中英文切换"]
+    end
+
+    subgraph Cli["CLI 层 (src/sshm/cli/)"]
+        Parser["parser.py<br/>SSHArgumentParser<br/>参数解析 + 友好报错"]
+        Commands["commands.py<br/>handle_command()<br/>命令路由"]
+    end
+
+    subgraph Core["核心业务层 (src/sshm/core/)"]
+        Manager["manager.py<br/>SSHKeyManager<br/>全部业务逻辑"]
+        Config["config.py<br/>SSHConfigManager<br/>SSH config 读写"]
+        State["state.py<br/>StateManager<br/>状态持久化"]
+    end
+
+    subgraph Utils["工具层 (src/sshm/utils/)"]
+        Console["console.py<br/>表格/对齐/编码/确认"]
+        System["system.py<br/>PATH 管理"]
+        Updater["updater.py<br/>版本更新"]
+    end
+
+    subgraph External["外部系统"]
+        SSH_DIR["~/.ssh/<br/>id_* 密钥文件<br/>config SSH配置"]
+        STATE_FILE[".sshm_state<br/>active_keys / hosts / authors / lang / auto_author"]
+        GIT["git 命令<br/>clone / remote / config"]
+        SSHD["SSH / Git 平台<br/>GitHub / GitLab / 私有"]
+    end
+
+    CLI --> Parser
+    CLI --> Commands
+    GUI --> Parser
+    GUI --> Commands
+    CLI --> LANG
+    GUI --> LANG
+
+    Parser --> Commands
+    Commands --> Manager
+
+    Manager --> Config
+    Manager --> State
+
+    Manager --> Console
+    Manager --> System
+    Manager --> Updater
+
+    Manager --> SSH_DIR
+    Manager --> STATE_FILE
+    Manager --> GIT
+    Config --> SSH_DIR
+    State --> STATE_FILE
+    GIT --> SSHD
+
+    Updater --> GIT
+    Updater --> SSHD
+```
+
 ---
 
 ## 💻 开发环境搭建
@@ -101,7 +165,7 @@ flowchart LR
 ### 步骤
 
 ```bash
-git clone https://github.com/365tools/sshm.git
+git clone https://github.com/Eavelabs/sshm.git
 cd SSHManager
 pip install pyinstaller   # 构建可执行文件时
 ```

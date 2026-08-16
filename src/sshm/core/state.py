@@ -163,3 +163,18 @@ class StateManager:
         state = self._read_state()
         state['lang'] = lang if lang == 'zh' else 'en'
         self._write_state(state)
+
+    # ------------------------------------------------------------------
+    # auto_author 相关（凭据切换时自动联动人员）
+    # ------------------------------------------------------------------
+
+    def read_auto_author(self) -> bool:
+        """读取凭据-author 自动联动开关（默认开启）"""
+        state = self._read_state()
+        return state.get('auto_author', True)
+
+    def write_auto_author(self, enabled: bool):
+        """保存凭据-author 自动联动开关"""
+        state = self._read_state()
+        state['auto_author'] = bool(enabled)
+        self._write_state(state)
