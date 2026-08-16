@@ -207,7 +207,7 @@ def cmd_auto_author(
 author_app = typer.Typer(
     name="author",
     help=_(K.cmd.author),
-    no_args_is_help=False,
+    no_args_is_help=True,
     rich_markup_mode="rich",
 )
 

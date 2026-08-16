@@ -80,8 +80,13 @@ class UpdateManager:
             
             with open(self.CACHE_FILE, 'r', encoding='utf-8') as f:
                 data = json.load(f)
-            # 校验缓存结构，避免损坏缓存导致 KeyError
-            if isinstance(data, dict) and 'version' in data:
+            # 校验缓存结构：版本形如 vX.Y.Z 且下载链接为真实 URL，
+            # 避免损坏 / 手写伪造的缓存导致误报"有新版本"
+            if (isinstance(data, dict)
+                    and isinstance(data.get('version'), str)
+                    and self._parse_version(data['version']) != (0, 0, 0)
+                    and isinstance(data.get('download_url'), str)
+                    and data['download_url'].startswith(('http://', 'https://'))):
                 return data
             return None
         except (OSError, ValueError, json.JSONDecodeError):
