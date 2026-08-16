@@ -89,79 +89,58 @@ jobs:
           done
           ls -lh release/
 
-      - name: Prepare release body
-        id: release_body
-        run: |
-          VER="${GITHUB_REF_NAME#v}"
-          # 1) 静态头部（安装说明 + 功能简介）
-          cat > body.md <<'BODY'
-          ## sshm ${{ github.ref_name }}
-
-          ### 🚀 快速安装
-
-          **Windows 用户**
-
-          ```powershell
-          # 一键安装脚本
-          irm https://raw.githubusercontent.com/365tools/sshm/main/scripts/install.ps1 | iex
-          ```
-
-          **Linux / macOS 用户**
-
-          ```bash
-          # 一键安装脚本
-          curl -fsSL https://raw.githubusercontent.com/365tools/sshm/main/scripts/install.sh | bash
-          ```
-
-          > 💡 **`sshm` 显示旧版本 / 运行报错？** 可能是 PATH 残留了旧目录，重装并加清理参数：
-          > - **Windows**: `powershell -File install.ps1 -CleanPath`
-          > - **Linux/macOS**: `bash install.sh --clean-path`
-          > 清理后请重新打开终端。
-
-          ### 📦 手动下载
-
-          如果您无法访问在线安装脚本，可以直接下载下方 Asset 中的文件：
-
-          - **Windows**: 下载 `sshm-windows-amd64.exe` (双击即可使用)
-          - **Linux**: 下载 `sshm-linux-amd64`
-          - **macOS**: 下载 `sshm-macos-amd64`
-
-          #### ✨ 核心功能
-          - **🏷️ 多账号管理**：标签化管理无限个 SSH 密钥
-          - **🤖 智能仓库配置**：自动识别 Git 仓库并配置专用密钥
-          - **🔄 一键切换**：快速切换全局默认身份
-          - **⚙️ 自动配置**：自动生成和维护 SSH Connect 配置
-          - **🛡️ 安全备份**：操作前自动备份，安全无忧
-          - **🖥️ 交互界面**：提供图形化菜单和命令行双模式
-
-          #### 📝 使用文档
-          查看完整文档：[README.md](https://github.com/${{ github.repository }}/blob/main/README.md)
-
-          ---
-          BODY
-          # 2) 追加当前版本对应的 CHANGELOG 段落（存在时）
-          awk -v ver="[$VER]" '/^## / { if (shown) exit; if (index($0, "## " ver) == 1) shown = 1 } shown { print }' docs/CHANGELOG.md > /tmp/chg.md
-          if [ -s /tmp/chg.md ]; then
-            printf '\n### 📋 本次更新（CHANGELOG）\n\n' >> body.md
-            cat /tmp/chg.md >> body.md
-          fi
-          # 3) 导出为多行输出（body）
-          echo "body<<EOF" >> "$GITHUB_OUTPUT"
-          cat body.md >> "$GITHUB_OUTPUT"
-          echo "EOF" >> "$GITHUB_OUTPUT"
-
+      # 使用 Eavelabs/actions 集合中的 release-notes action 创建 Release：
+      #   - 版本号从推送的 tag 自动推导（refs/tags/v1.0.0 -> 1.0.0）
+      #   - Release 正文主体 = CHANGELOG 中对应版本的内容（单一事实来源）
+      #   - extra_body 只保留安装说明、PATH 提示与文档链接
+      #   - 引用 @main 分支（action 尚未打 tag，跟随 main 最新改动）
       - name: Create Release
         id: create_release
-        uses: softprops/action-gh-release@v1
+        uses: Eavelabs/actions/release-notes@main
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ github.ref_name }}
-          name: Release ${{ github.ref_name }}
-          generate_release_notes: true  # 自动生成从上一个 tag 的 commit 记录，追加在 body 之后
-          body: ${{ steps.release_body.outputs.body }}
-          draft: false
-          prerelease: false
+          derive_version_from_ref: "true"        # 从 ${{ github.ref }} 自动取版本号
+          changelog_globs: "docs/CHANGELOG.md,CHANGELOG.md"  # 优先 docs/，回退根目录
+          generate_release_notes: "true"         # 追加从上一个 tag 的提交变更记录
+          release_name: "sshm"                   # Release 标题前缀
+          draft: "false"
+          prerelease: "false"
+          extra_body: |
+            ### 🚀 快速安装
+
+            **Windows 用户**
+
+            ```powershell
+            # 一键安装脚本
+            irm https://raw.githubusercontent.com/365tools/sshm/main/scripts/install.ps1 | iex
+            ```
+
+            **Linux / macOS 用户**
+
+            ```bash
+            # 一键安装脚本
+            curl -fsSL https://raw.githubusercontent.com/365tools/sshm/main/scripts/install.sh | bash
+            ```
+
+            > 💡 **`sshm` 显示旧版本 / 运行报错？** 可能是 PATH 残留了旧目录，重装并加清理参数：
+            > - **Windows**: `powershell -File install.ps1 -CleanPath`
+            > - **Linux/macOS**: `bash install.sh --clean-path`
+            > 清理后请重新打开终端。
+
+            ### 📦 手动下载
+
+            如果您无法访问在线安装脚本，可以直接下载下方 Asset 中的文件：
+
+            - **Windows**: 下载 `sshm-windows-amd64.exe` (双击即可使用)
+            - **Linux**: 下载 `sshm-linux-amd64`
+            - **macOS**: 下载 `sshm-macos-amd64`
+
+            ### 📝 使用文档
+
+            查看完整文档：[README.md](https://github.com/${{ github.repository }}/blob/main/README.md)
+
+            ---
           files: |
             release/sshm-windows-amd64.exe
             release/sshm-linux-amd64
