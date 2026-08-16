@@ -113,14 +113,14 @@ jobs:
 
             ```powershell
             # 一键安装脚本
-            irm https://raw.githubusercontent.com/365tools/sshm/main/scripts/install.ps1 | iex
+            irm https://raw.githubusercontent.com/Eavelabs/sshm/main/scripts/install.ps1 | iex
             ```
 
             **Linux / macOS 用户**
 
             ```bash
             # 一键安装脚本
-            curl -fsSL https://raw.githubusercontent.com/365tools/sshm/main/scripts/install.sh | bash
+            curl -fsSL https://raw.githubusercontent.com/Eavelabs/sshm/main/scripts/install.sh | bash
             ```
 
             > 💡 **`sshm` 显示旧版本 / 运行报错？** 可能是 PATH 残留了旧目录，重装并加清理参数：
