@@ -129,11 +129,43 @@ def _backup_refs(repo: Path) -> None:
 
 
 def _update_current_branch(repo: Path) -> None:
-    """fast-import 会更新 refs/heads/*，但需要把当前分支 checkout 到新提交。"""
-    head = _run_git(repo, ['symbolic-ref', '--quiet', 'HEAD'])
-    if head.returncode == 0:
-        branch = head.stdout.strip()
+    """fast-import 更新 refs/heads/* 后，把 HEAD 重新挂回当前分支。
+
+    fast-import 导入新历史后，HEAD 可能变成 detached（指向旧 ref 或游离状态）。
+    这里稳健地恢复到原分支：优先用 symbolic-ref，失败则从 refs/heads 推断。
+    """
+    branch = _current_branch_name(repo)
+    if not branch:
+        # 无法确定当前分支，尝试 main/master 兜底
+        for cand in ('main', 'master'):
+            if (repo / '.git').exists():
+                chk = _run_git(repo, ['rev-parse', '--verify', f'refs/heads/{cand}'])
+                if chk.returncode == 0:
+                    branch = cand
+                    break
+    if branch:
         _run_git(repo, ['checkout', '-f', branch])
+
+
+def _current_branch_name(repo: Path) -> str:
+    """返回 HEAD 当前所在分支名；若 detached 返回空字符串。"""
+    # 先尝试 symbolic-ref（正常挂载时可用）
+    sym = _run_git(repo, ['symbolic-ref', '--quiet', 'HEAD'])
+    if sym.returncode == 0:
+        ref = sym.stdout.strip()
+        if ref.startswith('refs/heads/'):
+            return ref[len('refs/heads/'):]
+        return ''
+    # detached：尝试解析 HEAD 指向的 commit 属于哪个分支
+    name = _run_git(repo, ['name-rev', '--name-only', 'HEAD'])
+    if name.returncode == 0:
+        n = name.stdout.strip()
+        # 格式如 "main"、"main~1"、"tags/v0.0.1^0"
+        if '~' in n or '^' in n:
+            n = n.split('~')[0].split('^')[0]
+        if n and not n.startswith('tags/'):
+            return n
+    return ''
 
 
 def rewrite_history(repo_path: Path, cfg: RewriteConfig) -> dict:

@@ -12,9 +12,9 @@ from ..i18n import _
 from .console import print_section_header, prompt_confirm
 
 
-def add_to_path():
+def add_to_path() -> None:
     """将当前可执行文件路径添加到环境变量"""
-    print_section_header(_("Add to PATH"))
+    print_section_header(_("hdr.add_to_path"))
     
     # 获取当前可执行文件路径
     if getattr(sys, 'frozen', False):
@@ -26,8 +26,8 @@ def add_to_path():
         exe_path = Path(__file__).parent.parent.resolve()
         exe_dir = exe_path
     
-    print(f"📂 {_('Current executable: {path}', path=exe_path)}")
-    print(f"📁 {_('Directory: {dir}', dir=exe_dir)}")
+    print(f"📂 {_('sys.current_exe', path=exe_path)}")
+    print(f"📁 {_('sys.directory', dir=exe_dir)}")
     
     if sys.platform == 'win32':
         _add_to_windows_path(exe_dir)
@@ -35,7 +35,7 @@ def add_to_path():
         _add_to_unix_path(exe_dir)
 
 
-def _add_to_windows_path(exe_dir: Path):
+def _add_to_windows_path(exe_dir: Path) -> None:
     """Windows 环境变量配置"""
     import winreg
     
@@ -49,7 +49,7 @@ def _add_to_windows_path(exe_dir: Path):
         )
         
         try:
-            current_path, _ = winreg.QueryValueEx(key, 'Path')
+            current_path, _value_type = winreg.QueryValueEx(key, 'Path')
         except FileNotFoundError:
             current_path = ''
         
@@ -62,14 +62,14 @@ def _add_to_windows_path(exe_dir: Path):
                          if Path(p).resolve() == exe_dir.resolve()]
         
         if existing_paths:
-            print(_("Path already in environment variable: {path}",
+            print(_("sys.path_exists",
                     path=existing_paths[0]))
             
             if existing_paths[0] != exe_dir_str:
-                print(_("Current path: {path}", path=exe_dir_str))
-                print(_("Existing path: {path}", path=existing_paths[0]))
+                print(_("sys.current_path", path=exe_dir_str))
+                print(_("sys.existing_path", path=existing_paths[0]))
                 
-                if prompt_confirm(_("Update to the current path?")):
+                if prompt_confirm(_("sys.update_path_prompt")):
                     # 移除旧路径
                     path_entries = [p for p in path_entries if p not in existing_paths]
                     # 添加新路径到开头
@@ -82,11 +82,11 @@ def _add_to_windows_path(exe_dir: Path):
                     # 广播环境变量更新
                     _broadcast_env_change()
                     
-                    print("\n✅ " + _("Environment variable updated!"))
-                    print("\n💡 " + _("Tip: restart your terminal for the change to take effect"))
-                    print("   " + _("Then you can use the 'sshm' command directly"))
+                    print("\n✅ " + _("sys.env_updated"))
+                    print("\n💡 " + _("sys.restart_tip"))
+                    print("   " + _("sys.use_sshm_directly"))
                 else:
-                    print("\n❌ " + _("operation cancelled"))
+                    print("\n❌ " + _("misc.operation_cancelled"))
                     winreg.CloseKey(key)
             else:
                 winreg.CloseKey(key)
@@ -101,18 +101,18 @@ def _add_to_windows_path(exe_dir: Path):
             # 广播环境变量更新
             _broadcast_env_change()
             
-            print("\n✅ " + _("Added to environment variable!"))
+            print("\n✅ " + _("sys.env_added"))
             print(f"   {exe_dir_str}")
-            print("\n💡 " + _("Tip: restart your terminal for the change to take effect"))
-            print("   " + _("Then you can use the 'sshm' command directly"))
+            print("\n💡 " + _("sys.restart_tip"))
+            print("   " + _("sys.use_sshm_directly"))
     
     except PermissionError:
-        print("\n❌ " + _("Permission denied, please run as administrator"))
+        print("\n❌ " + _("err.permission_denied"))
     except Exception as e:
-        print(f"\n❌ {_('Failed to add: {err}', err=e)}")
+        print(f"\n❌ {_('err.add_failed', err=e)}")
 
 
-def _add_to_unix_path(exe_dir: Path):
+def _add_to_unix_path(exe_dir: Path) -> None:
     """Unix/Linux/macOS 环境变量配置"""
     home = Path.home()
     exe_dir_str = str(exe_dir)
@@ -132,29 +132,29 @@ def _add_to_unix_path(exe_dir: Path):
     if rc_file.exists():
         content = rc_file.read_text(encoding='utf-8')
         if exe_dir_str in content:
-            print(_("Path already in {name}", name=rc_file.name))
+            print(_("sys.path_in", name=rc_file.name))
             return
     
-    print(_("Will add to: {path}", path=rc_file))
-    print(_("Command: {cmd}", cmd=export_line))
+    print(_("sys.will_add", path=rc_file))
+    print(_("sys.command", cmd=export_line))
     
-    if prompt_confirm("\n" + _("Continue?")):
+    if prompt_confirm("\n" + _("sys.continue")):
         try:
             with rc_file.open('a', encoding='utf-8') as f:
                 f.write(f"\n# Added by sshm\n")
                 f.write(f"{export_line}\n")
             
-            print("\n✅ " + _("Added to config file!"))
-            print(f"\n💡 " + _("Run the following to apply:"))
+            print("\n✅ " + _("sys.config_added"))
+            print(f"\n💡 " + _("sys.run_to_apply"))
             print(f"   source {rc_file}")
-            print("\n   " + _("or restart your terminal"))
+            print("\n   " + _("sys.or_restart"))
         except Exception as e:
-            print(f"\n❌ {_('Failed to add: {err}', err=e)}")
+            print(f"\n❌ {_('err.add_failed', err=e)}")
     else:
-        print("\n❌ " + _("operation cancelled"))
+        print("\n❌ " + _("misc.operation_cancelled"))
 
 
-def _broadcast_env_change():
+def _broadcast_env_change() -> None:
     """广播 Windows 环境变量更新"""
     if sys.platform == 'win32':
         try:
@@ -175,5 +175,5 @@ def _broadcast_env_change():
                 5000,
                 ctypes.byref(result)
             )
-        except:
+        except Exception:
             pass

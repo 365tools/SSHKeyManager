@@ -27,7 +27,7 @@ class UpdateManager:
     CACHE_FILE = Path.home() / ".sshm_update_cache"
     CACHE_VALID_HOURS = 24
     
-    def __init__(self):
+    def __init__(self) -> None:
         self.current_version = VERSION
         self.platform = self._detect_platform()
         
@@ -43,16 +43,12 @@ class UpdateManager:
         else:
             return "unknown"
     
-    def _get_asset_name(self) -> str:
-        """获取当前平台的资源文件名"""
-        if self.platform == "windows":
-            return "sshm-windows-amd64.exe"
-        elif self.platform == "linux":
-            return "sshm-linux-amd64"
-        elif self.platform == "macos":
-            return "sshm-macos-amd64"
-        else:
-            raise RuntimeError(f"不支持的平台: {self.platform}")
+    # 各平台对应的资产名关键词（用于从 release assets 中模糊匹配当前平台产物）
+    _PLATFORM_ASSET_KEYWORDS = {
+        "windows": ("windows", "win"),
+        "linux": ("linux",),
+        "macos": ("macos", "darwin"),
+    }
     
     def _parse_version(self, version: str) -> Tuple[int, ...]:
         """解析版本号为元组（容忍预发布后缀，如 v0.0.1-beta）"""
@@ -83,8 +79,12 @@ class UpdateManager:
                 return None
             
             with open(self.CACHE_FILE, 'r', encoding='utf-8') as f:
-                return json.load(f)
-        except:
+                data = json.load(f)
+            # 校验缓存结构，避免损坏缓存导致 KeyError
+            if isinstance(data, dict) and 'version' in data:
+                return data
+            return None
+        except (OSError, ValueError, json.JSONDecodeError):
             return None
     
     def _save_cache(self, data: dict):
@@ -127,15 +127,20 @@ class UpdateManager:
             if not self._is_newer_version(latest_version, self.current_version):
                 return None
             
-            # 查找当前平台的下载链接
-            asset_name = self._get_asset_name()
+            # 查找当前平台的下载链接：按平台关键词模糊匹配，排除源码包
+            keywords = self._PLATFORM_ASSET_KEYWORDS.get(self.platform, ())
+            _SOURCE_SUFFIXES = ('.tar.gz', '.zip', '.tar.xz')
             download_url = None
-            
             for asset in data.get('assets', []):
-                if asset['name'] == asset_name:
-                    download_url = asset['browser_download_url']
+                name = asset.get('name', '').lower()
+                # 跳过源码包/文档等非可执行资产
+                if name.endswith(_SOURCE_SUFFIXES) or 'source' in name:
+                    continue
+                # 当前平台关键词命中（资产名通常明确区分平台）
+                if any(k in name for k in keywords):
+                    download_url = asset.get('browser_download_url')
                     break
-            
+
             if not download_url:
                 return None
             
@@ -169,12 +174,12 @@ class UpdateManager:
         """
         # 源码运行模式：无法用下载的 exe 替换 .py 入口，直接提示
         if not getattr(sys, 'frozen', False):
-            print("\n⚠️  " + _("Currently running from source, cannot auto-update"))
-            print("   " + _("Use 'git pull' to get the latest source, or download from the Releases page"))
+            print("\n⚠️  " + _("upd.from_source"))
+            print("   " + _("upd.use_git_pull"))
             return False
 
         try:
-            print("⬇️  " + _("Downloading..."))
+            print("⬇️  " + _("upd.downloading"))
             
             # 下载到临时文件
             req = Request(download_url)
@@ -187,6 +192,7 @@ class UpdateManager:
                 
                 # 创建临时文件
                 temp_fd, temp_path = tempfile.mkstemp(suffix='.exe' if self.platform == 'windows' else '')
+                os.close(temp_fd)  # 立即关闭 fd，避免文件句柄泄漏（更新后无法删除临时文件）
                 
                 with open(temp_path, 'wb') as f:
                     while True:
@@ -199,7 +205,7 @@ class UpdateManager:
                         # 显示进度
                         if total_size > 0:
                             percent = (downloaded / total_size) * 100
-                            print(f"\r  {_('Download progress: {percent:.1f}%', percent=percent)}", end='', flush=True)
+                            print(f"\r  {_('upd.progress', percent=percent)}", end='', flush=True)
                 
                 print()  # 换行
             
@@ -207,7 +213,7 @@ class UpdateManager:
             current_exe = sys.executable if getattr(sys, 'frozen', False) else sys.argv[0]
             current_exe = os.path.abspath(current_exe)
             
-            print("📝 " + _("Updating..."))
+            print("📝 " + _("upd.updating"))
             
             # 根据平台执行不同的更新策略
             if self.platform == "windows":
@@ -230,8 +236,8 @@ del "%~f0"
                 subprocess.Popen(['cmd', '/c', batch_path], 
                                creationflags=subprocess.CREATE_NEW_CONSOLE if hasattr(subprocess, 'CREATE_NEW_CONSOLE') else 0)
                 
-                print("\n✅ " + _("Update script started"))
-                print(_("The program will exit automatically; run sshm again after the update"))
+                print("\n✅ " + _("upd.script_started"))
+                print(_("upd.exit_after"))
                 
             else:
                 # Linux/macOS: 直接替换（需要权限）
@@ -241,29 +247,29 @@ del "%~f0"
                 try:
                     import shutil
                     shutil.move(temp_path, current_exe)
-                    print("\n✅ " + _("Update complete!"))
-                    print(_("Please run sshm again"))
+                    print("\n✅ " + _("upd.complete"))
+                    print(_("upd.run_again"))
                 except PermissionError:
                     # 需要 sudo
-                    print(f"\n⚠️  " + _("Administrator privileges required to update"))
-                    print(_("Please run manually: sudo mv {src} {dst}", src=temp_path, dst=current_exe))
+                    print(f"\n⚠️  " + _("upd.need_admin"))
+                    print(_("upd.run_manual", src=temp_path, dst=current_exe))
                     return False
             
             return True
             
         except Exception as e:
-            print(f"\n❌ {_('Update failed:')} {e}")
+            print(f"\n❌ {_('upd.failed')} {e}")
             return False
     
-    def check_and_notify(self):
+    def check_and_notify(self) -> None:
         """
         检查更新并通知用户（静默检查）
         在每次运行时调用，不干扰正常使用
         """
         update_info = self.check_update(force=False)
         if update_info:
-            msg = _("A new version is available: {version} (current: v{current})",
+            msg = _("upd.available",
                     version=update_info['version'], current=self.current_version)
-            hint = _("Run 'sshm update' to update to the latest version")
+            hint = _("upd.run_update")
             print(f"\n💡 {msg}")
             print(f"   {hint}\n")

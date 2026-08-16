@@ -1,0 +1,58 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sshm"
+dynamic = ["version"]
+description = "企业级多账号 SSH 密钥管理工具"
+readme = "README.md"
+license = { text = "MIT" }
+authors = [{ name = "Eavelabs", email = "eavelabs@users.noreply.github.com" }]
+requires-python = ">=3.10"
+keywords = ["ssh", "git", "key-manager", "cli"]
+dependencies = [
+    "typer>=0.12",
+    "click>=8.1",
+    "wcwidth>=0.2.13",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-xdist>=3.6",
+    "basedpyright>=1.0",
+    "pyinstaller>=6.0",
+]
+
+[project.scripts]
+sshm = "sshm.__main__:main"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+# 版本号动态化：从 sshm.__version__ 读取（该值由 CHANGELOG 自动解析），
+# 打包/安装时无需手动维护版本号
+[tool.setuptools.dynamic]
+version = { attr = "sshm.__version__" }
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --tb=short"
+python_files = "test_*.py"
+python_functions = "test_*"
+
+[tool.basedpyright]
+include = ["src"]
+exclude = ["**/__pycache__", "**/*.pyc", "**/.git", "scripts", "docs", "repo"]
+typeCheckingMode = "basic"
+pythonVersion = "3.14"
+analyzeUnannotatedFunctions = false
+reportMissingTypeStubs = "none"
+reportMissingImports = true
+reportUnusedImport = "warning"
+reportUnusedVariable = "warning"
+reportUnusedFunction = "warning"

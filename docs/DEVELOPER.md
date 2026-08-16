@@ -25,26 +25,33 @@ SSHManager/
 │   └── sshm/
 │       ├── __init__.py          # 包入口（自动初始化 Windows 控制台）
 │       ├── __main__.py          # python -m sshm 入口
-│       ├── constants.py         # 版本号、密钥类型等常量
-│       ├── i18n.py              # 国际化（en/zh 双语输出）
+│       ├── constants.py         # 密钥类型等常量（版本号从 CHANGELOG 自动解析）
+│       ├── i18n.py              # 国际化组装（翻译函数 + 语言状态）
+│       ├── language/
+│       │   ├── i18n_language.py # 通用 key 模版（权威 key 清单 + 分组约定）
+│       │   ├── i18n_en.py       # 英文 (EN) 字典
+│       │   ├── i18n_zh.py       # 中文 (ZH) 字典
+│       │   └── __init__.py      # language 包导出
 │       ├── cli/
-│       │   ├── parser.py        # argparse 命令行参数解析
-│       │   ├── commands.py      # 命令路由到核心业务
-│       │   └── interactive.py   # 交互式 TUI 菜单
+│       │   ├── cli.py           # Typer 主应用（16 命令 + author 子命令）
+│       │   ├── interactive.py   # 交互式 TUI 菜单
+│       │   └── __init__.py      # 导出 app + 交互菜单
 │       ├── core/
 │       │   ├── manager.py       # SSHKeyManager 核心业务
 │       │   ├── config.py        # SSHConfigManager Config 管理
-│       │   └── state.py         # StateManager 状态持久化
+│       │   ├── state.py         # StateManager 状态持久化
+│       │   └── rewrite.py       # git 历史重写
 │       └── utils/
 │           ├── console.py       # 输出格式化、Windows 编码修复
 │           ├── system.py        # PATH 配置等系统操作
 │           └── updater.py       # 自动更新
 ├── scripts/
 │   ├── build_local.py           # 本地构建脚本
+│   ├── check_all.py             # 提交前统一检查（compile/i18n/pytest/pyright）
+│   ├── hooks/                   # git pre-commit 钩子模板 + 安装脚本
 │   ├── install.ps1              # Windows 一键安装
-│   ├── install.sh               # Linux/macOS 一键安装
-│   ├── cli_test.py              # CLI 冒烟测试
-│   └── sandbox_test.py          # 沙箱测试
+│   └── install.sh               # Linux/macOS 一键安装
+├── tests/                       # pytest 测试套件（75 用例，含 i18n 守门测试）
 ├── .github/workflows/
 │   └── build-release.yml        # 三平台打包发布
 └── docs/                        # 项目文档
@@ -61,31 +68,31 @@ SSHManager/
   - `SSHConfigManager`：`~/.ssh/config` 读写
   - `StateManager`：状态文件（`.sshm_state`）持久化
 - **cli 层**：命令行交互
-  - `parser`：argparse 定义全部子命令
-  - `commands`：将参数路由到 core 层
-  - `interactive`：交互式 TUI 菜单
+  - `cli.py`：Typer 框架声明式定义全部命令（`@app.command()`），自动生成 `--help`/参数校验/补全
+  - `interactive.py`：交互式 TUI 菜单
 - **utils 层**：通用工具（控制台、系统、更新）
+- **language 层**：i18n 翻译字典（`i18n_en.py`/`i18n_zh.py` + key 模版），`i18n.py` 组装翻译函数
 
 > 核心采用**组合模式**：`SSHKeyManager` 内部组合 `SSHConfigManager` 与 `StateManager`，而非继承，降低耦合、便于测试。
 
 ### 国际化 (i18n)
 
-- 源字符串使用英文作为 key（同时作为 `en` 显示文本）
-- 中文通过翻译表（`ZH` 字典）映射
+- **稳定 key 方案**：翻译键为稳定 key（如 `cmd.list` / `opt.label`），英文（`EN`）与中文（`ZH`）两套字典都映射到同一 key，杜绝"改描述要改两处"与废弃键冗余
+- 字典按语言拆分为独立文件（`language/i18n_en.py` / `i18n_zh.py`），通用 key 模版（`language/i18n_language.py`）持有权威 `KEYS` 清单
 - 语言优先级：`SSHM_LANG` 环境变量 > 状态文件 `lang` 字段 > 默认 `en`
-- 翻译函数 `_(text, **kwargs)`：翻译后支持 `{placeholder}` 格式化
+- 翻译函数 `_(key, **kwargs)`：按当前语言查表，支持 `{placeholder}` 格式化；缺失时回退英文，再缺失回退 key 本身便于发现遗漏
+- **一致性守门**：`tests/test_i18n.py` 自动校验 key 模版 / EN / ZH 三方同步、翻译非空、占位符一致
 
 ### 数据流
 
 ```mermaid
 flowchart LR
-    A[用户输入] --> B[cli/parser]
-    B --> C[cli/commands]
-    C --> D[core/SSHKeyManager]
+    A[用户输入] --> B[cli/cli.py  Typer]
+    B --> D[core/SSHKeyManager]
     D --> E[SSHConfigManager]
     D --> F[StateManager]
     D --> G[~/.ssh 文件系统]
-    C --> H[utils/updater]
+    B --> H[utils/updater]
     D --> I[i18n 输出]
 ```
 
@@ -102,8 +109,8 @@ flowchart TB
     end
 
     subgraph Cli["CLI 层 (src/sshm/cli/)"]
-        Parser["parser.py<br/>SSHArgumentParser<br/>参数解析 + 友好报错"]
-        Commands["commands.py<br/>handle_command()<br/>命令路由"]
+        CliApp["cli.py<br/>Typer app<br/>声明式命令定义"]
+        Interactive["interactive.py<br/>交互菜单"]
     end
 
     subgraph Core["核心业务层 (src/sshm/core/)"]
@@ -125,15 +132,13 @@ flowchart TB
         SSHD["SSH / Git 平台<br/>GitHub / GitLab / 私有"]
     end
 
-    CLI --> Parser
-    CLI --> Commands
-    GUI --> Parser
-    GUI --> Commands
+    CLI --> CliApp
+    GUI --> Interactive
     CLI --> LANG
     GUI --> LANG
 
-    Parser --> Commands
-    Commands --> Manager
+    CliApp --> Manager
+    Interactive --> Manager
 
     Manager --> Config
     Manager --> State
@@ -167,7 +172,8 @@ flowchart TB
 ```bash
 git clone https://github.com/Eavelabs/sshm.git
 cd SSHManager
-pip install pyinstaller   # 构建可执行文件时
+pip install -e .            # 安装运行时依赖（typer / wcwidth）
+pip install -e ".[dev]"     # 安装开发依赖（pytest / basedpyright / pyinstaller）
 ```
 
 ### 本地运行
@@ -184,13 +190,21 @@ python src/run_sshm.py
 
 ## 🧪 测试
 
-```bash
-# CLI 冒烟测试（覆盖全部命令）
-python scripts/cli_test.py
+基于 pytest 的统一测试套件（`tests/`，75 用例），包含核心业务、CLI 帮助、i18n 一致性守门测试等。
 
-# 沙箱测试（隔离环境）
-python scripts/sandbox_test.py
+```bash
+# 运行全部测试
+python -m pytest
+
+# 并行加速（pytest-xdist，可选）
+python -m pytest -n 3
+
+# 提交前统一检查（compile + i18n + pytest + pyright，任一失败阻断提交）
+python scripts/check_all.py
 ```
+
+> git pre-commit 钩子默认会在 `git commit` 前自动运行 `check_all.py`。
+> 安装钩子：`python scripts/hooks/install.py`，详见 [HOOKS.md](../scripts/HOOKS.md)。
 
 ---
 
@@ -231,8 +245,8 @@ pyinstaller --onefile --name sshm --console --paths src src/run_sshm.py
 触发方式：
 
 ```bash
-git tag v0.0.1
-git push origin v0.0.1
+git tag v0.0.3
+git push origin v0.0.3
 ```
 
 ---

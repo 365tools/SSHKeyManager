@@ -3,20 +3,22 @@
 flowchart TB
 
     subgraph User["用户交互层"]
-        CLI["CLI 命令行<br/>sshm &lt;command&gt;"]
+        CLI["CLI 命令行<br/>sshm &lt;command&gt;<br/>Typer 声明式命令"]
         GUI["交互菜单<br/>双击运行 sshm_gui.bat<br/>show_interactive_menu()"]
-        LANG["语言层 i18n.py<br/>中英文切换"]
+        LANG["语言层 i18n.py<br/>组装：翻译函数 + 语言状态"]
+        LANG_PKG["language 包<br/>key 模版 + EN/ZH 字典"]
     end
 
     subgraph Cli["CLI 层 (src/sshm/cli/)"]
-        Parser["parser.py<br/>SSHArgumentParser<br/>参数解析 + 友好报错"]
-        Commands["commands.py<br/>handle_command()<br/>命令路由"]
+        CLIAPP["cli.py<br/>Typer app（16 命令 + author 子命令）"]
+        Interactive["interactive.py<br/>交互式 TUI 菜单"]
     end
 
     subgraph Core["核心业务层 (src/sshm/core/)"]
         Manager["manager.py<br/>SSHKeyManager<br/>全部业务逻辑"]
         Config["config.py<br/>SSHConfigManager<br/>SSH config 读写"]
         State["state.py<br/>StateManager<br/>状态持久化"]
+        Rewrite["rewrite.py<br/>git 历史重写"]
     end
 
     subgraph Utils["工具层 (src/sshm/utils/)"]
@@ -32,21 +34,21 @@ flowchart TB
         SSHD["SSH / Git 平台<br/>GitHub / GitLab / 私有"]
     end
 
-    %% 用户层到 CLI 层
-    CLI --> Parser
-    CLI --> Commands
-    GUI --> Parser
-    GUI --> Commands
+    %% 用户层到 CLI / 语言层
+    CLI --> CLIAPP
+    GUI --> Interactive
     CLI --> LANG
     GUI --> LANG
+    LANG --> LANG_PKG
 
     %% CLI 层到核心层
-    Parser --> Commands
-    Commands --> Manager
+    CLIAPP --> Manager
+    Interactive --> Manager
 
     %% 核心层内部
     Manager --> Config
     Manager --> State
+    Manager --> Rewrite
 
     %% 核心层到工具层
     Manager --> Console

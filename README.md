@@ -2,12 +2,21 @@
 
 # 🔑 sshm
 
+[![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white)](https://github.com/Eavelabs/sshm/releases/latest)
+[![Linux](https://img.shields.io/badge/Linux-FCC624?logo=linux&logoColor=black)](https://github.com/Eavelabs/sshm/releases/latest)
+[![macOS](https://img.shields.io/badge/macOS-000000?logo=apple&logoColor=white)](https://github.com/Eavelabs/sshm/releases/latest)
+
 **企业级多账号 SSH 密钥管理工具 · 中英双语 · 跨平台**
 
 [![Python Version](https://img.shields.io/badge/python-3.14%2B-blue)](https://www.python.org/downloads/)
-[![Platform](https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-lightgrey)](https://github.com/Eavelabs/sshm)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Version](https://img.shields.io/badge/version-0.0.1-brightgreen)](https://github.com/Eavelabs/sshm/releases)
+[![Release](https://img.shields.io/github/v/release/Eavelabs/sshm)](https://github.com/Eavelabs/sshm/releases)
+[![Build](https://img.shields.io/github/actions/workflow/status/Eavelabs/sshm/build-release.yml)](https://github.com/Eavelabs/sshm/actions)
+
+[![Stars](https://img.shields.io/github/stars/Eavelabs/sshm?style=social)](https://github.com/Eavelabs/sshm/stargazers)
+[![Downloads](https://img.shields.io/github/downloads/Eavelabs/sshm/total?label=Downloads)](https://github.com/Eavelabs/sshm/releases)
+[![Last Commit](https://img.shields.io/github/last-commit/Eavelabs/sshm)](https://github.com/Eavelabs/sshm/commits)
+[![Language](https://img.shields.io/github/languages/top/Eavelabs/sshm?label=Python)](https://github.com/Eavelabs/sshm)
 
 [快速开始](#-快速开始) • [功能特性](#-功能特性) • [使用文档](#-使用文档) • [常见问题](docs/FAQ.md) • [开发者文档](docs/DEVELOPER.md)
 

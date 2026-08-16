@@ -1,0 +1,54 @@
+#!/bin/sh
+# ---------------------------------------------------------------------------
+# git pre-commit 钩子入口（跨平台：Unix shell + Windows Git Bash 通用）
+#
+# 在每次 git commit 前运行 sshm 的统一检查（scripts/check_all.py）。
+# 默认执行完整检查（pytest + pyright）；设置环境变量 SSHM_COMMIT_FAST=1
+# 只跑快速检查（语法编译 + i18n）。
+#
+# 说明：
+#   - git hooks 由 git 自带的 shell 执行，因此用 POSIX sh 实现（Unix/macOS
+#     与 Windows Git Bash 均可用）。
+#   - 用 `command -v` 依次探测 python / python3，兼容不同的安装方式。
+#   - 此文件是模板；实际生效的钩子由 scripts/hooks/install.py 安装到
+#     .git/hooks/pre-commit。
+# ---------------------------------------------------------------------------
+
+# 定位项目根：本钩子位于 .git/hooks/pre-commit，
+# 上溯两级（.git/hooks -> .git -> 项目根）得到项目根目录。
+HOOK_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_ROOT="$(cd "$HOOK_DIR/../.." && pwd)"
+CHECK_SCRIPT="$PROJECT_ROOT/scripts/check_all.py"
+
+if [ ! -f "$CHECK_SCRIPT" ]; then
+    echo "❌ 未找到检查脚本: $CHECK_SCRIPT"
+    echo "   请确认在正确的仓库目录中执行提交。"
+    exit 1
+fi
+
+# 探测可用的 Python 解释器
+PY=""
+if command -v python >/dev/null 2>&1; then
+    PY=python
+elif command -v python3 >/dev/null 2>&1; then
+    PY=python3
+else
+    echo "❌ 未找到 Python，无法运行提交前检查。"
+    echo "   请安装 Python 后重试，或使用 git commit --no-verify 临时跳过。"
+    exit 1
+fi
+
+echo ""
+echo "(自动检查在提交前运行，请稍候...)"
+echo ""
+
+# 进入项目根执行，确保 check_all.py 内部路径正确（项目根无空格限制）
+cd "$PROJECT_ROOT" || exit 1
+
+# 快速模式：SSHM_COMMIT_FAST=1 时只跑秒级检查
+SCRIPT_REL="scripts/check_all.py"
+if [ "$SSHM_COMMIT_FAST" = "1" ]; then
+    exec "$PY" "$SCRIPT_REL" --fast
+else
+    exec "$PY" "$SCRIPT_REL"
+fi

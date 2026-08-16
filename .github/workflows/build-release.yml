@@ -35,7 +35,10 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pyinstaller
+          # 安装项目自身依赖（typer/click/wcwidth，来自 pyproject.toml），
+          # 否则 PyInstaller 打出的包里缺 typer，可执行文件运行时直接崩溃
+          # （ModuleNotFoundError: No module named 'typer'）
+          pip install . pyinstaller
 
       - name: Build with PyInstaller (Windows)
         if: matrix.os == 'windows-latest'
