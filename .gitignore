@@ -23,7 +23,10 @@ build/
 build/
 dist/
 
-# CLI 冒烟测试沙箱（scripts/cli_test.py 运行时的隔离 HOME）
+# pytest 缓存
+.pytest_cache/
+
+# 测试临时目录（历史遗留）
 scripts/.cli_test_home/
 
 

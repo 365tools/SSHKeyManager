@@ -4,57 +4,53 @@
 控制台工具模块 - 格式化输出、Windows 编码修复等
 """
 
-import io
 import re
 import shutil
 import sys
 import unicodedata
 from datetime import datetime
-from typing import Optional
+from typing import Iterable, Optional
 
 try:
     from wcwidth import wcswidth as _wcswidth
     from wcwidth import wcwidth as _wcwidth_char
-except ImportError:
+except ImportError:  # pragma: no cover - wcwidth 为正式依赖，缺失时降级
     _wcswidth = None
     _wcwidth_char = None
 
 
-def setup_windows_console():
-    """修复 Windows 控制台 UTF-8 编码问题"""
+def setup_windows_console() -> None:
+    """修复 Windows 控制台 UTF-8 编码问题。
+
+    设置控制台代码页为 UTF-8，并重新包装 stdout/stderr 为 UTF-8 编码，
+    以支持 emoji 输出。注意：必须在任何 Typer/click 输出之前完成。
+    """
     if sys.platform != 'win32':
         return
-    
+
     try:
         import ctypes
+        import io
         kernel32 = ctypes.windll.kernel32
-        
         # 设置控制台代码页为 UTF-8 (65001)
         kernel32.SetConsoleOutputCP(65001)
         kernel32.SetConsoleCP(65001)
-        
-        # 重新包装 stdout/stderr
-        if hasattr(sys.stdout, 'buffer'):
+
+        # 仅当 stdout/stderr 是真实交互控制台时才重新包装，
+        # 避免在测试（pytest 捕获）等非 tty 环境下破坏输出对象。
+        if hasattr(sys.stdout, 'buffer') and getattr(sys.stdout, 'isatty', lambda: False)():
             sys.stdout = io.TextIOWrapper(
-                sys.stdout.buffer,
-                encoding='utf-8',
-                errors='replace',
-                line_buffering=True,
-                write_through=True
-            )
-        if hasattr(sys.stderr, 'buffer'):
+                sys.stdout.buffer, encoding='utf-8', errors='replace',
+                line_buffering=True, write_through=True)
+        if hasattr(sys.stderr, 'buffer') and getattr(sys.stderr, 'isatty', lambda: False)():
             sys.stderr = io.TextIOWrapper(
-                sys.stderr.buffer,
-                encoding='utf-8',
-                errors='replace',
-                line_buffering=True,
-                write_through=True
-            )
+                sys.stderr.buffer, encoding='utf-8', errors='replace',
+                line_buffering=True, write_through=True)
     except Exception:
         pass  # 静默失败
 
 
-def get_key_pattern():
+def get_key_pattern() -> re.Pattern[str]:
     """获取密钥文件名匹配模式"""
     return re.compile(r'^id_(rsa|ed25519|ecdsa|dsa)(\.\w+)?$')
 
@@ -113,8 +109,12 @@ def _char_width(ch: str) -> int:
     return 1
 
 
-def pad_cell(text: str, width: int, align: str = 'left') -> str:
-    """按显示宽度对齐单元格文本，超宽时截断并追加省略号"""
+def pad_cell(text: Optional[str], width: int, align: str = 'left') -> str:
+    """按显示宽度对齐单元格文本，超宽时截断并追加省略号。
+
+    text 为 None 时按空串处理（适配解包自 Unknown 元组的调用点）。
+    """
+    text = text or ''
     text_width = get_display_width(text)
     if text_width > width:
         result = ''
@@ -139,8 +139,11 @@ def pad_cell(text: str, width: int, align: str = 'left') -> str:
     return text + ' ' * padding
 
 
-def print_table(headers, rows, truncatable=None, term_width=None,
-                center_cols=None):
+def print_table(headers: list,
+                rows: list,
+                truncatable: Optional[Iterable[int]] = None,
+                term_width: Optional[int] = None,
+                center_cols: Optional[Iterable[int]] = None) -> None:
     """以表格形式打印数据，自动处理 CJK/emoji 对齐与窄终端压缩
 
     Args:
@@ -213,27 +216,27 @@ def prompt_confirm(message: str, default: Optional[str] = None) -> bool:
     return response in ['y', 'yes']
 
 
-def print_separator(char='=', length=80):
+def print_separator(char: str = '=', length: int = 80) -> None:
     """打印分隔线"""
     print(char * length)
 
 
-def print_section_header(title: str):
+def print_section_header(title: str) -> None:
     """打印章节标题"""
     print_separator()
     print(title)
     print_separator()
 
 
-def wait_for_key():
+def wait_for_key() -> None:
     """等待用户按键"""
     from ..i18n import _
-    print(f"\n{_('Press any key to continue...')}")
+    print(f"\n{_('menu.press_any')}")
     if sys.platform == 'win32':
         try:
             import msvcrt
             msvcrt.getch()
-        except:
+        except Exception:
             input()
     else:
         input()

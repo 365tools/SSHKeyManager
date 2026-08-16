@@ -11,7 +11,7 @@ from pathlib import Path
 project_root = Path(__file__).parent.parent
 os.chdir(project_root)
 
-def build():
+def build() -> None:
     """构建可执行文件"""
     print("=" * 60)
     print("🔨 开始构建 SSH Manager 可执行文件")

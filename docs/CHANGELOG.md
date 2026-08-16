@@ -18,6 +18,60 @@
 
 ---
 
+## [0.0.3] - 2026-08-16
+
+### ✨ 新功能
+
+- **🔧 CLI 全面重构为 Typer 框架**：告别手写 argparse，改用声明式 `@app.command()` 定义命令。自动生成 `--help`（含参数说明/必填标记/默认值）、自动参数校验、自动 Shell 补全（`--install-completion`）、rich 彩色帮助
+- **📦 新增 `sshm -v` / `--version`**：一键查看当前版本
+- **🔄 版本自动同步**：`VERSION` 改为从 `docs/CHANGELOG.md` 自动解析最新版本，发布新版本无需改动代码，杜绝版本号不同步
+- **🌐 i18n 重构为「稳定 key + 双语字典」架构**：翻译键从"英文句子"改为稳定 key（如 `cmd.list`），英文（EN）与中文（ZH）两套字典独立维护且完全对称。新增 `sshm lang` 命令行切换、`SSHM_LANG` 环境变量，彻底解决旧版"改描述要改两处"与废弃/重复翻译键冗余问题
+- **📦 新增 `language` 包**：拆分为 `i18n_language.py`（通用 key 模版 + 权威 key 清单）、`i18n_en.py`（英文实现）、`i18n_zh.py`（中文实现）、`i18n.py`（组装层，只负责翻译函数与语言状态）。新增语言只需在 `language/` 加一个字典文件
+- **🧪 新增 i18n 一致性守门测试**：自动校验 key 模版 / EN / ZH 三方同步、翻译非空、占位符一致（防 `format` 抛 `KeyError`）、命名前缀规范。新增/修改翻译 key 时 `pytest` 立即拦截遗漏
+- **🔍 新增提交前检查（pre-commit hook）**：`scripts/check_all.py` 统一调度 compile / i18n / pytest / pyright，任一失败阻断提交。设计可扩展，新增检查只需注册一行。`scripts/hooks/install.py` 一键安装到 `.git/hooks/pre-commit`，支持快速模式与 `--skip` 跳过
+- **⚡ pytest 并行加速（pytest-xdist）**：完整测试默认 `-n 3` 并行，实测提速约 25%（串行 ~7.4s → 并行 ~5.6s）。支持 `SSHM_TEST_JOBS` 调整并行度，未安装 xdist 时自动回退串行
+- **🔢 版本号全链路自动化**：彻底消除硬编码发布号。`VERSION` 多级自动解析（CHANGELOG → 包元数据 → `0.0.0` 开发版兜底）；更新下载改为按平台关键词模糊匹配 Release 资产（不再依赖固定的资产文件名）；README 静态版本徽章改为动态 `github/v/release` 徽章（自动显示最新 tag）。打 tag 即可全自动同步版本，无需改任何代码
+
+### 🛠 架构改进
+
+- **命令注册机制升级**：将手写 `parser.py`（282 行）/ `commands.py`（245 行）/ `commands/` 注册表全部替换为 Typer 装饰器注册制，新增命令只需 `@app.command()` 一处声明，自动出现在帮助与交互菜单，不再遗漏
+- **基于 pyright 类型检查**：统一在 `pyproject.toml` 配置，全项目类型修复后达到 **0 error / 0 warning / 0 note**，无任何 `type: ignore` 强行抑制
+- **依赖规范化**：统一用 `pyproject.toml` 管理依赖（`[project]` 运行时 + `[project.optional-dependencies] dev`），`wcwidth` 转为正式依赖（中文表格对齐核心功能），移除缺失时的类型抑制
+- **清理 CLI 冗余**：移除 `__main__.py` 未使用的 `_NON_UPDATE_ARGS` 死代码、`cmd_list` 未使用的 `ctx` 参数；交互菜单 `show_help` 改用 Click 命令对象渲染帮助，不再依赖 `typer.testing` 测试工具进生产代码；补齐 `build_local.py` 等所有未标注返回类型的函数
+
+### 🐛 修复
+
+- **`author fix` 重写后无法推送**：修复历史重写后 HEAD 停留在 detached 状态的问题，重写后自动切回分支，可正常 `git push`
+- **`pad_cell` 未导入**：`sshm test --all` 会 `NameError` 崩溃，已补导入
+- **`_` 被 `winreg.QueryValueEx` 覆盖**：`system.py` 中解包把 i18n 的 `_` 翻译函数覆盖为 int，导致后续所有提示文案崩溃，已修复
+- **`temp_fd` 文件句柄泄漏**：`updater.py` 中 `mkstemp` 返回的文件描述符未关闭，Windows 上更新后无法删除临时文件，已补 `os.close`
+- **`print_table` 参数类型**：`truncatable`/`center_cols` 标注修正为 `Iterable[int]`（适配传入 list）
+- **i18n 占位符缺失**：`msg.files_backed_up` 英文翻译缺 `{count}` 占位符，导致英文下数量信息静默丢失（由 i18n 守门测试自动发现并修复）
+- **`sys.stdout.reconfigure` 类型告警**：基于 pyright 对 `TextIO` 未声明该方法报错，改用 `getattr` 动态访问规避
+- **版本号不同步**：`constants.py` 兜底版本与 `__init__.py` docstring 从 0.0.2 更新到 0.0.3
+- **`sshm test --all` 退出码失效**：测试全部密钥时即使有连接失败也不会返回非零退出码（`_had_error` 未置位），已修复，可在 CI/脚本中通过退出码判断结果
+- **`sshm info` SSH config 块解析误匹配**：用子串匹配主机名会误显示其他 Host 块，改为按 `Host` 块语义精确解析（`_extract_ssh_config_block`）
+- **交互菜单 Ctrl+C 崩溃**：交互菜单任意输入点按 Ctrl+C 会打印 traceback 退出，改为友好提示并退出
+- **更新缓存损坏崩溃**：`~/.sshm_update_cache` 损坏时 `check_update` 抛 `KeyError`，改为校验缓存结构并优雅降级
+- **全面 Review 清理**：
+  - 删除 `cli_app()` 死代码（无引用）
+  - `rename` 冲突提示 `lbl.file_placeholder` 传未定义占位符导致缺文件名，已修正拼接
+  - `use --global --author` 时 `--path` 被硬编码 `.` 忽略，改为尊重用户传入路径
+  - `test <label>` 别名未配置时不置业务失败标志（与 `--all` 分支不一致），已统一
+  - 收窄 `console.py`/`system.py` 的裸 `except:` 为 `except Exception`
+  - 发布日兜底值 `'Unknown'` 硬编码改为走 i18n（新增 `msg.unknown`）
+  - 显式声明 `click` 运行时依赖（`show_help` 直接使用）
+  - `add_key` 与 `remove_key` 之间补空行
+  - 新增 i18n 守门测试：校验代码实际使用的 `_()` key 均已登记到 KEYS 模版（防漏翻译）
+
+### 📝 文档
+
+- README 徽章区重构：平台拆分为 Windows / Linux / macOS 独立徽章，新增 Release / Build / Stars / Downloads / Last Commit / Language 等指标
+- 新增 `scripts/HOOKS.md`：提交前检查的安装 / 使用 / 扩展指南（含 pytest-xdist 并行说明）
+- 测试规模：64 → 75 个（新增 i18n 一致性守门测试）
+
+---
+
 ## [0.0.2] - 2026-08-16
 
 ### ✨ 新功能

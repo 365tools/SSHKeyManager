@@ -33,7 +33,7 @@ irm https://raw.githubusercontent.com/Eavelabs/sshm/main/scripts/install.ps1 | i
 powershell -ExecutionPolicy Bypass -File .\scripts\install.ps1
 
 # 方式 3: 指定版本
-.\scripts\install.ps1 -Version v0.0.1
+.\scripts\install.ps1 -Version v0.0.3
 
 # 方式 4: 自定义安装路径
 .\scripts\install.ps1 -InstallDir "C:\Tools\sshm"
@@ -62,7 +62,7 @@ curl -fsSL https://raw.githubusercontent.com/Eavelabs/sshm/main/scripts/install.
 bash scripts/install.sh
 
 # 方式 3: 指定版本
-bash scripts/install.sh --version v0.0.1
+bash scripts/install.sh --version v0.0.3
 
 # 方式 4: 自定义安装路径
 bash scripts/install.sh --install-dir ~/.local/bin
@@ -85,7 +85,7 @@ bash scripts/install.sh --uninstall
 
 | 参数 | 说明 | 默认值 | 示例 |
 |------|------|--------|------|
-| `-Version` | 安装版本 | `latest` | `-Version v0.0.1` |
+| `-Version` | 安装版本 | `latest` | `-Version v0.0.3` |
 | `-InstallDir` | 安装目录 | `$env:LOCALAPPDATA\Programs\sshm` | `-InstallDir "C:\Tools\sshm"` |
 | `-NoAddPath` | 不添加到 PATH | `false` | `-NoAddPath` |
 | `-CleanPath` | 清理 PATH 中的旧 sshm 残留 | `false` | `-CleanPath` |
@@ -95,7 +95,7 @@ bash scripts/install.sh --uninstall
 
 | 参数 | 说明 | 默认值 | 示例 |
 |------|------|--------|------|
-| `--version` | 安装版本 | `latest` | `--version v0.0.1` |
+| `--version` | 安装版本 | `latest` | `--version v0.0.3` |
 | `--install-dir` | 安装目录 | `/usr/local/bin` | `--install-dir ~/.local/bin` |
 | `--no-add-path` | 不添加到 PATH | `false` | `--no-add-path` |
 | `--clean-path` | 清理 shell 配置中的旧 sshm 残留 | `false` | `--clean-path` |

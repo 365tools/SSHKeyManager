@@ -9,7 +9,7 @@ import shutil
 import subprocess
 from pathlib import Path
 from datetime import datetime
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple, Union
 
 from ..constants import (
     SUPPORTED_KEY_TYPES,
@@ -21,6 +21,7 @@ from ..utils import (
     get_key_pattern,
     format_timestamp,
     format_size,
+    pad_cell,
     prompt_confirm,
     print_separator,
     print_section_header,
@@ -28,16 +29,45 @@ from ..utils import (
 )
 from ..i18n import _
 from .config import SSHConfigManager
+
+# SSH 连接检测关键词（用于 test 命令的成功/失败判断）
+_SSH_SUCCESS_MARKERS = (
+    'successfully authenticated',
+    'welcome to github',
+    'welcome to gitlab',
+    "you've successfully authenticated",
+    'authenticated via ssh',
+    'hi ',
+    'successfully connected',
+    'access granted',
+    'connection established',
+)
+_SSH_FAILURE_MARKERS = (
+    'permission denied',
+    'fatal: ',
+    'could not resolve hostname',
+    'connection refused',
+    'connection timed out',
+    'authentication failed',
+    'host key verification failed',
+    'no such file or directory',
+    'please make sure you have the correct access rights',
+    'error: ',
+    'invalid key',
+    'denied',
+    'unable to negotiate',
+    'remote host identification has changed',
+)
 from .rewrite import RewriteConfig, rewrite_history, get_authors_in_repo
 from .state import StateManager
 
 
 class SSHKeyManager:
     """SSH 密钥管理器 - 核心业务逻辑"""
-    
+
     def __init__(self, ssh_dir: Optional[Path] = None):
         """初始化管理器
-        
+
         Args:
             ssh_dir: SSH 目录路径，默认为 ~/.ssh
         """
@@ -45,7 +75,7 @@ class SSHKeyManager:
         self.backup_dir = self.ssh_dir / BACKUP_DIR_NAME
         self.config_file = self.ssh_dir / 'config'
         self.state_file = self.ssh_dir / STATE_FILE_NAME
-        
+
         # 初始化子管理器
         self.config_manager = SSHConfigManager(self.config_file)
         self.state_manager = StateManager(self.state_file)
@@ -53,18 +83,18 @@ class SSHKeyManager:
         # 应用输出语言（环境变量优先于状态文件）
         from ..i18n import load_from_state
         load_from_state(self.state_manager.read_lang())
-        
+
         # 本次命令是否发生业务失败（供 CLI 层决定退出码）
         self._had_error = False
-        
+
         # 确保必要目录存在
         self._ensure_directories()
-    
-    def _ensure_directories(self):
+
+    def _ensure_directories(self) -> None:
         """确保必要的目录存在"""
         self.ssh_dir.mkdir(mode=0o700, exist_ok=True)
         self.backup_dir.mkdir(mode=0o700, exist_ok=True)
-    
+
     def _fail(self, msg: str):
         """记录业务失败并打印错误信息（不抛异常，保持原有控制流）
 
@@ -72,7 +102,7 @@ class SSHKeyManager:
         """
         self._had_error = True
         print(msg)
-    
+
     # ------------------------------------------------------------------------
     # 标签合法性校验（所有标签入口统一使用）
     # ------------------------------------------------------------------------
@@ -91,24 +121,23 @@ class SSHKeyManager:
         - 不允许保留名称 default / original
         """
         if not label or not label.strip():
-            raise ValueError(_("Label cannot be empty"))
+            raise ValueError(_("err.label_empty"))
         label = label.strip()
         if not re.match(r'^[A-Za-z0-9][A-Za-z0-9_-]*$', label):
             raise ValueError(_(
-                "Invalid label '{label}': only letters, digits, underscore(_) "
-                "and hyphen(-) are allowed, and it cannot start with a symbol",
+                "err.label_invalid",
                 label=label,
             ))
         if label.lower() in self.RESERVED_LABELS:
-            raise ValueError(_("Label '{label}' is a reserved name and cannot "
-                              "be used", label=label))
+            raise ValueError(_("err.label_reserved", label=label))
         return True
-    
+
     # ------------------------------------------------------------------------
     # 查询操作
     # ------------------------------------------------------------------------
-    
-    def list_keys(self, show_content: bool = False, repo_path: str = '.',
+
+    def list_keys(self, show_content: bool = False,
+                  repo_path: Union[str, Path] = '.',
                   current_only: bool = False):
         """列出所有密钥（表格形式）
 
@@ -117,15 +146,15 @@ class SSHKeyManager:
             repo_path: Git 仓库路径，用于检测仓库级使用（默认当前目录）
             current_only: 仅显示当前仓库正在使用的密钥（list -c）
         """
-        print_section_header(_("sshm - Key List"))
-        print(f"\n{_('SSH directory:')} {self.ssh_dir}\n")
+        print_section_header(_("hdr.key_list"))
+        print(f"\n{_('lbl.ssh_dir')} {self.ssh_dir}\n")
 
         keys_by_label = self._scan_all_keys()
         active_keys = self.state_manager.read_active_keys()
 
         if not keys_by_label:
-            print("⚠️  " + _("No key files found"))
-            print("\n💡 " + _("Tip: use 'sshm add <label> <email>' to create a new key"))
+            print("⚠️  " + _("msg.no_keys"))
+            print("\n💡 " + _("msg.add_tip"))
             return
 
         # 指定仓库正在使用的密钥（仓库级，通过 remote URL 反解）
@@ -134,7 +163,7 @@ class SSHKeyManager:
         # 按标签排序: 当前使用 -> 默认 -> 其他
         active_labels = set(active_keys.values())
 
-        def sort_key(label):
+        def sort_key(label: str) -> tuple[int, str]:
             label_lower = label.lower()
             if label_lower in active_labels or label_lower == repo_key:
                 priority = 0
@@ -147,10 +176,10 @@ class SSHKeyManager:
         sorted_labels = sorted(keys_by_label.keys(), key=sort_key)
 
         # 收集表格数据（首列 Status 用 ✨ 标记正在使用；Scope 区分仓库级/全局）
-        global_scope = _('global')
-        repo_scope = _('repo-level')
-        headers = [_('Status'), _('Label'), _('File'), _('Public'), _('Size'),
-                   _('Modified'), _('Alias'), _('Scope')]
+        global_scope = _('misc.global')
+        repo_scope = _('misc.repo_level')
+        headers = [_('lbl.status'), _('lbl.label'), _('lbl.file'), _('lbl.public'), _('lbl.size'),
+                   _('lbl.modified'), _('lbl.alias'), _('lbl.scope')]
         rows = []
         pub_map = []
 
@@ -200,11 +229,11 @@ class SSHKeyManager:
         # list -c 且无匹配时，给出友好提示而非空表格
         if current_only and not rows:
             if not (Path(repo_path).resolve() / '.git').exists():
-                print("⚠️  " + _("Not a git repository: {path}", path=Path(repo_path).resolve()))
+                print("⚠️  " + _("err.not_git_repo", path=Path(repo_path).resolve()))
             else:
-                print("⚠️  " + _("No key is configured for the current repo"))
-            print("   " + _("Use 'sshm use <label>' to configure a key for this repo"))
-            print("   " + _("Or run 'sshm list' to view all keys"))
+                print("⚠️  " + _("msg.repo_key_missing"))
+            print("   " + _("msg.configure_repo_tip"))
+            print("   " + _("msg.or_list_all"))
             return
 
         # 窄终端下省略"修改时间"列，并为"文件/别名"列启用自动压缩
@@ -221,53 +250,53 @@ class SSHKeyManager:
 
         # 公钥内容单独展示（避免破坏表格对齐）
         if show_content and pub_map:
-            print_section_header("📋 " + _("Public Key Contents"))
+            print_section_header("📋 " + _("hdr.public_contents"))
             for label, file_name, content in pub_map:
                 print(f"\n[{label}] {file_name}.pub")
                 print(f"  {content}\n")
 
         print_separator()
-        print("💡 " + _("Tip: use 'use <label> --global' to configure the global default key"))
+        print("💡 " + _("msg.use_tip"))
         print_separator()
-    
-    def list_backups(self):
+
+    def list_backups(self) -> None:
         """列出所有备份"""
-        print_section_header(_("Backup List"))
-        
-        backups = sorted(self.backup_dir.glob('backup_*'), 
+        print_section_header(_("hdr.backup_list"))
+
+        backups = sorted(self.backup_dir.glob('backup_*'),
                         key=lambda x: x.stat().st_mtime, reverse=True)
-        
+
         if not backups:
-            print("📭 " + _("No backups yet"))
+            print("📭 " + _("msg.no_backups"))
             return
-        
+
         for i, backup in enumerate(backups, 1):
             mtime = datetime.fromtimestamp(backup.stat().st_mtime)
             files = list(backup.glob('id_*'))
             print(f"\n[{i}] {backup.name}")
-            print(f"    {_('Time:')} {format_timestamp(mtime)}")
-            print(f"    {_('Files:')} {len(files)}")
-            print(f"    {_('Path:')} {backup}")
-    
+            print(f"    {_('lbl.time')} {format_timestamp(mtime)}")
+            print(f"    {_('lbl.files')} {len(files)}")
+            print(f"    {_('lbl.path')} {backup}")
+
     def _scan_all_keys(self) -> Dict[str, List[Dict]]:
         """扫描所有密钥文件"""
         keys_by_label = {}
         key_pattern = get_key_pattern()
-        
+
         for file in self.ssh_dir.glob('id_*'):
             if not file.is_file() or file.name.endswith('.pub'):
                 continue
-            
+
             match = key_pattern.match(file.name)
             if not match:
                 continue
-            
+
             key_type = match.group(1)
             label = match.group(2)[1:] if match.group(2) else 'default'
             # 跳过 use -g 切换的系统备份文件（id_*.original），不视为用户标签
             if label.lower() == 'original':
                 continue
-            
+
             pub_file = self.ssh_dir / f"{file.name}.pub"
             key_info = {
                 'type': key_type,
@@ -277,82 +306,82 @@ class SSHKeyManager:
                 'size': file.stat().st_size,
                 'mtime': datetime.fromtimestamp(file.stat().st_mtime)
             }
-            
+
             if label not in keys_by_label:
                 keys_by_label[label] = []
             keys_by_label[label].append(key_info)
-        
+
         return keys_by_label
-    
+
     # ------------------------------------------------------------------------
     # 备份操作
     # ------------------------------------------------------------------------
-    
+
     def backup_keys(self, silent: bool = False):
         """备份所有密钥"""
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         backup_path = self.backup_dir / f"backup_{timestamp}"
         backup_path.mkdir(mode=0o700, exist_ok=True)
-        
+
         key_files = list(self.ssh_dir.glob('id_*'))
         backed_up = []
-        
+
         for key_file in key_files:
             if key_file.is_file():
                 shutil.copy2(key_file, backup_path / key_file.name)
                 backed_up.append(key_file.name)
-        
+
         if self.state_file.exists():
             shutil.copy2(self.state_file, backup_path / STATE_FILE_NAME)
             backed_up.append(STATE_FILE_NAME)
-        
+
         # 一并备份 SSH config（仅存档；恢复时不会自动覆盖当前 config）
         if self.config_file.exists():
             shutil.copy2(self.config_file, backup_path / 'config')
             backed_up.append('config')
-        
+
         if not silent:
-            print(f"✅ {_('Backup complete:')} {backup_path}")
-            print("📦 " + _("files backed up", count=len(backed_up)))
-        
+            print(f"✅ {_('msg.backup_complete')} {backup_path}")
+            print("📦 " + _("msg.files_backed_up", count=len(backed_up)))
+
         return backup_path
-    
+
     def restore_backup(self, backup_name: Optional[str] = None,
                        key_type: Optional[str] = None,
                        skip_confirm: bool = False):
         """从备份恢复密钥"""
-        print_section_header(_("Restore Keys from Backup"))
+        print_section_header(_("hdr.restore"))
 
         if backup_name:
             backup_path = self.backup_dir / backup_name
             if not backup_path.exists():
-                self._fail(f"❌ {_('Backup not found:')} {backup_path}")
-                print("   " + _("Use 'sshm backups' to view available backups"))
+                self._fail(f"❌ {_('err.backup_not_found')} {backup_path}")
+                print("   " + _("err.use_backups_cmd"))
                 return
         else:
             backups = sorted(self.backup_dir.glob('backup_*'),
                              key=lambda x: x.stat().st_mtime, reverse=True)
             if not backups:
-                print("📭 " + _("No backups to restore"))
-                print("   " + _("Use 'sshm backup' to create a backup"))
+                print("📭 " + _("err.no_backups_restore"))
+                print("   " + _("err.use_backup_cmd"))
                 return
             backup_path = backups[0]
-            print(f"📦 {_('Will use latest backup:')} {backup_path.name}")
+            print(f"📦 {_('msg.will_use_latest')} {backup_path.name}")
 
         files = sorted(p for p in backup_path.glob('id_*') if p.is_file())
         if key_type:
             files = [f for f in files if f.name.startswith(f"id_{key_type}")]
 
         if not files:
-            self._fail("❌ " + _("No recoverable key files in backup"))
+            self._fail("❌ " + _("err.no_recoverable"))
             return
 
-        print("\n📂 " + _("Will restore the following {count} file(s):", count=len(files)))
+        print("\n📂 " + _("msg.will_restore_count", count=len(files)))
         for f in files:
             print(f"   - {f.name}")
 
-        if not skip_confirm and not prompt_confirm("\n" + _("Restore? (existing files will be overwritten)")):
-            self._fail("❌ " + _("operation cancelled"))
+        if not skip_confirm and not prompt_confirm("\n" + _("msg.restore_prompt")):
+            self._fail("❌ " + _("misc.operation_cancelled"))
             return
 
         restored = []
@@ -361,7 +390,7 @@ class SSHKeyManager:
                 shutil.copy2(f, self.ssh_dir / f.name)
                 restored.append(f.name)
             except OSError as e:
-                self._fail(f"❌ {_('Restore failed:')} {f.name} ({e})")
+                self._fail(f"❌ {_('err.restore_failed')} {f.name} ({e})")
         # 恢复状态文件（包含 active_keys / authors / hosts 映射）
         state_backup = backup_path / STATE_FILE_NAME
         if state_backup.exists():
@@ -369,46 +398,46 @@ class SSHKeyManager:
             restored.append(STATE_FILE_NAME)
 
         if restored:
-            print(f"\n✅ {_('Restored {count} file(s):', count=len(restored))}")
+            print(f"\n✅ {_('msg.restored_count', count=len(restored))}")
             for name in restored:
                 print(f"   - {name}")
-            print("\n💡 " + _("Tip: use 'sshm list' to view restored keys"))
+            print("\n💡 " + _("msg.restore_tip"))
 
         # 备份中的 config 仅供存档，不自动覆盖当前配置，提示手动重建别名
         config_backup = backup_path / 'config'
         if config_backup.exists():
-            print("\nℹ️  " + _("Backup contains SSH config; for safety it will NOT overwrite current config"))
-            print("   " + _("Run 'sshm use <label>' to regenerate alias config"))
-    
+            print("\nℹ️  " + _("msg.backup_has_config"))
+            print("   " + _("msg.regenerate_alias"))
+
     # ------------------------------------------------------------------------
     # 密钥创建与删除
     # ------------------------------------------------------------------------
-    
+
     def add_key(self, label: str, email: str,
                 key_type: str = DEFAULT_KEY_TYPE, host: Optional[str] = None,
                 name: Optional[str] = None):
         """创建新密钥"""
         if key_type not in SUPPORTED_KEY_TYPES:
             raise ValueError(_(
-                "Unsupported key type: {type}, supported: {supported}",
+                "err.unsupported_type",
                 type=key_type, supported=', '.join(SUPPORTED_KEY_TYPES),
             ))
-        
+
         self._validate_label(label)
-        
+
         if not email or '@' not in email:
             raise ValueError(_(
-                "Invalid email: {email}, please provide a valid email e.g. user@example.com",
+                "err.invalid_email",
                 email=email,
             ))
-        
+
         key_file = self.ssh_dir / f"id_{key_type}.{label}"
         if key_file.exists():
-            raise ValueError(_("Key already exists: {name}", name=key_file.name))
-        
-        print(_("Creating new key: {label} ({key_type})", label=label, key_type=key_type))
-        print(f"📧 {_('Email:')} {email}")
-        
+            raise ValueError(_("err.key_exists", name=key_file.name))
+
+        print(_("msg.creating_key", label=label, key_type=key_type))
+        print(f"📧 {_('lbl.email_prompt')} {email}")
+
         cmd = [
             'ssh-keygen',
             '-t', key_type,
@@ -416,11 +445,11 @@ class SSHKeyManager:
             '-f', str(key_file),
             '-N', ''
         ]
-        
+
         try:
             subprocess.run(cmd, check=True, capture_output=True)
-            print(f"✅ {_('Key created successfully: {name}', name=key_file.name)}")
-            
+            print(f"✅ {_('msg.key_created', name=key_file.name)}")
+
             if host:
                 hostname = host
             else:
@@ -430,19 +459,19 @@ class SSHKeyManager:
             if host:
                 host_alias = self._get_host_alias(label)
                 self.config_manager.update_host(host_alias, hostname, key_file)
-                print(f"✅ {_('SSH config updated: Host {alias} -> {hostname}', alias=host_alias, hostname=hostname)}")
-            
+                print(f"✅ {_('msg.ssh_config_updated', alias=host_alias, hostname=hostname)}")
+
             pub_file = Path(str(key_file) + '.pub')
             if pub_file.exists():
                 pub_key = pub_file.read_text(encoding='utf-8').strip()
-                print(f"\n📋 {_('Public key content:')}\n{pub_key}\n")
-                print("💡 " + _("Add this public key to your Git platform (GitHub/GitLab etc.)"))
+                print(f"\n📋 {_('msg.pub_key_content')}\n{pub_key}\n")
+                print("💡 " + _("msg.add_to_platform"))
 
             # 记录作者信息（供 sshm author 使用）
             self.state_manager.write_author(label, name or '', email)
             if name:
-                print(f"👤 {_('Author info recorded: {name} <{email}>', name=name, email=email)}")
-        
+                print(f"👤 {_('msg.author_recorded', name=name, email=email)}")
+
         except subprocess.CalledProcessError as e:
             # 清理可能残留的密钥文件（ssh-keygen 失败时可能已创建部分文件）
             for p in (key_file, Path(str(key_file) + '.pub')):
@@ -453,41 +482,42 @@ class SSHKeyManager:
                     pass
             detail = ((e.stderr or b'').decode('utf-8', 'replace').strip()
                       or str(e))
-            self._fail(f"❌ {_('Create failed: {err}', err=detail)}")
+            self._fail(f"❌ {_('err.create_failed', err=detail)}")
         except Exception as e:
-            self._fail(f"❌ {_('error')}: {e}")    
+            self._fail(f"❌ {_('misc.error')}: {e}")
+
     def remove_key(self, label: str, key_type: Optional[str] = None):
         """删除密钥"""
         label_lower = label.lower()
-        
+
         if label_lower == 'default':
             if key_type:
-                confirm_msg = _("About to delete default key ({type}), continue?", type=key_type)
+                confirm_msg = _("err.delete_default", type=key_type)
             else:
-                confirm_msg = _("About to delete all default keys, continue?")
-            
+                confirm_msg = _("err.delete_all_default")
+
             if not prompt_confirm("⚠️  " + confirm_msg):
-                self._fail("❌ " + _("operation cancelled"))
+                self._fail("❌ " + _("misc.operation_cancelled"))
                 return
-        
+
         removed_files = []
-        
+
         if label_lower == 'default':
             if key_type:
                 patterns = [f"id_{key_type}", f"id_{key_type}.pub"]
             else:
-                patterns = ["id_ed25519", "id_ed25519.pub", 
+                patterns = ["id_ed25519", "id_ed25519.pub",
                           "id_rsa", "id_rsa.pub",
                           "id_ecdsa", "id_ecdsa.pub",
                           "id_dsa", "id_dsa.pub"]
-            
+
             for pattern in patterns:
                 file = self.ssh_dir / pattern
                 if file.exists() and file.is_file():
                     if not removed_files:
                         backup_path = self.backup_keys(silent=True)
-                        print(f"💾 {_('Auto-backed up to: {path}', path=backup_path)}")
-                    
+                        print(f"💾 {_('msg.auto_backed_up', path=backup_path)}")
+
                     file.unlink()
                     removed_files.append(file.name)
         else:
@@ -495,26 +525,26 @@ class SSHKeyManager:
                 patterns = [f"id_{key_type}.{label}", f"id_{key_type}.{label}.pub"]
             else:
                 patterns = [f"id_*.{label}", f"id_*.{label}.pub"]
-            
+
             for pattern in patterns:
                 for file in self.ssh_dir.glob(pattern):
                     if file.is_file():
                         if not removed_files:
                             backup_path = self.backup_keys(silent=True)
-                            print(f"💾 {_('Auto-backed up to: {path}', path=backup_path)}")
-                        
+                            print(f"💾 {_('msg.auto_backed_up', path=backup_path)}")
+
                         file.unlink()
                         removed_files.append(file.name)
-        
+
         if removed_files:
-            print(f"✅ {_('Deleted {count} file(s):', count=len(removed_files))}")
+            print(f"✅ {_('msg.deleted_count', count=len(removed_files))}")
             for f in removed_files:
                 print(f"   - {f}")
-            
+
             self._remove_ssh_config_alias(label)
             self.state_manager.remove_author(label)
             self.state_manager.remove_host(label)
-            
+
             # 清理 active 状态：从已删除文件名中推导密钥类型
             # （不能在删除文件后调用 _detect_key_type_for_label，文件已不存在）
             removed_types = set()
@@ -526,95 +556,95 @@ class SSHKeyManager:
                 active_keys = self.state_manager.read_active_keys()
                 if active_keys.get(kt) == label_lower:
                     self.state_manager.remove_active_key(kt)
-            
-            print(f"💡 {_('Tip: if any repo uses alias {alias} in its remote URL,', alias=self._get_host_alias(label))}")
-            print("   " + _("re-run 'sshm use <other-label>' in that repo to update config"))
+
+            print(f"💡 {_('msg.tip_alias_remote', alias=self._get_host_alias(label))}")
+            print("   " + _("msg.rerun_other_label"))
         else:
-            self._fail(f"⚠️  {_('Key not found: {label}', label=label)}")    
+            self._fail(f"⚠️  {_('err.key_not_found', label=label)}")
     # ------------------------------------------------------------------------
     # 密钥切换
     # ------------------------------------------------------------------------
-    
+
     def switch_key(self, label: str, key_type: Optional[str] = None):
         """切换默认密钥"""
         label_lower = label.lower()
-        
+
         if label_lower in self.RESERVED_LABELS:
-            label_msg = _('Label "{label}" is a reserved name and cannot be switched to', label=label)
+            label_msg = _('err.label_reserved_switch', label=label)
             self._fail(f"❌ {label_msg}")
             return
-        
+
         if not key_type:
             key_type = self._detect_key_type_for_label(label)
             if not key_type:
-                msg = _("No key found for label '{label}'", label=label)
+                msg = _("err.key_not_found_short", label=label)
                 self._fail(f"❌ {msg}")
                 return
-            print(f"🔍 {_('Auto-detected key type: {key_type}', key_type=key_type)}")
-        
+            print(f"🔍 {_('msg.auto_detected_type', key_type=key_type)}")
+
         source_file = self.ssh_dir / f"id_{key_type}.{label}"
         target_file = self.ssh_dir / f"id_{key_type}"
-        
+
         if not source_file.exists():
-            self._fail(f"❌ {_('Key does not exist: {name}', name=source_file.name)}")
+            self._fail(f"❌ {_('err.key_missing', name=source_file.name)}")
             return
-        
+
         if target_file.exists():
             active_keys = self.state_manager.read_active_keys()
             current_label = active_keys.get(key_type, 'original')
-            
+
             original_backup = self.ssh_dir / f"id_{key_type}.original"
             if not original_backup.exists():
                 self._copy_key_pair(target_file, original_backup)
-                print(f"💾 {_('Original key backed up as: {name}', name=original_backup.name)}")
-            
+                print(f"💾 {_('msg.original_backed_up', name=original_backup.name)}")
+
             if current_label != 'original':
                 backup_file = self.ssh_dir / f"id_{key_type}.{current_label}"
                 if not backup_file.exists():
                     self._copy_key_pair(target_file, backup_file)
-        
+
         self._copy_key_pair(source_file, target_file)
-        
+
         self.state_manager.write_active_key(key_type, label)
-        
+
         self._update_ssh_config_alias(label, source_file)
-        
-        print(f"✅ {_('Switched to key: {label} ({key_type})', label=label, key_type=key_type)}")
-        print(f"📁 {_('File:')} {target_file.name}")
+
+        print(f"✅ {_('msg.switched_to', label=label, key_type=key_type)}")
+        print(f"📁 {_('lbl.file_placeholder')} {target_file.name}")
 
         # 凭据↔人员自动联动：全局切换时自动设置全局 author（若 label 有绑定）
         self._apply_auto_author(label, repo_path=None, scope='global')
 
-    def tag_key(self, key_type: str, new_label: str, switch_after: bool = False):
-        """给默认密钥添加标签"""
+    def tag_key(self, key_type: Optional[str], new_label: str, switch_after: bool = False):
+        """给默认密钥添加标签（key_type 为空时自动检测默认密钥类型）"""
         self._validate_label(new_label)
-        
+
         if not key_type:
             key_type = self._detect_default_key_type()
             if not key_type:
-                self._fail("❌ " + _("No default key found"))
+                self._fail("❌ " + _("err.no_default_key"))
                 return
-        
+
         source_file = self.ssh_dir / f"id_{key_type}"
         target_file = self.ssh_dir / f"id_{key_type}.{new_label}"
-        
+
         if not source_file.exists():
-            self._fail(f"❌ {_('Default key does not exist: {name}', name=source_file.name)}")
+            self._fail(f"❌ {_('err.default_key_missing', name=source_file.name)}")
             return
-        
+
         if target_file.exists():
-            print(f"⚠️  {_('Label already exists: {new_label}', new_label=new_label)}")
-            if not prompt_confirm(_("Overwrite?")):
+            print(f"⚠️  {_('err.label_exists', new_label=new_label)}")
+            if not prompt_confirm(_("misc.overwrite")):
                 return
-        
+
         self._copy_key_pair(source_file, target_file)
 
         # 继承默认密钥的元数据（host 映射 + 作者信息）
         # 默认密钥通常由 switch_key 从某标签复制而来，active_keys 记录了来源标签。
         self._inherit_metadata_from_default(key_type, new_label)
 
-        print(f"✅ {_('Tag added: {new_label} ({key_type})', new_label=new_label, key_type=key_type)}")
-        
+        print(f"✅ {_('msg.tag_added', new_label=new_label, key_type=key_type)}")
+
         if switch_after:
             self.switch_key(new_label, key_type)
 
@@ -661,22 +691,22 @@ class SSHKeyManager:
         except (OSError, UnicodeDecodeError):
             pass
         return None
-    
-    def rename_tag(self, old_label: str, new_label: str, 
+
+    def rename_tag(self, old_label: str, new_label: str,
                    key_type: str = DEFAULT_KEY_TYPE):
         """重命名密钥标签（处理该标签下的所有密钥类型，避免残留旧文件）"""
         old_label_lower = old_label.lower()
         new_label_lower = new_label.lower()
-        
+
         if old_label_lower == 'default':
-            self._fail("❌ " + _("Cannot rename the 'default' label"))
+            self._fail("❌ " + _("err.cannot_rename_default"))
             return
-        
+
         self._validate_label(new_label)
         if new_label_lower == old_label_lower:
-            self._fail("⚠️  " + _("Old and new labels are the same, no need to rename"))
+            self._fail("⚠️  " + _("err.same_label"))
             return
-        
+
         # 确定要重命名的密钥类型集合：
         # - 未指定类型时，处理该标签下所有已存在的类型（多类型共存场景）
         # - 指定类型时，仅处理指定类型
@@ -687,70 +717,70 @@ class SSHKeyManager:
                 t for t in SUPPORTED_KEY_TYPES
                 if (self.ssh_dir / f"id_{t}.{old_label}").exists()
             ]
-        
+
         if not types_to_rename:
-            msg = _("No key found for label '{label}'", label=old_label)
+            msg = _("err.key_not_found_short", label=old_label)
             self._fail(f"❌ {msg}")
             return
-        
+
         # 检查目标文件是否全部可用，避免部分重命名后中断
         for t in types_to_rename:
             new_file = self.ssh_dir / f"id_{t}.{new_label}"
             if new_file.exists():
-                self._fail(f"⚠️  {_('Target label already exists: {new_label} ({type})', new_label=new_label, type=t)}")
-                print(f"   {_('File: {name}', name=new_file.name)}")
+                self._fail(f"⚠️  {_('err.target_exists', new_label=new_label, type=t)}")
+                print(f"   {_('lbl.file_placeholder')} {new_file.name}")
                 return
-        
+
         renamed_count = 0
         last_new_file = None
         for t in types_to_rename:
             old_file = self.ssh_dir / f"id_{t}.{old_label}"
             new_file = self.ssh_dir / f"id_{t}.{new_label}"
-            
+
             old_file.rename(new_file)
             old_pub = Path(str(old_file) + '.pub')
             if old_pub.exists():
                 old_pub.rename(Path(str(new_file) + '.pub'))
             last_new_file = new_file
             renamed_count += 1
-        
+
         if last_new_file:
             self._rename_ssh_config_alias(old_label, new_label, last_new_file)
-        
+
         self.state_manager.update_label(old_label, new_label)
-        
+
         renamed_msg = _(
-            'Renamed: {old} -> {new} ({count} type(s): {types})',
+            'msg.renamed',
             old=old_label, new=new_label, count=renamed_count,
             types=', '.join(types_to_rename),
         )
         print(f"✅ {renamed_msg}")
-        print(f"💡 {_('Tip: if any repo uses alias {alias},', alias=self._get_host_alias(old_label))}")
-        tip_msg = _("re-run 'sshm use {new_label}' in that repo to update remote URL", new_label=new_label)
+        print(f"💡 {_('msg.tip_alias', alias=self._get_host_alias(old_label))}")
+        tip_msg = _("msg.rerun_new_label", new_label=new_label)
         print(f"   {tip_msg}")
-    
+
     # ------------------------------------------------------------------------
     # Git 仓库相关操作 (use, info, test)
     # ------------------------------------------------------------------------
-    
-    def use_key_for_repo(self, label: str, repo_path: str = '.', 
+
+    def use_key_for_repo(self, label: str, repo_path: Union[str, Path] = '.',
                          skip_confirm: bool = False):
         """为指定 Git 仓库配置使用特定密钥"""
         repo_path = Path(repo_path).resolve()
-        
+
         if not (repo_path / '.git').exists():
-            self._fail(f"❌ {_('Not a git repository: {path}', path=repo_path)}")
-            print("   " + _("Please run this command inside a Git repository"))
+            self._fail(f"❌ {_('err.not_git_repo', path=repo_path)}")
+            print("   " + _("err.run_in_repo"))
             return
-        
+
         key_type = self._detect_key_type_for_label(label)
         if not key_type:
-            msg = _("No key found for label '{label}'", label=label)
+            msg = _("err.key_not_found_short", label=label)
             self._fail(f"❌ {msg}")
             return
-        
-        print_section_header(_("Configure Key for Git Repo: {label}", label=label))
-        print(f"📂 {_('Repo path:')} {repo_path}\n")
+
+        print_section_header(_("hdr.configure", label=label))
+        print(f"📂 {_('lbl.repo_path')} {repo_path}\n")
 
         key_file = self.ssh_dir / f"id_{key_type}.{label}"
 
@@ -762,18 +792,18 @@ class SSHKeyManager:
                 check=True
             )
             current_url = result.stdout.strip()
-            print(f"🔗 {_('Current Remote URL:')}\n   {current_url}\n")
-            
+            print(f"🔗 {_('lbl.current_remote_url')}\n   {current_url}\n")
+
             parsed = self._parse_git_url(current_url)
             if not parsed:
-                self._fail("❌ " + _("Failed to parse Git URL"))
+                self._fail("❌ " + _("err.failed_parse"))
                 return
-            
+
             platform, user, repo = parsed
-            print(f"📊 {_('Parsed info:')}")
-            print(f"   {_('Platform:')} {platform}")
-            print(f"   {_('User/Org:')} {user}")
-            print(f"   {_('Repo:')} {repo}\n")
+            print(f"📊 {_('lbl.parsed_info')}")
+            print(f"   {_('lbl.platform')} {platform}")
+            print(f"   {_('lbl.user_org')} {user}")
+            print(f"   {_('lbl.repo')} {repo}\n")
 
             # 私有化/非标准 Git：校验并自动对齐 hostname 映射
             repo_hostname = self._resolve_repo_hostname(current_url)
@@ -784,56 +814,56 @@ class SSHKeyManager:
             host_alias = self._get_host_alias(label)
             self._update_ssh_config_alias(label, key_file)
             new_url = f"git@{host_alias}:{user}/{repo}.git"
-            
-            print(f"🔧 {_('New Remote URL:')}")
+
+            print(f"🔧 {_('lbl.new_remote_url')}")
             print(f"   {new_url}\n")
-            
+
             if not skip_confirm:
-                if not prompt_confirm(_("Update Remote URL?")):
-                    self._fail("❌ " + _("operation cancelled"))
+                if not prompt_confirm(_("msg.update_url_prompt")):
+                    self._fail("❌ " + _("misc.operation_cancelled"))
                     return
 
             # 先测试 SSH 连接，再更新 URL，避免留下无法认证的坏配置
-            print("🧪 " + _("Testing SSH connection..."))
+            print("🧪 " + _("msg.testing_ssh"))
             test_ok, test_msg = self._test_ssh_connection(host_alias)
             if test_ok:
-                print("✅ " + _("SSH connection test passed!"))
+                print("✅ " + _("msg.ssh_test_passed"))
                 if 'Hi' in test_msg or 'Welcome' in test_msg:
                     print(f"   {test_msg}")
             else:
-                print("⚠️  " + _("SSH connection test failed"))
+                print("⚠️  " + _("msg.ssh_test_failed"))
                 print(f"   {test_msg}")
-                print("   " + _("The public key may not have been added to the platform yet."))
+                print("   " + _("msg.not_added_yet"))
                 if not skip_confirm:
-                    if not prompt_confirm(_("SSH test failed, still update the remote URL?")):
-                        self._fail("❌ " + _("operation cancelled"))
+                    if not prompt_confirm(_("msg.update_url_anyway")):
+                        self._fail("❌ " + _("misc.operation_cancelled"))
                         return
 
             subprocess.run(
                 ['git', '-C', str(repo_path), 'remote', 'set-url', 'origin', new_url],
                 check=True
             )
-            print("✅ " + _("Remote URL updated") + "\n")
+            print("✅ " + _("msg.remote_url_updated") + "\n")
 
             print("\n" + "=" * 70)
-            print("✅ " + _("Configuration complete! Now you can use:"))
+            print("✅ " + _("hdr.config_complete"))
             print(f"   cd {repo_path}")
             print(f"   git push")
             print("=" * 70)
 
             # 凭据↔人员自动联动：局部切换时自动设置仓库 author（若 label 有绑定）
             self._apply_auto_author(label, repo_path=str(repo_path), scope='local')
-            
+
         except subprocess.CalledProcessError as e:
             if 'No such remote' in str(e.stderr):
-                self._fail("❌ " + _("No 'origin' remote found"))
-                print("   " + _("Please add a remote first: git remote add origin <url>"))
+                self._fail("❌ " + _("msg.no_origin_remote"))
+                print("   " + _("msg.add_remote_first"))
             else:
-                self._fail(f"❌ {_('Git command failed: {err}', err=e)}")
+                self._fail(f"❌ {_('err.git_failed', err=e)}")
         except subprocess.TimeoutExpired:
-            self._fail("⚠️  " + _("SSH connection test timed out"))
+            self._fail("⚠️  " + _("msg.ssh_test_timed_out"))
         except Exception as e:
-            self._fail(f"❌ {_('error')}: {e}")
+            self._fail(f"❌ {_('misc.error')}: {e}")
 
     # ------------------------------------------------------------------------
     # Git 仓库克隆 (clone)
@@ -858,22 +888,22 @@ class SSHKeyManager:
         # 校验标签存在密钥
         key_type = self._detect_key_type_for_label(label)
         if not key_type:
-            msg = _("No key found for label '{label}'", label=label)
+            msg = _("err.key_not_found_short", label=label)
             self._fail(f"❌ {msg}")
-            print("   " + _("Use 'sshm list' to view all available keys"))
+            print("   " + _("msg.use_all_keys_tip"))
             return
 
         # 解析 URL
         parsed = self._parse_git_url(url)
         if not parsed:
-            self._fail("❌ " + _("Failed to parse Git URL"))
+            self._fail("❌ " + _("err.failed_parse"))
             return
         _platform, user, repo = parsed
         repo_name = repo.rstrip('.git') or repo
 
-        print_section_header(_("Clone with Key: {label}", label=label))
-        print(f"🔑 {_('key label')}: {label} ({key_type})")
-        print(f"🔗 {_('Source URL:')} {url}\n")
+        print_section_header(_("hdr.clone", label=label))
+        print(f"🔑 {_('lbl.key_type')}: {label} ({key_type})")
+        print(f"🔗 {_('lbl.source_url')} {url}\n")
 
         # 对齐 hostname（适配私有化 Git），并确保 SSH config 别名存在
         repo_hostname = self._resolve_repo_hostname(url)
@@ -887,12 +917,12 @@ class SSHKeyManager:
         host_alias = self._get_host_alias(label)
         new_url = f"git@{host_alias}:{user}/{repo_name}.git"
 
-        print(f"🔧 {_('Clone URL:')}")
+        print(f"🔧 {_('lbl.clone_url')}")
         print(f"   {new_url}\n")
 
         if not skip_confirm:
-            if not prompt_confirm(_("Clone with this URL and configure the key?")):
-                self._fail("❌ " + _("operation cancelled"))
+            if not prompt_confirm(_("msg.clone_confirm")):
+                self._fail("❌ " + _("misc.operation_cancelled"))
                 return
 
         # 执行 git clone（支持可选的目录名）
@@ -904,13 +934,13 @@ class SSHKeyManager:
         except subprocess.CalledProcessError as e:
             detail = ((e.stderr or b'').decode('utf-8', 'replace').strip()
                       or str(e))
-            self._fail(f"❌ {_('Clone failed: {err}', err=detail)}")
+            self._fail(f"❌ {_('err.clone_failed', err=detail)}")
             return
 
         # 克隆完成后定位仓库目录（用于后续 author 设置）
         cloned_dir = target_dir or repo_name
-        print(f"\n✅ {_('Clone complete!')} {cloned_dir}")
-        print("   " + _("This repo now uses key: {label}", label=label))
+        print(f"\n✅ {_('msg.clone_complete')} {cloned_dir}")
+        print("   " + _("msg.repo_uses_key", label=label))
 
         # 设置作者（若标签有显式作者信息）。
         # 注意：这里禁用 remote 推断，因为 clone 的 remote 是 sshm 别名 URL，
@@ -923,7 +953,7 @@ class SSHKeyManager:
                                  infer_from_remote=False)
 
         print("\n" + "=" * 70)
-        print("✅ " + _("Configuration complete! Now you can use:"))
+        print("✅ " + _("hdr.config_complete"))
         print(f"   cd {cloned_dir}")
         print(f"   git push")
         print("=" * 70)
@@ -960,38 +990,39 @@ class SSHKeyManager:
                     check=True, capture_output=True
                 )
         except (subprocess.CalledProcessError, OSError) as e:
-            self._fail(f"⚠️  {_('auto author switch failed: {err}', err=e)}")
+            self._fail(f"⚠️  {_('err.auto_author_failed', err=e)}")
             return
 
-        print(f"👤 {_('Auto-set author for key {label}', label=label)}: "
+        print(f"👤 {_('msg.auto_set_author', label=label)}: "
               f"{author.get('name', '') or ''} <{author.get('email', '') or ''}>")
 
-    def show_auto_author(self):
+    def show_auto_author(self) -> None:
         """显示凭据↔人员自动联动开关状态"""
         enabled = self.state_manager.read_auto_author()
-        print_section_header(_("Auto-Switch Author with Key"))
-        status = _("on") if enabled else _("off")
-        print(f"🔀 {_('Auto-author switch: {status}', status=status)}")
+        print_section_header(_("hdr.auto_author"))
+        status = _("misc.on") if enabled else _("misc.off")
+        print(f"🔀 {_('msg.auto_author_status', status=status)}")
         if enabled:
-            print("   " + _("When you switch a key, its bound author is auto-applied."))
+            print("   " + _("msg.auto_apply_desc"))
         else:
-            print("   " + _("Switch a key will NOT change author. Use 'sshm author use' manually."))
-        print(f"   💡 {_('Usage: sshm auto-author on|off')}")
+            print("   " + _("msg.auto_not_change"))
+        print(f"   💡 {_('msg.auto_usage')}")
 
     def set_auto_author(self, enabled: bool):
         """开启/关闭凭据↔人员自动联动"""
         self.state_manager.write_auto_author(enabled)
-        status = _("on") if enabled else _("off")
-        print(f"🔀 {_('Auto-author switch: {status}', status=status)}")
-        print("   " + (_("Now switching a key will auto-apply its bound author.")
+        status = _("misc.on") if enabled else _("misc.off")
+        print(f"🔀 {_('msg.auto_author_status', status=status)}")
+        print("   " + (_("msg.auto_now_apply")
                        if enabled else
-                       _("Now switching a key will NOT change author.")))
+                       _("msg.auto_now_not")))
 
     # ------------------------------------------------------------------------
     # Git 仓库作者相关操作 (author)
     # ------------------------------------------------------------------------
 
-    def fix_author(self, repo_path: str = '.', old_name: Optional[str] = None,
+    def fix_author(self, repo_path: Union[str, Path] = '.',
+                   old_name: Optional[str] = None,
                    new_name: Optional[str] = None,
                    old_email: Optional[str] = None,
                    new_email: Optional[str] = None,
@@ -1003,22 +1034,22 @@ class SSHKeyManager:
         """
         repo_path = Path(repo_path).resolve()
         if not (repo_path / '.git').exists():
-            self._fail(f"❌ {_('Not a git repository: {path}', path=repo_path)}")
+            self._fail(f"❌ {_('err.not_git_repo', path=repo_path)}")
             return
 
         if not old_name and not old_email:
-            self._fail("❌ " + _("Specify --old-name or --old-email to match"))
+            self._fail("❌ " + _("err.need_old"))
             return
         if not new_name and not new_email:
-            self._fail("❌ " + _("Specify --new-name or --new-email to replace"))
+            self._fail("❌ " + _("err.need_new"))
             return
 
-        print_section_header(_("Rewrite Author History"))
-        print(f"📁 {_('Repository:')} {repo_path}")
+        print_section_header(_("hdr.rewrite"))
+        print(f"📁 {_('lbl.repository')} {repo_path}")
 
         # 预览：列出历史中的作者
         authors = get_authors_in_repo(repo_path)
-        print(f"\n🧑 {_('Current authors in history:')}")
+        print(f"\n🧑 {_('lbl.current_authors')}")
         for a in authors:
             print(f"   - {a}")
 
@@ -1027,10 +1058,10 @@ class SSHKeyManager:
                             old_email=old_email, new_email=new_email)
         match_desc = []
         if old_name:
-            match_desc.append(f"{_('name')} '{old_name}' -> '{new_name or old_name}'")
+            match_desc.append(f"{_('misc.name')} '{old_name}' -> '{new_name or old_name}'")
         if old_email:
-            match_desc.append(f"{_('email')} '{old_email}' -> '{new_email or old_email}'")
-        print(f"\n🔀 {_('Rules:')} {', '.join(match_desc)}")
+            match_desc.append(f"{_('misc.email')} '{old_email}' -> '{new_email or old_email}'")
+        print(f"\n🔀 {_('lbl.rules')} {', '.join(match_desc)}")
 
         # 用 dry-run 预估（fast-export 到临时流，不导入）
         try:
@@ -1043,66 +1074,66 @@ class SSHKeyManager:
         except Exception:
             matched = 0
         if matched == 0:
-            self._fail(f"⚠️  {_('No commits match the given old author/email. Nothing to rewrite.')}")
+            self._fail(f"⚠️  {_('err.no_matches')}")
             return
-        print(f"ℹ️  {_('Will rewrite {count} commits.', count=matched)}")
+        print(f"ℹ️  {_('msg.will_rewrite_count', count=matched)}")
 
         # 破坏性操作确认
-        print(f"\n⚠️  {_('This rewrites git history (commit hashes change).')}")
-        print("   " + _("You must force-push afterwards: git push --force"))
+        print(f"\n⚠️  {_('msg.rewrites_history')}")
+        print("   " + _("msg.force_push"))
         if not skip_confirm:
-            if not prompt_confirm(_("Continue rewriting history?")):
-                self._fail("❌ " + _("operation cancelled"))
+            if not prompt_confirm(_("msg.continue_rewrite")):
+                self._fail("❌ " + _("misc.operation_cancelled"))
                 return
 
         try:
             result = rewrite_history(repo_path, cfg)
         except Exception as e:
-            self._fail(f"❌ {_('Rewrite failed: {err}', err=e)}")
+            self._fail(f"❌ {_('err.rewrite_failed', err=e)}")
             return
 
-        print(f"\n✅ {_('History rewritten!')}")
-        print(f"   {_('Matched commits: {count}', count=result.get('matched_commits', 0))}")
-        print(f"   {_('Rewritten lines: {count}', count=result.get('rewritten', 0))}")
-        print(f"\n⚠️  {_('Original refs are backed up under refs/original/.')}")
-        print(f"   {_('To publish, force-push all branches: git push --force --all')}")
+        print(f"\n✅ {_('msg.history_rewritten')}")
+        print(f"   {_('msg.matched_commits', count=result.get('matched_commits', 0))}")
+        print(f"   {_('msg.rewritten_lines', count=result.get('rewritten', 0))}")
+        print(f"\n⚠️  {_('msg.refs_backed_up')}")
+        print(f"   {_('msg.force_push_all')}")
 
-    def show_repo_author(self, repo_path: str = '.'):
+    def show_repo_author(self, repo_path: Union[str, Path] = '.'):
         """显示当前 Git 仓库的作者配置"""
-        print_section_header(_("Git Repo Author Info"))
+        print_section_header(_("hdr.author_info"))
         repo_path = Path(repo_path).resolve()
 
         if not (repo_path / '.git').exists():
-            self._fail(f"❌ {_('Not a git repository: {path}', path=repo_path)}")
-            print("   " + _("Please run this command inside a Git repository"))
+            self._fail(f"❌ {_('err.not_git_repo', path=repo_path)}")
+            print("   " + _("err.run_in_repo"))
             return
 
-        print(f"📂 {_('Repo path:')} {repo_path}\n")
+        print(f"📂 {_('lbl.repo_path')} {repo_path}\n")
 
         local_name = self._git_get_config(repo_path, 'local', 'user.name')
         local_email = self._git_get_config(repo_path, 'local', 'user.email')
         global_name = self._git_get_config(repo_path, 'global', 'user.name')
         global_email = self._git_get_config(repo_path, 'global', 'user.email')
 
-        def fmt(value, source):
+        def fmt(value: Optional[str], source: str) -> str:
             if not value:
-                return _("not set")
+                return _("misc.not_set")
             return f"{value}  [{source}]"
 
-        print(f"👤 {_('Author name:')} {fmt(local_name, 'local')}")
-        print(f"📧 {_('Author email:')} {fmt(local_email, 'local')}")
+        print(f"👤 {_('lbl.author_name')} {fmt(local_name, 'local')}")
+        print(f"📧 {_('lbl.author_email')} {fmt(local_email, 'local')}")
         print()
         if global_name or global_email:
-            g_author = f"{global_name or _('not set')} <{global_email or _('not set')}>"
-            print(f"🌍 {_('Global author:')} {g_author}")
+            g_author = f"{global_name or _('misc.not_set')} <{global_email or _('misc.not_set')}>"
+            print(f"🌍 {_('lbl.global_author')} {g_author}")
         if local_name or local_email:
-            print("   " + _("Current effective: repo-level (local) config overrides global"))
+            print("   " + _("msg.current_effective"))
         print()
-        print("💡 " + _("Tip: use 'sshm author list' to view saved authors"))
-        print("   " + _("Use 'sshm author use <label>' to quickly set the current repo author"))
-        print("   " + _("Use 'sshm author unset' to clear repo-level config"))
+        print("💡 " + _("msg.author_list_tip"))
+        print("   " + _("msg.quick_set"))
+        print("   " + _("msg.clear_repo_config"))
 
-    def set_repo_author(self, label: str, repo_path: str = '.',
+    def set_repo_author(self, label: str, repo_path: Union[str, Path] = '.',
                         name: Optional[str] = None, email: Optional[str] = None,
                         scope: str = 'local', skip_confirm: bool = False,
                         infer_from_remote: bool = True):
@@ -1114,8 +1145,8 @@ class SSHKeyManager:
         repo_path = Path(repo_path).resolve()
 
         if scope != 'global' and not (repo_path / '.git').exists():
-            self._fail(f"❌ {_('Not a git repository: {path}', path=repo_path)}")
-            print("   " + _("Please run this command inside a Git repository"))
+            self._fail(f"❌ {_('err.not_git_repo', path=repo_path)}")
+            print("   " + _("err.run_in_repo"))
             return
 
         author = self._get_author_info(label, name, email, repo_path,
@@ -1123,31 +1154,31 @@ class SSHKeyManager:
         if not author:
             return
 
-        print_section_header(_("Set Author for Git Repo: {label}", label=label))
-        print(f"📂 {_('Repo path:')} {repo_path}\n")
+        print_section_header(_("hdr.set_author", label=label))
+        print(f"📂 {_('lbl.repo_path')} {repo_path}\n")
 
         current_name = self._git_get_config(repo_path, scope, 'user.name')
         current_email = self._git_get_config(repo_path, scope, 'user.email')
-        scope_name = _("global") if scope == 'global' else _("repo-level")
+        scope_name = _("misc.global") if scope == 'global' else _("misc.repo_level")
 
         # 摘要：未提供的字段明确展示当前值，并注明将保持不变
-        not_set = _("not set")
-        keep = _("(no new value, keeping current)")
+        not_set = _("misc.not_set")
+        keep = _("msg.no_new_value")
         if author['name']:
-            print(f"👤 {_('Author name:')} {author['name']}")
+            print(f"👤 {_('lbl.author_name')} {author['name']}")
         else:
-            print(f"👤 {_('Author name:')} {current_name or not_set}{keep}")
+            print(f"👤 {_('lbl.author_name')} {current_name or not_set}{keep}")
         if author['email']:
-            print(f"📧 {_('Author email:')} {author['email']}")
+            print(f"📧 {_('lbl.author_email')} {author['email']}")
         else:
-            print(f"📧 {_('Author email:')} {current_email or not_set}{keep}")
+            print(f"📧 {_('lbl.author_email')} {current_email or not_set}{keep}")
 
         if (current_name or current_email) and not skip_confirm:
-            print(f"\n⚠️  {_('Current {scope} author configured:', scope=scope_name)}")
+            print(f"\n⚠️  {_('msg.current_scope_author', scope=scope_name)}")
             print(f"   user.name: {current_name or not_set}")
             print(f"   user.email: {current_email or not_set}")
-            if not prompt_confirm(_("Overwrite?")):
-                self._fail("❌ " + _("operation cancelled"))
+            if not prompt_confirm(_("misc.overwrite")):
+                self._fail("❌ " + _("misc.operation_cancelled"))
                 return
 
         changed = []
@@ -1160,7 +1191,7 @@ class SSHKeyManager:
                 )
                 changed.append(f"user.name = {author['name']}")
             else:
-                unchanged.append(f"user.name = {current_name or _('not set')}")
+                unchanged.append(f"user.name = {current_name or _('misc.not_set')}")
             if author['email']:
                 subprocess.run(
                     ['git', '-C', str(repo_path), 'config', f'--{scope}', 'user.email', author['email']],
@@ -1168,40 +1199,41 @@ class SSHKeyManager:
                 )
                 changed.append(f"user.email = {author['email']}")
             else:
-                unchanged.append(f"user.email = {current_email or _('not set')}")
+                unchanged.append(f"user.email = {current_email or _('misc.not_set')}")
         except subprocess.CalledProcessError as e:
-            self._fail(f"❌ {_('Git command failed: {err}', err=e)}")
+            self._fail(f"❌ {_('err.git_failed', err=e)}")
             return
 
         if not changed:
-            self._fail("\n⚠️  " + _("No author info available to set"))
+            self._fail("\n⚠️  " + _("err.no_author_set"))
             return
 
-        print(f"\n✅ {_('Set ({scope}):', scope=scope_name)}")
+        print(f"\n✅ {_('msg.set_scope', scope=scope_name)}")
         for item in changed:
             print(f"   - {item}")
         if unchanged:
-            print("\nℹ️ " + _("Unchanged (keeping current):"))
+            print("\nℹ️ " + _("msg.unchanged"))
             for item in unchanged:
                 print(f"   - {item}")
-        print("\n💡 " + _("Verify: git config user.name && git config user.email"))
+        print("\n💡 " + _("msg.verify_cmd"))
 
-    def unset_repo_author(self, repo_path: str = '.', scope: str = 'local'):
+    def unset_repo_author(self, repo_path: Union[str, Path] = '.',
+                          scope: str = 'local'):
         """清除当前 Git 仓库的作者配置（回落到全局）"""
         repo_path = Path(repo_path).resolve()
 
         if not (repo_path / '.git').exists():
-            self._fail(f"❌ {_('Not a git repository: {path}', path=repo_path)}")
-            print("   " + _("Please run this command inside a Git repository"))
+            self._fail(f"❌ {_('err.not_git_repo', path=repo_path)}")
+            print("   " + _("err.run_in_repo"))
             return
 
-        scope_name = _("global") if scope == 'global' else _("repo-level")
-        fallback_name = _("system-level") if scope == 'global' else _("global")
+        scope_name = _("misc.global") if scope == 'global' else _("misc.repo_level")
+        fallback_name = _("misc.system_level") if scope == 'global' else _("misc.global")
         if not prompt_confirm(_(
-            "Confirm clearing current {scope} author config? It will fall back to {fallback} config",
+            "msg.confirm_clear",
             scope=scope_name, fallback=fallback_name,
         )):
-            self._fail("❌ " + _("operation cancelled"))
+            self._fail("❌ " + _("misc.operation_cancelled"))
             return
 
         removed = []
@@ -1216,9 +1248,9 @@ class SSHKeyManager:
                 pass
 
         if removed:
-            print(f"✅ {_('Cleared ({scope}): {keys}', scope=scope_name, keys=', '.join(removed))}")
+            print(f"✅ {_('msg.cleared_scope', scope=scope_name, keys=', '.join(removed))}")
         else:
-            print("ℹ️  " + _("No config found to clear"))
+            print("ℹ️  " + _("msg.no_config_clear"))
 
     def add_author(self, label: str, name: Optional[str] = None,
                    email: Optional[str] = None):
@@ -1232,35 +1264,35 @@ class SSHKeyManager:
                        or self._extract_email_from_pubkey(label_lower) or '')
 
         if not (final_name or final_email):
-            self._fail("❌ " + _("Need at least a name or email"))
-            print("   " + _("Usage: sshm author add <label> -n \"name\" -e \"email\""))
-            print("   " + _("Tip: if a key with this label exists, email is auto-filled from the public key comment"))
+            self._fail("❌ " + _("msg.need_author"))
+            print("   " + _("msg.author_usage"))
+            print("   " + _("msg.fix_author_tip"))
             return
 
         self.state_manager.write_author(label_lower, final_name, final_email)
 
-        not_set = _("not set")
-        print_section_header(_("Author saved: {label}", label=label))
-        print(f"👤 {_('Name:')} {final_name or not_set}")
-        print(f"📧 {_('Email:')} {final_email or not_set}")
-        print("\n✅ " + _("Saved to author list"))
-        print("   " + _("Use 'sshm author list' to view all authors"))
-        print("   " + _("Use 'sshm author use <label>' to apply to the current repo"))
+        not_set = _("misc.not_set")
+        print_section_header(_("hdr.author_saved", label=label))
+        print(f"👤 {_('lbl.author_name')} {final_name or not_set}")
+        print(f"📧 {_('lbl.author_email')} {final_email or not_set}")
+        print("\n✅ " + _("msg.saved_to_list"))
+        print("   " + _("msg.use_author_list"))
+        print("   " + _("msg.use_author_apply"))
 
-    def list_authors(self, repo_path: str = '.'):
+    def list_authors(self, repo_path: Union[str, Path] = '.'):
         """列出所有已保存的作者
 
         Args:
             repo_path: Git 仓库路径，用于判断当前生效作者及其层级（默认当前目录）
         """
-        print_section_header(_("Saved Authors List"))
+        print_section_header(_("hdr.saved_authors"))
         authors = self.state_manager.read_authors()
         if not authors:
-            print("📭 " + _("No saved authors yet"))
-            print("   " + _("Use 'sshm author add <label> -n name -e email' to add an author"))
+            print("📭 " + _("err.no_authors"))
+            print("   " + _("err.add_author_usage"))
             return
 
-        not_set = _("not set")
+        not_set = _("misc.not_set")
         repo = Path(repo_path).resolve()
         in_repo = (repo / '.git').exists()
 
@@ -1275,17 +1307,17 @@ class SSHKeyManager:
 
             if local_name or local_email:
                 eff_name, eff_email = local_name, local_email
-                scope = _('repo-level')    # 仓库级生效
+                scope = _('misc.repo_level')    # 仓库级生效
             elif global_name or global_email:
                 eff_name, eff_email = global_name, global_email
-                scope = _('global')        # 全局生效
+                scope = _('misc.global')        # 全局生效
         else:
             # 不在 git 仓库内：回退读取全局配置，展示全局生效
             global_name = self._git_get_config(Path.home(), 'global', 'user.name')
             global_email = self._git_get_config(Path.home(), 'global', 'user.email')
             if global_name or global_email:
                 eff_name, eff_email = global_name, global_email
-                scope = _('global')
+                scope = _('misc.global')
 
         eff_email_lower = (eff_email or '').lower()
         eff_name_lower = (eff_name or '').lower()
@@ -1308,37 +1340,37 @@ class SSHKeyManager:
                 label_scope,
             ])
 
-        print_table([_('Status'), _('Label'), _('Name:'), _('Email:'),
-                     _('Scope')],
+        print_table([_('lbl.status'), _('lbl.label'), _('lbl.name'), _('lbl.email'),
+                     _('lbl.scope')],
                     rows, truncatable=[2, 3], center_cols=[0])
 
-        print("\n💡 " + _("Usage:"))
-        print("   sshm author use <label> [--global]   # " + _("Apply to current repo/global"))
-        print("   sshm author remove <label>           # " + _("Remove author"))
-        print("   sshm author add <label> -n name -e email  # " + _("Add/update author"))
+        print("\n💡 " + _("misc.usage"))
+        print("   sshm author use <label> [--global]   # " + _("msg.apply_repo_global"))
+        print("   sshm author remove <label>           # " + _("msg.remove_author"))
+        print("   sshm author add <label> -n name -e email  # " + _("msg.add_update_author"))
 
     def remove_author(self, label: str, skip_confirm: bool = False):
         """从作者列表移除指定标签的作者（不影响已写入的 git config）"""
         label_lower = label.lower()
         authors = self.state_manager.read_authors()
         if label_lower not in authors:
-            self._fail(f"❌ {_('Saved author not found: {label}', label=label)}")
-            print("   " + _("Use 'sshm author list' to view saved authors"))
+            self._fail(f"❌ {_('err.author_not_found', label=label)}")
+            print("   " + _("err.use_author_list"))
             return
 
-        not_set = _("not set")
+        not_set = _("misc.not_set")
         info = authors[label_lower]
-        print(_("About to remove author: {label}", label=label))
-        print(f"  👤 {_('Name:')} {info.get('name') or not_set}")
-        print(f"  📧 {_('Email:')} {info.get('email') or not_set}")
+        print(_("msg.about_remove_author", label=label))
+        print(f"  👤 {_('lbl.author_name')} {info.get('name') or not_set}")
+        print(f"  📧 {_('lbl.author_email')} {info.get('email') or not_set}")
 
-        if not skip_confirm and not prompt_confirm(_("Confirm remove?")):
-            self._fail("❌ " + _("operation cancelled"))
+        if not skip_confirm and not prompt_confirm(_("msg.confirm_remove")):
+            self._fail("❌ " + _("misc.operation_cancelled"))
             return
 
         self.state_manager.remove_author(label_lower)
-        print(f"✅ {_('Author removed: {label}', label=label)}")
-        print("   " + _("Note: already-applied git config will NOT be rolled back"))
+        print(f"✅ {_('msg.author_removed', label=label)}")
+        print("   " + _("msg.not_rolled_back"))
 
     # ------------------------------------------------------------------------
     # 语言设置
@@ -1359,11 +1391,6 @@ class SSHKeyManager:
         set_lang(lang)
         return lang
 
-    def get_language(self) -> str:
-        """获取当前生效的语言"""
-        from ..i18n import get_lang
-        return get_lang()
-
     def _git_get_config(self, repo_path: Path, scope: str, key: str) -> Optional[str]:
         """读取 git 配置项（local/global）"""
         try:
@@ -1377,7 +1404,7 @@ class SSHKeyManager:
 
     def _get_author_info(self, label: str, name: Optional[str] = None,
                          email: Optional[str] = None,
-                         repo_path: Optional[Path] = None,
+                         repo_path: Optional[Union[str, Path]] = None,
                          infer_from_remote: bool = True) -> Optional[Dict[str, str]]:
         """按优先级获取标签对应的作者信息
 
@@ -1398,24 +1425,25 @@ class SSHKeyManager:
 
         # 2. 从公钥注释提取邮箱（-C email 写入）
         if not result['email']:
-            result['email'] = self._extract_email_from_pubkey(label_lower)
+            result['email'] = self._extract_email_from_pubkey(label_lower) or ''
 
         # 3. 从 remote URL 推断用户名（最低优先级）
         if not result['name'] and repo_path is not None and infer_from_remote:
-            result['name'] = self._infer_author_name_from_remote(repo_path) or ''
+            result['name'] = self._infer_author_name_from_remote(
+                Path(repo_path)) or ''
 
         if not (result['name'] or result['email']):
             key_type = self._detect_key_type_for_label(label)
             if not key_type:
-                msg = _("No key found for label '{label}'", label=label)
+                msg = _("err.key_not_found_short", label=label)
                 self._fail(f"❌ {msg}")
-                print("\n💡 " + _("Use 'sshm list' to view all available keys"))
+                print("\n💡 " + _("msg.use_all_keys_tip"))
                 return None
-            msg = _("Label '{label}' has no usable author info", label=label)
+            msg = _("msg.not_usable_author", label=label)
             self._fail(f"⚠️  {msg}")
-            print("   " + _("Available remedies:"))
-            print(f"   - sshm add {label} <email> --name \"name\"   # " + _("recreate key and record author"))
-            print(f"   - sshm author {label} --name \"name\" --email <email>  # " + _("temporary override"))
+            print("   " + _("msg.available_remedies"))
+            print(f"   - sshm add {label} <email> --name \"name\"   # " + _("msg.recreate_key"))
+            print(f"   - sshm author {label} --name \"name\" --email <email>  # " + _("msg.temp_override"))
             return None
 
         return result
@@ -1452,18 +1480,18 @@ class SSHKeyManager:
             pass
         return None
 
-    def show_repo_info(self, repo_path: str = '.'):
+    def show_repo_info(self, repo_path: Union[str, Path] = '.'):
         """显示当前 Git 仓库的 SSH 配置信息"""
-        print_section_header(_("Git Repo Config Info"))
-        
+        print_section_header(_("hdr.repo_info"))
+
         repo_path = Path(repo_path).resolve()
-        
+
         if not (repo_path / '.git').exists():
-            self._fail(f"❌ {_('Not a valid Git repository: {path}', path=repo_path)}")
+            self._fail(f"❌ {_('err.not_valid_git', path=repo_path)}")
             return
-        
-        print(f"📂 {_('Repo path:')} {repo_path}")
-        
+
+        print(f"📂 {_('lbl.repo_path')} {repo_path}")
+
         try:
             result = subprocess.run(
                 ['git', 'remote', 'get-url', 'origin'],
@@ -1473,16 +1501,16 @@ class SSHKeyManager:
                 check=True
             )
             remote_url = result.stdout.strip()
-            print(f"🔗 {_('Remote URL:')} {remote_url}")
-            
+            print(f"🔗 {_('lbl.remote_url')} {remote_url}")
+
             parsed = self._parse_git_url(remote_url)
             if parsed:
                 platform, user, repo = parsed
-                print(f"\n📊 {_('Parsed info:')}")
-                print(f"  ├─ {_('Platform:')} {platform}")
-                print(f"  ├─ {_('User/Org:')} {user}")
-                print(f"  └─ {_('Repo:')} {repo}")
-                
+                print(f"\n📊 {_('lbl.parsed_info')}")
+                print(f"  ├─ {_('lbl.platform')} {platform}")
+                print(f"  ├─ {_('lbl.user_org')} {user}")
+                print(f"  └─ {_('lbl.repo')} {repo}")
+
                 ssh_pattern = r'git@([^:]+):'
                 match = re.match(ssh_pattern, remote_url)
                 if match:
@@ -1490,129 +1518,130 @@ class SSHKeyManager:
                     # 反解别名对应的标签（容忍主机名首段含连字符，如 git-codecommit-{label}）
                     label = self._resolve_label_from_alias(host_alias)
                     if label:
-                        print(f"\n🔑 {_('Current alias in use: {alias}', alias=host_alias)}")
-                        
+                        print(f"\n🔑 {_('lbl.current_alias', alias=host_alias)}")
+
                         key_type = self._detect_key_type_for_label(label)
                         if key_type:
                             key_file = self.ssh_dir / f"id_{key_type}.{label}"
                             pub_file = self.ssh_dir / f"id_{key_type}.{label}.pub"
-                            
-                            print(f"\n🗝️  {_('Key info:')}")
-                            print(f"  ├─ {_('Label')}: {label}")
-                            print(f"  ├─ {_('key type')}: {key_type}")
-                            print(f"  ├─ {_('Private key:')} {key_file}")
-                            print(f"  └─ {_('Public key:')} {pub_file}")
-                            
+
+                            print(f"\n🗝️  {_('lbl.key_info')}")
+                            print(f"  ├─ {_('lbl.label')}: {label}")
+                            print(f"  ├─ {_('lbl.key_type')}: {key_type}")
+                            print(f"  ├─ {_('lbl.private_key')} {key_file}")
+                            print(f"  └─ {_('lbl.public_key')} {pub_file}")
+
                             ssh_config = self.config_manager.config_file
                             if ssh_config.exists():
-                                with open(ssh_config, 'r', encoding='utf-8') as f:
-                                    content = f.read()
-                                    if host_alias.lower() in content.lower():
-                                        print(f"\n📝 {_('SSH Config:')}")
-                                        lines = content.split('\n')
-                                        in_host = False
-                                        for line in lines:
-                                            if host_alias.lower() in line.lower():
-                                                in_host = True
-                                            if in_host:
-                                                print(f"  {line}")
-                                                if line.strip() and not line.startswith(' ') and not line.startswith('\t') and host_alias.lower() not in line.lower():
-                                                    break
+                                # 按 Host 块解析，打印匹配该别名的完整配置块
+                                block = self._extract_ssh_config_block(host_alias)
+                                if block:
+                                    print(f"\n📝 {_('lbl.ssh_config')}")
+                                    for line in block:
+                                        print(f"  {line}")
                         else:
-                            msg = _("No key file found for label '{label}'", label=label)
+                            msg = _("err.key_not_found_file", label=label)
                             print(f"\n⚠️  {msg}")
                     else:
-                        print(f"\n💡 " + _("Tip: using a standard SSH URL or unconfigured alias"))
-                        print(f"   " + _("Use 'sshm use <label>' to configure a key"))
+                        print(f"\n💡 " + _("msg.current_alias_unconfigured"))
+                        print(f"   " + _("msg.use_to_configure"))
                 else:
-                    print(f"\n💡 " + _("Tip: using an HTTPS URL"))
-                    print(f"   " + _("Use 'sshm use <label>' to convert to SSH and configure a key"))
+                    print(f"\n💡 " + _("msg.https_url_tip"))
+                    print(f"   " + _("msg.use_to_ssh"))
             else:
-                print("\n⚠️  " + _("Failed to parse remote URL"))
-                
+                print("\n⚠️  " + _("msg.failed_parse_url"))
+
         except subprocess.CalledProcessError as e:
             if 'No such remote' in str(e.stderr):
-                print("\n⚠️  " + _("No 'origin' remote configured"))
+                print("\n⚠️  " + _("msg.no_origin_configured"))
             else:
-                print(f"\n❌ {_('Git command failed: {err}', err=e)}")
+                print(f"\n❌ {_('err.git_failed', err=e)}")
         except Exception as e:
-            print(f"\n❌ {_('error')}: {e}")
-    
-    def test_connection(self, label: Optional[str] = None, test_all: bool = False, 
-                       repo_path: str = '.'):
+            print(f"\n❌ {_('misc.error')}: {e}")
+
+    def test_connection(self, label: Optional[str] = None, test_all: bool = False,
+                       repo_path: Union[str, Path] = '.'):
         """测试 SSH 连接"""
         if test_all:
-            print_section_header(_("Test All SSH Key Connections"))
-            
+            print_section_header(_("hdr.test_all"))
+
             keys_by_label = self._scan_all_keys()
             if not keys_by_label:
-                self._fail("❌ " + _("No keys found"))
+                self._fail("❌ " + _("err.no_keys"))
                 return
-            
+
             results = []
-            no_alias_msg = _("no alias configured, run 'sshm use <label>' first")
+            no_alias_msg = _("msg.no_alias_configured")
             for label, key_infos in keys_by_label.items():
                 host_alias = self._get_host_alias(label)
                 key_types = ', '.join([k['type'] for k in key_infos])
-                
+
                 # 未配置 config 别名的标签无法路由，跳过并给出明确提示
                 if not self.config_manager.has_host(host_alias):
                     results.append((label, host_alias, key_types,
                                     (False, no_alias_msg)))
                     continue
-                
+
                 result = self._test_ssh_connection(host_alias)
                 results.append((label, host_alias, key_types, result))
-            
+
             print("\n" + "=" * 70)
-            print(_("Test Results Summary:"))
+            print(_("hdr.test_results"))
             print("=" * 70)
             for label, host_alias, key_types, (success, message) in results:
                 status = "✅" if success else "❌"
-                print(f"{status} {pad_cell(label, 20)} ({pad_cell(host_alias, 30)}) [{key_types}]")
+                print(f"{status} {pad_cell(label, 20)} "
+                      f"({pad_cell(host_alias, 30)}) [{key_types}]")
                 if not success:
                     print(f"    {message}")
-            
+
+            # 只要有任一连接失败，标记业务失败（供 CLI 层返回非零退出码）
+            # 错误信息已在表格中逐条展示，这里仅置标志、不重复打印
+            if any(not ok for _, _, _, (ok, _) in results):
+                self._had_error = True
+
         elif label:
-            print_section_header(_("Test SSH Connection: {label}", label=label))
-            
+            print_section_header(_("hdr.test_one", label=label))
+
             key_type = self._detect_key_type_for_label(label)
             if not key_type:
-                msg = _("No key found for label '{label}' (key files)", label=label)
+                msg = _("err.key_not_found_files", label=label)
                 self._fail(f"❌ {msg}")
-                print(f"\n💡 " + _("Use 'sshm list' to view all available keys"))
+                print(f"\n💡 " + _("msg.use_all_keys_tip"))
                 return
-            
+
             host_alias = self._get_host_alias(label)
-            
-            print(f"🔑 {_('key label')}: {label}")
-            print(f"🌐 {_('Host:')} {host_alias}")
-            
+
+            print(f"🔑 {_('lbl.key_type')}: {label}")
+            print(f"🌐 {_('lbl.host')} {host_alias}")
+
             # 未配置 config 别名时无法路由到真实主机，直接给出友好提示
+            # （与 test --all 分支一致，未配置视为不可连接，标记业务失败）
             if not self.config_manager.has_host(host_alias):
-                print(f"\n⚠️  {_('Alias {alias} not configured in SSH config', alias=host_alias)}")
-                print(f"   " + _("Run 'sshm use {label}' first to create the alias config", label=label))
-                print(f"   " + _("Or run 'sshm use {label} --global' to set as global default before testing", label=label))
+                print(f"\n⚠️  {_('msg.alias_not_configured', alias=host_alias)}")
+                print(f"   " + _("msg.run_use_first", label=label))
+                print(f"   " + _("msg.run_use_global", label=label))
+                self._had_error = True
                 return
-            
-            print(f"\n🧪 " + _("Testing connection..."))
-            
+
+            print(f"\n🧪 " + _("msg.testing"))
+
             success, message = self._test_ssh_connection(host_alias)
             if success:
                 print(f"✅ {message}")
             else:
-                self._fail(f"❌ {message}")        
+                self._fail(f"❌ {message}")
         else:
-            print_section_header(_("Test Current Repo SSH Connection"))
-            
+            print_section_header(_("hdr.test_current"))
+
             repo_path = Path(repo_path).resolve()
-            
+
             if not (repo_path / '.git').exists():
-                self._fail(f"❌ {_('Not a valid Git repository: {path}', path=repo_path)}")
+                self._fail(f"❌ {_('err.not_valid_git', path=repo_path)}")
                 return
-            
-            print(f"📂 {_('Repo path:')} {repo_path}")
-            
+
+            print(f"📂 {_('lbl.repo_path')} {repo_path}")
+
             try:
                 result = subprocess.run(
                     ['git', 'remote', 'get-url', 'origin'],
@@ -1622,33 +1651,33 @@ class SSHKeyManager:
                     check=True
                 )
                 remote_url = result.stdout.strip()
-                print(f"🔗 {_('Remote URL:')} {remote_url}")
-                
+                print(f"🔗 {_('lbl.remote_url')} {remote_url}")
+
                 ssh_pattern = r'git@([^:]+):'
                 match = re.match(ssh_pattern, remote_url)
                 if match:
                     host_alias = match.group(1)
-                    print(f"\n🧪 {_('Testing {host}...', host=host_alias)}")
-                    
+                    print(f"\n🧪 {_('msg.testing_host', host=host_alias)}")
+
                     success, message = self._test_ssh_connection(host_alias)
                     if success:
                         print(f"✅ {message}")
                     else:
                         self._fail(f"❌ {message}")
-                        print(f"\n💡 " + _("Tip: check that your key config is correct"))
-                        print(f"   " + _("Use 'sshm info' to view config details"))
+                        print(f"\n💡 " + _("msg.check_config_tip"))
+                        print(f"   " + _("msg.use_info"))
                 else:
-                    print("\n⚠️  " + _("Current URL is not an SSH URL, cannot test connection"))
-                    print("   " + _("Use 'sshm use <label>' to convert to SSH URL"))
-                    
+                    print("\n⚠️  " + _("msg.not_ssh_url"))
+                    print("   " + _("msg.use_to_convert"))
+
             except subprocess.CalledProcessError as e:
                 if 'No such remote' in str(e.stderr):
-                    print("\n⚠️  " + _("No 'origin' remote configured"))
+                    print("\n⚠️  " + _("msg.no_origin_configured"))
                 else:
-                    print(f"\n❌ {_('Git command failed: {err}', err=e)}")
+                    print(f"\n❌ {_('err.git_failed', err=e)}")
             except Exception as e:
-                print(f"\n❌ {_('error')}: {e}")
-    
+                print(f"\n❌ {_('misc.error')}: {e}")
+
     def _test_ssh_connection(self, host: str) -> Tuple[bool, str]:
         """测试 SSH 连接（兼容 GitHub/GitLab/Bitbucket/自建 Git 平台）
 
@@ -1671,27 +1700,64 @@ class SSHKeyManager:
                          or re.search(r'Welcome to [^,]+, (@?[\w.-]+)', output))
                 user = match.group(1) if match else None
                 if user:
-                    return (True, _("Authenticated successfully! (Hi {user}!)", user=user))
-                return (True, _("Connected successfully!"))
+                    return (True, _("msg.auth_success", user=user))
+                return (True, _("msg.connected"))
 
             # 2) 命中明确的失败关键词
             if any(m in low for m in _SSH_FAILURE_MARKERS):
-                return (False, _("Connection failed: {detail}",
+                return (False, _("err.connection_failed",
                                  detail=output.strip()[:100]))
 
             # 3) 平台文案未知时以退出码兜底
             if result.returncode == 0:
-                return (True, _("Connected successfully!"))
-            return (False, _("Connection failed: {detail}",
+                return (True, _("msg.connected"))
+            return (False, _("err.connection_failed",
                              detail=output.strip()[:100]))
 
         except subprocess.TimeoutExpired:
-            return (False, _("Connection timed out"))
+            return (False, _("err.connection_timeout"))
         except FileNotFoundError:
-            return (False, _("ssh command not found"))
+            return (False, _("err.ssh_not_found"))
         except Exception as e:
-            return (False, f"{_('error')}: {str(e)}")
-    
+            return (False, f"{_('misc.error')}: {str(e)}")
+
+    def _extract_ssh_config_block(self, host_alias: str) -> List[str]:
+        """从 SSH config 中提取指定 Host 别名对应的配置块（含 Host 行及缩进项）。
+
+        按 SSH config 语义按块解析：一个块以顶格 `Host xxx` 开头，其后缩进的
+        键值行归属该块，直到下一个顶格指令（如下一个 Host / HostName / 空行后
+        的新指令）。精确匹配 Host 值（大小写敏感），避免子串误匹配。
+        """
+        if not self.config_file.exists():
+            return []
+        try:
+            lines = self.config_file.read_text(encoding='utf-8').splitlines()
+        except (OSError, UnicodeDecodeError):
+            return []
+
+        block: List[str] = []
+        for i, line in enumerate(lines):
+            stripped = line.strip()
+            if not stripped:
+                continue
+            # 检测 `Host <pattern>` 指令（顶格或缩进均视为指令边界）
+            low = stripped.lower()
+            if low.startswith('host ') or low == 'host':
+                host_patterns = [p.strip() for p in
+                                 stripped.split(' ', 1)[1].split()] if ' ' in stripped else []
+                # 命中目标别名：收集该块直至下一个顶格指令
+                if host_alias in host_patterns:
+                    block.append(stripped)
+                    for nxt in lines[i + 1:]:
+                        nxt_strip = nxt.strip()
+                        if not nxt_strip:
+                            break
+                        if not (nxt.startswith(' ') or nxt.startswith('\t')):
+                            break
+                        block.append(nxt_strip)
+                    return block
+        return []
+
     def _parse_git_url(self, url: str) -> Optional[Tuple[str, str, str]]:
         """解析 Git URL，支持 ssh://、git@、https:// 三种格式"""
         # scp-like 格式: git@github.com:user/repo.git
@@ -1700,7 +1766,7 @@ class SSHKeyManager:
         if match:
             hostname, user, repo = match.groups()
             return (self._platform_from_hostname(hostname), user, repo)
-        
+
         # 带协议前缀的 SSH 格式: ssh://git@host/user/repo.git
         #  或 ssh://git@host:port/user/repo.git
         ssh2_pattern = r'ssh://(?:git@)?([^/:]+)(?::\d+)?/([^/]+)/(.+?)(?:\.git)?$'
@@ -1708,14 +1774,14 @@ class SSHKeyManager:
         if match:
             hostname, user, repo = match.groups()
             return (self._platform_from_hostname(hostname), user, repo)
-        
+
         # HTTPS 格式: https://host/user/repo.git
         https_pattern = r'https?://([^/]+)/([^/]+)/(.+?)(?:\.git)?$'
         match = re.match(https_pattern, url)
         if match:
             hostname, user, repo = match.groups()
             return (self._platform_from_hostname(hostname), user, repo)
-        
+
         return None
 
     @staticmethod
@@ -1725,7 +1791,7 @@ class SSHKeyManager:
         if '-' in hostname:
             return hostname.split('-')[0]
         return hostname.split('.')[0]
-    
+
     # ------------------------------------------------------------------------
     # 辅助方法
     # ------------------------------------------------------------------------
@@ -1744,7 +1810,7 @@ class SSHKeyManager:
             if key_file.exists():
                 return key_type
         return None
-    
+
     def _detect_default_key_type(self) -> Optional[str]:
         """检测默认密钥类型"""
         for key_type in SUPPORTED_KEY_TYPES:
@@ -1752,7 +1818,7 @@ class SSHKeyManager:
             if key_file.exists():
                 return key_type
         return None
-    
+
     def _get_hostname_for_label(self, label: str) -> str:
         """根据标签获取主机名（优先使用 add 时记录的映射）"""
         label_lower = label.lower()
@@ -1770,7 +1836,7 @@ class SSHKeyManager:
             if key in label_lower:
                 return host
         return 'github.com'
-    
+
     def _get_host_alias(self, label: str) -> str:
         """生成 SSH config 别名（统一小写，避免大小写变体冲突）
 
@@ -1836,7 +1902,8 @@ class SSHKeyManager:
             return resolved
         return host
 
-    def _align_hostname_with_repo(self, label: str, repo_hostname: str,
+    def _align_hostname_with_repo(self, label: str,
+                                  repo_hostname: Optional[str],
                                   skip_confirm: bool) -> bool:
         """确保标签映射到仓库的真实 hostname（适配私有化 Git）
 
@@ -1850,25 +1917,26 @@ class SSHKeyManager:
         if current == repo_hostname:
             return True
 
-        print(f"\n⚠️  " + _("The repo hostname ({host}) differs from the one mapped to label '{label}' ({cur})",
+        print(f"\n⚠️  " + _("msg.hostname_differs",
                           host=repo_hostname, label=label, cur=current))
-        print("   " + _("This is likely a private/self-hosted Git server."))
-        print("   " + _("To connect, an SSH config matching '{host}' is needed.", host=repo_hostname))
+        print("   " + _("msg.private_server"))
+        print("   " + _("msg.need_ssh_config", host=repo_hostname))
 
         if skip_confirm:
             self.state_manager.write_host(label, repo_hostname)
-            print("✅ " + _("Updated host mapping: {label} -> {host}", label=label, host=repo_hostname))
+            print("✅ " + _("msg.host_updated", label=label, host=repo_hostname))
             return True
 
-        if prompt_confirm(_("Create matching SSH config for '{host}' and use it?", host=repo_hostname),
+        if prompt_confirm(_("msg.create_matching", host=repo_hostname),
                           default='y'):
             self.state_manager.write_host(label, repo_hostname)
-            print("✅ " + _("Updated host mapping: {label} -> {host}", label=label, host=repo_hostname))
+            print("✅ " + _("msg.host_updated", label=label, host=repo_hostname))
             return True
-        self._fail("⚠️  " + _("Skipped. The key may not work for this repo without a matching host mapping."))
+        self._fail("⚠️  " + _("msg.skipped_no_mapping"))
         return False
 
-    def _detect_repo_key_label(self, repo_path: str = '.') -> Optional[str]:
+    def _detect_repo_key_label(self,
+                               repo_path: Union[str, Path] = '.') -> Optional[str]:
         """检测当前 Git 仓库正在使用的密钥标签（仓库级）
 
         通过解析 remote URL 中的 SSH 别名，反解出对应的密钥标签。
@@ -1890,25 +1958,25 @@ class SSHKeyManager:
         if not match:
             return None
         return self._resolve_label_from_alias(match.group(1))
-    
+
     def _update_ssh_config_alias(self, label: str, key_file: Path):
         """自动更新 SSH config 别名配置"""
         hostname = self._get_hostname_for_label(label)
         host_alias = self._get_host_alias(label)
-        
+
         self.config_manager.update_host(host_alias, hostname, key_file.resolve())
         self.state_manager.write_host(label, hostname)
-        print(_("SSH config alias: {alias} -> {hostname}",
+        print(_("msg.ssh_config_alias",
                 alias=host_alias, hostname=hostname))
-        print(_("   usage: git@{alias}:user/repo.git", alias=host_alias))
+        print(_("msg.alias_usage", alias=host_alias))
 
     def _remove_ssh_config_alias(self, label: str):
         """删除 SSH config 别名配置"""
         host_alias = self._get_host_alias(label)
-        
+
         self.config_manager.remove_host(host_alias)
         self.state_manager.remove_host(label)
-        print(_("SSH config alias removed: {alias}", alias=host_alias))
+        print(_("msg.alias_removed", alias=host_alias))
 
     def _rename_ssh_config_alias(self, old_label: str, new_label: str, new_key_file: Path):
         """重命名 SSH config 别名配置（主机名保持不变，同一把密钥换标签）"""
@@ -1920,5 +1988,5 @@ class SSHKeyManager:
             self.config_manager.remove_host(old_alias)
             self.config_manager.update_host(new_alias, hostname, new_key_file.resolve())
             self.state_manager.write_host(new_label, hostname)
-            print(_("SSH config alias updated: {old} -> {new}",
+            print(_("msg.alias_updated",
                     old=old_alias, new=new_alias))
