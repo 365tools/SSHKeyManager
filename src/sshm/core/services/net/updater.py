@@ -5,19 +5,21 @@
 """
 
 import os
-import re
 import sys
 import json
 import platform
 import subprocess
 import tempfile
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional
 from urllib.request import urlopen, Request
 from urllib.error import URLError
 
-from ..constants import VERSION
-from ..i18n import _
+from packaging.version import Version, InvalidVersion
+
+from ....constants import VERSION
+from ....i18n import _
+from ....ui.output import print, progress
 
 
 class UpdateManager:
@@ -50,21 +52,19 @@ class UpdateManager:
         "macos": ("macos", "darwin"),
     }
     
-    def _parse_version(self, version: str) -> Tuple[int, ...]:
-        """解析版本号为元组（容忍预发布后缀，如 v0.0.1-beta）"""
-        version = version.lstrip('v')
-        match = re.match(r'(\d+)(?:\.(\d+))?(?:\.(\d+))?', version)
-        if match:
-            return tuple(int(g) if g else 0 for g in match.groups())
-        return (0, 0, 0)
-    
-    def _is_newer_version(self, latest: str, current: str) -> bool:
-        """比较版本号"""
+    @staticmethod
+    def _parse_version(version: str) -> Version:
+        """解析版本号（基于 packaging.version，正确处理预发布后缀 v0.0.1-beta）"""
         try:
-            latest_parts = self._parse_version(latest)
-            current_parts = self._parse_version(current)
-            return latest_parts > current_parts
-        except:
+            return Version(version.lstrip('v'))
+        except InvalidVersion:
+            return Version('0')
+
+    def _is_newer_version(self, latest: str, current: str) -> bool:
+        """比较版本号（基于 packaging.version 语义化比较）"""
+        try:
+            return self._parse_version(latest) > self._parse_version(current)
+        except Exception:
             return False
     
     def _get_cache(self) -> Optional[dict]:
@@ -80,20 +80,32 @@ class UpdateManager:
             
             with open(self.CACHE_FILE, 'r', encoding='utf-8') as f:
                 data = json.load(f)
-            # 校验缓存结构，避免损坏缓存导致 KeyError
-            if isinstance(data, dict) and 'version' in data:
+            # 校验缓存结构：版本可解析为非零版本且下载链接为真实 URL，
+            # 避免损坏 / 手写伪造的缓存导致误报"有新版本"
+            if (isinstance(data, dict)
+                    and isinstance(data.get('version'), str)
+                    and self._parse_version(data['version']) > Version('0')
+                    and isinstance(data.get('download_url'), str)
+                    and data['download_url'].startswith(('http://', 'https://'))):
                 return data
             return None
         except (OSError, ValueError, json.JSONDecodeError):
             return None
     
     def _save_cache(self, data: dict):
-        """保存版本信息到缓存"""
+        """原子保存版本信息到缓存（临时文件 + os.replace，避免并发损坏）"""
+        tmp = Path(f"{self.CACHE_FILE}.{os.getpid()}.tmp")
         try:
-            with open(self.CACHE_FILE, 'w', encoding='utf-8') as f:
-                json.dump(data, f)
-        except:
+            tmp.write_text(json.dumps(data, ensure_ascii=False), encoding='utf-8')
+            os.replace(tmp, self.CACHE_FILE)
+        except (OSError, TypeError):
             pass
+        finally:
+            try:
+                if tmp.exists():
+                    tmp.unlink()
+            except OSError:
+                pass
     
     def check_update(self, force: bool = False) -> Optional[dict]:
         """
@@ -179,7 +191,7 @@ class UpdateManager:
             return False
 
         try:
-            print("⬇️  " + _("upd.downloading"))
+            print(_("upd.downloading"))
             
             # 下载到临时文件
             req = Request(download_url)
@@ -194,26 +206,24 @@ class UpdateManager:
                 temp_fd, temp_path = tempfile.mkstemp(suffix='.exe' if self.platform == 'windows' else '')
                 os.close(temp_fd)  # 立即关闭 fd，避免文件句柄泄漏（更新后无法删除临时文件）
                 
-                with open(temp_path, 'wb') as f:
+                with open(temp_path, 'wb') as f, \
+                        progress(total=total_size if total_size > 0 else None,
+                                 desc=_('upd.downloading')) as p:
                     while True:
                         chunk = response.read(chunk_size)
                         if not chunk:
                             break
                         f.write(chunk)
                         downloaded += len(chunk)
-                        
-                        # 显示进度
-                        if total_size > 0:
-                            percent = (downloaded / total_size) * 100
-                            print(f"\r  {_('upd.progress', percent=percent)}", end='', flush=True)
-                
-                print()  # 换行
+                        # 进度条实时刷新（rich 可用时显示；否则降级无操作）
+                        p.update(completed=downloaded,
+                                 total=total_size if total_size > 0 else None)
             
             # 获取当前可执行文件路径
             current_exe = sys.executable if getattr(sys, 'frozen', False) else sys.argv[0]
             current_exe = os.path.abspath(current_exe)
             
-            print("📝 " + _("upd.updating"))
+            print(_("upd.updating"))
             
             # 根据平台执行不同的更新策略
             if self.platform == "windows":

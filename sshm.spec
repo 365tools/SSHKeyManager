@@ -1,16 +1,37 @@
 # -*- mode: python ; coding: utf-8 -*-
 
+from PyInstaller.utils.hooks import copy_metadata
+
+# 打包 sshm 自身分发元数据（供 constants.VERSION 的 importlib.metadata 回退）
+# 与 CHANGELOG.md（版本自动解析的第一来源）。两者皆缺失时版本会静默回落
+# 0.0.0，导致每次运行都误报“有新版本”。包未安装时 copy_metadata 容错跳过。
+try:
+    _SSHM_METADATA = copy_metadata('sshm')
+except Exception:
+    _SSHM_METADATA = []
+
+
+# 显式排除的无关重量级库：sshm 及 typer 的运行时根本不使用它们，
+# 但 PyInstaller 的 hook（rich/pygments 等）会误把它们收集进包，导致
+# 体积从 ~10MB 暴涨到 ~30MB。排除可显著瘦身且不影响功能。
+_SSHM_EXCLUDES = [
+    'numpy', 'scipy', 'pandas', 'matplotlib',
+    'PIL', 'Pillow',
+    'IPython', 'jupyter', 'notebook',
+    'pytest', 'babel',
+]
+
 
 a = Analysis(
     ['src/run_sshm.py'],
     pathex=['src'],
     binaries=[],
-    datas=[],
+    datas=[('docs/CHANGELOG.md', '.')] + _SSHM_METADATA,
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=[],
+    excludes=_SSHM_EXCLUDES,
     noarchive=False,
     optimize=0,
 )

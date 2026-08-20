@@ -5,7 +5,7 @@
 
 本模块只负责"组装"：从 language 包导入各语言字典，提供统一的翻译入口。
 翻译字典本身位于 language 包：
-  - language/i18n_language.py  通用 key 模版（权威 key 清单 + 类型）
+  - language/templates.py  通用 key 模版（权威 key 清单 + 类型）
   - language/i18n_en.py        English (EN) 具体实现
   - language/i18n_zh.py        中文 (ZH) 具体实现
 

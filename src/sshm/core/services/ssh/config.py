@@ -4,6 +4,7 @@
 SSH 配置管理器 - 负责 SSH config 文件的读写操作
 """
 
+import os
 import re
 from pathlib import Path
 from typing import Optional
@@ -14,13 +15,30 @@ class SSHConfigManager:
     
     def __init__(self, config_file: Path):
         self.config_file = config_file
+
+    @staticmethod
+    def _atomic_write(path: Path, content: str) -> None:
+        """原子写入 config（临时文件 + os.replace），避免崩溃/断电损坏 config。
+
+        与 StateManager 保持一致：先写同目录唯一临时文件，再 os.replace 原子替换。
+        """
+        tmp = path.with_name(f"{path.name}.{os.getpid()}.tmp")
+        try:
+            tmp.write_text(content, encoding='utf-8')
+            os.replace(tmp, path)
+        finally:
+            try:
+                if tmp.exists():
+                    tmp.unlink()
+            except OSError:
+                pass
     
     def update_host(self, label: str, host: str, key_file: Path):
         """更新或添加 Host 配置（忽略大小写，把同名块的所有大小写变体合并为单块）"""
         config_block = self._generate_config_block(label, host, key_file)
         
         if not self.config_file.exists():
-            self.config_file.write_text(config_block, encoding='utf-8')
+            self._atomic_write(self.config_file, config_block)
             return
         
         content = self.config_file.read_text(encoding='utf-8')
@@ -40,7 +58,7 @@ class SSHConfigManager:
         
         # 规整连续空行
         content = re.sub(r'\n{3,}', '\n\n', content)
-        self.config_file.write_text(content, encoding='utf-8')
+        self._atomic_write(self.config_file, content)
     
     def remove_host(self, label: str):
         """从 SSH config 中删除指定标签的配置（忽略大小写）"""
@@ -53,7 +71,7 @@ class SSHConfigManager:
                          flags=re.MULTILINE | re.DOTALL | re.IGNORECASE)
         # 规整连续空行
         content = re.sub(r'\n{3,}', '\n\n', content)
-        self.config_file.write_text(content, encoding='utf-8')
+        self._atomic_write(self.config_file, content)
 
     def has_host(self, label: str) -> bool:
         """检查 SSH config 中是否存在指定 Host（忽略大小写）"""

@@ -27,9 +27,9 @@ class TestStatePersistence:
 
 class TestAutoAuthor:
     def test_set_get(self, manager):
-        manager.set_auto_author(False)
+        manager.author.auto_author(False)
         assert manager.state_manager.read_auto_author() is False
-        manager.set_auto_author(True)
+        manager.author.auto_author(True)
         assert manager.state_manager.read_auto_author() is True
 
 
@@ -45,19 +45,19 @@ class TestLabelValidation:
             Path(name).write_bytes(b'k')
             Path(name + '.pub').write_bytes(b'p a@b.com')
             return subprocess.CompletedProcess(cmd, 0, b'', b'')
-        monkeypatch.setattr('sshm.core.manager.subprocess.run', fake_run)
-        manager.add_key('work', 'a@b.com')
+        monkeypatch.setattr('sshm.core.commands.keys.subprocess.run', fake_run)
+        manager.key.create('work', 'a@b.com')
         assert any('ssh-keygen' in c for c in calls)
         # host 已持久化（默认 github.com）
         assert manager.state_manager.read_hosts()['work'] == 'github.com'
 
     def test_add_key_invalid_type(self, manager):
         with pytest.raises(ValueError):
-            manager.add_key('x', 'a@b.com', key_type='dsa-invalid')
+            manager.key.create('x', 'a@b.com', key_type='dsa-invalid')
 
     def test_add_key_invalid_email(self, manager):
         with pytest.raises(ValueError):
-            manager.add_key('x', 'not-an-email')
+            manager.key.create('x', 'not-an-email')
 
 
 class TestKeyDetection:
@@ -68,11 +68,11 @@ class TestKeyDetection:
 
     def test_detect_key_type(self, manager, tmp_ssh_dir):
         self._create_keys(tmp_ssh_dir, 'ed25519', 'github')
-        assert manager._detect_key_type_for_label('github') == 'ed25519'
+        assert manager.keystore.detect_key_type_for_label('github') == 'ed25519'
 
     def test_list_keys_output(self, manager, tmp_ssh_dir, capsys):
         self._create_keys(tmp_ssh_dir, 'ed25519', 'github')
-        manager.list_keys()
+        manager.key.list()
         out = capsys.readouterr().out
         assert 'github' in out
 

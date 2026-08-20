@@ -8,8 +8,9 @@ import os
 import sys
 from pathlib import Path
 
-from ..i18n import _
-from .console import print_section_header, prompt_confirm
+from ....i18n import _
+from ....ui.console import print_section_header, prompt_confirm
+from ....ui.output import print
 
 
 def add_to_path() -> None:
@@ -26,8 +27,8 @@ def add_to_path() -> None:
         exe_path = Path(__file__).parent.parent.resolve()
         exe_dir = exe_path
     
-    print(f"📂 {_('sys.current_exe', path=exe_path)}")
-    print(f"📁 {_('sys.directory', dir=exe_dir)}")
+    print(f"{_('sys.current_exe', path=exe_path)}")
+    print(f"{_('sys.directory', dir=exe_dir)}")
     
     if sys.platform == 'win32':
         _add_to_windows_path(exe_dir)

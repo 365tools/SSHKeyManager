@@ -116,8 +116,8 @@ chmod +x install.sh
 sshm --help
 
 # 查看密钥列表
-sshm list
+sshm key list
 
 # 测试连接
-sshm test
+sshm repo test
 ```

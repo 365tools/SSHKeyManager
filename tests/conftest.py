@@ -29,13 +29,23 @@ def manager(tmp_ssh_dir: Path):
 
 @pytest.fixture
 def git_repo(tmp_path: Path) -> Path:
-    """临时 Git 仓库（含一个初始提交）"""
+    """临时 Git 仓库（含一个初始提交）
+
+    所有 git 操作使用「干净环境」：屏蔽外部 GIT_DIR 等污染变量（例如
+    pre-commit 钩子内运行测试时 git 会设置 GIT_DIR），确保操作始终作用于
+    本临时 mock 仓库，绝不触碰当前项目仓库。
+    """
     repo = tmp_path / 'repo'
     repo.mkdir()
 
+    # 移除全部 GIT_* 变量，彻底隔离外部 git 环境（hook 会设置 GIT_DIR、
+    # GIT_INDEX_FILE、GIT_AUTHOR_*/GIT_COMMITTER_* 等，会污染临时 mock 仓库）
+    clean_env = {k: v for k, v in os.environ.items() if not k.startswith('GIT_')}
+
     def git(*args: str):
         subprocess.run(['git', '-C', str(repo)] + list(args),
-                       check=True, capture_output=True, text=True)
+                       check=True, capture_output=True, text=True,
+                       env=clean_env)
 
     git('init')
     git('config', 'user.email', 'test@example.com')
@@ -50,5 +60,5 @@ def git_repo(tmp_path: Path) -> Path:
 def cli_runner():
     """Typer CLI 测试运行器"""
     from typer.testing import CliRunner
-    from sshm.cli.cli import app
+    from sshm.cli.app import app
     return CliRunner(), app

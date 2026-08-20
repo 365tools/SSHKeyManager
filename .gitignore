@@ -29,6 +29,9 @@ dist/
 # 测试临时目录（历史遗留）
 scripts/.cli_test_home/
 
+# 运行测试产生的临时工作区
+.tmp-test/
+
 
 # ========================================
 # IDE 和编辑器配置
@@ -79,6 +82,9 @@ $RECYCLE.BIN/
 *.tmp
 *.temp
 PROJECT_STRUCTURE.txt
+
+# CLI 输出快照（可经 scripts/cli_snapshot.py --collect 重新生成）
+tests/_cli_snapshot/
 
 # SSH 测试密钥（如有）
 test_keys/

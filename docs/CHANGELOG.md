@@ -9,6 +9,30 @@
 
 ## [未发布]
 
+### ✨ 新功能
+
+- **`-h` 帮助简写**：`--help` 现在可用 `-h` 触发，顶层与所有子命令均生效
+- **`-v` 版本信息增强**：`-v`/`--version` 除版本号外，同时显示平台、Python 版本与运行模式（打包可执行文件 / 源码）
+- **`-v` 构建来源标识**：打包可执行文件运行时，额外显示「本地编译 / 线上发布 / 未知」，依据部署脚本在 exe 旁写入的来源标记文件判断
+- **`-v` 表格化渲染**：版本信息改用项目统一的表格样式（图标 + 标签 + 值），带 emoji 图标与 CJK/emoji 对齐，风格与其它命令一致
+- **`history rewrite --author <label>` 全量刷新**：把历史所有作者/邮箱统一为指定已保存作者（支持 `-a` 简写）
+- **`history rewrite` 成对参数 `--name`/`--email`**：用 `OLD:NEW` 精确替换（`--name Alice:Carol`）或用单值 `NEW` 全量刷新该字段（`--name Carol`，另一字段不变）；`-n`/`-e` 简写随新语法生效
+- **`author update <label> [-n name] [-e email]`**：更新已有作者，name/email 至少一项
+- **`author remove <label>`**：删除已保存的作者（支持 `-y` 跳过确认）
+- **打包体积优化**：exe 从 ~30.8MB 降至 ~12MB（排除 numpy/PIL 等无关重库 + 自动启用 UPX 压缩）
+- **rich 输出落地（L2 语义着色 + L3 进度条）**：
+  - `ui.output` 默认改用 `RichOutput`（tty 感知）：真实终端显示语义颜色（按 `✅/⚠️/❌/ℹ️` 等 emoji 自动着色，零侵入）+ rich 表格；非 tty（管道/重定向/测试）自动回退 `ConsoleOutput` 的 ASCII 行为，输出可预测、无 ANSI 码
+  - 新增 `progress()` / `status()` 上下文管理器：`sshm update` 下载改用真实进度条；`history rewrite` 历史重写显示 spinner；rich 不可用时静默降级，不阻断业务
+- **emoji 收敛（UI 规范化）**：移除字段/区块级的纯装饰性 emoji（`📂📁🔗📊🔑🔧🗝️📝🌐👤📧⬇️🧑`），只保留表达状态/结果的语义 emoji（`✅❌⚠️ℹ️💡✨🎉🔀🧪💾`）与表格状态列；统一中英文提示（修复 `hdr.interactive` 中文多出的 `🔑`）；`-v` 表格保留图标列。移除无需改动测试（测试不依赖装饰性 emoji）
+- **`config lang` 更名为 `config language`**：全链路同步（CLI 命令、命令注册表、manager 方法 `SystemCommands.language`、i18n key `cmd.config_language`、脚本、测试、文档与 cli-report 快照），不保留旧名、不兼容旧命令
+- **错误提示富化与自适应排版**：
+  - `Usage` 续行改为基于 rich Console 实际终端宽度自适应折行，缩进用显示宽度精确对齐 `💡 Usage: ` 前缀（修复固定 78 列在窄/宽终端下换行参差的问题）
+  - 修复 `[en|zh]` 等含方括号的参数 token 被 rich 当作 markup 吞掉的问题（`_command_params_block` 与错误消息统一转义）；`config language`/`auto-author` 的枚举参数去掉易出错的方括号 metavar，非法值提示从 `Invalid value for ''` 修正为 `Invalid value for 'en|zh'`
+  - 枚举参数（如 `--type`）在用法提示中直接展示支持值 `ed25519|rsa|ecdsa|dsa`
+- **分组默认视图 tip 段统一**：`sshm repo`/`sshm author` 底部裸 `print("💡 ...")` 收尾改为统一 `render_tip_block` 模板；`sshm config`/`sshm backup` 默认视图补齐「相关命令」提示段，6 个分组默认视图（key/repo/author/backup/config）输出格式完全一致
+- **cli-report 覆盖增强**：校验升级为格式断言（`--help` 必有 `Usage:` 行、失败场景必有统一 `❌` 标记）；补齐 `config auto-author` 非法值、`--type` 选项缺值等快照场景
+- **core 服务层按业务域分组**：将 `core/` 扁平服务拆为 `services/` 子包并按域分组——`ssh/`（KeyStore / SSHConfigManager / path）、`git/`（GitRepoService / AuthorService / rewrite）、`storage/`（StateManager / BackupService）、`net/`（SSHTester / UpdateManager）；门面 `manager.py`、异常 `errors.py`、命令编排 `commands/` 留在 `core/` 顶层；同步更新全部 import（源码 / 测试 / 文档 / 架构图），对外导出路径（`sshm.core.*`）经 `core/__init__.py` 重新导出保持不变
+
 ### 规划中
 
 - [ ] SSH Agent 管理
@@ -41,7 +65,7 @@
 
 ### 🐛 修复
 
-- **`author fix` 重写后无法推送**：修复历史重写后 HEAD 停留在 detached 状态的问题，重写后自动切回分支，可正常 `git push`
+- **`history rewrite` 重写后无法推送**：修复历史重写后 HEAD 停留在 detached 状态的问题，重写后自动切回分支，可正常 `git push`
 - **`pad_cell` 未导入**：`sshm test --all` 会 `NameError` 崩溃，已补导入
 - **`_` 被 `winreg.QueryValueEx` 覆盖**：`system.py` 中解包把 i18n 的 `_` 翻译函数覆盖为 int，导致后续所有提示文案崩溃，已修复
 - **`temp_fd` 文件句柄泄漏**：`updater.py` 中 `mkstemp` 返回的文件描述符未关闭，Windows 上更新后无法删除临时文件，已补 `os.close`

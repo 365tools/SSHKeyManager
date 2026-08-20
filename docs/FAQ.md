@@ -16,12 +16,12 @@
 ```bash
 # 个人项目
 cd ~/personal-project
-sshm use personal
+sshm repo use personal
 git push   # 自动使用 personal 密钥
 
 # 公司项目
 cd ~/work-project
-sshm use work
+sshm repo use work
 git push   # 自动使用 work 密钥
 ```
 
@@ -29,12 +29,12 @@ git push   # 自动使用 work 密钥
 
 ### Q: 如何将现有项目改用别名方式？
 
-**A:** 使用 `sshm use` 一键完成，或手动修改 remote URL：
+**A:** 使用 `sshm repo use` 一键完成，或手动修改 remote URL：
 
 ```bash
 # 方式一：一键配置（推荐）
 cd ~/project
-sshm use personal
+sshm repo use personal
 
 # 方式二：手动修改 remote URL
 git remote -v
@@ -63,8 +63,8 @@ ssh -T git@personal   # 测试连接
 **A:** 所有变更操作前都会自动备份到 `~/.ssh/key_backups/`，执行：
 
 ```bash
-sshm backups    # 查看备份列表
-sshm restore    # 从最近备份恢复
+sshm backup list    # 查看备份列表
+sshm backup restore    # 从最近备份恢复
 ```
 
 ---
@@ -74,11 +74,11 @@ sshm restore    # 从最近备份恢复
 **A:**
 
 ```bash
-sshm lang zh    # 中文
-sshm lang en    # 英文
+sshm config language zh    # 中文
+sshm config language en    # 英文
 ```
 
-也可以通过环境变量临时指定：`SSHM_LANG=zh sshm list`
+也可以通过环境变量临时指定：`SSHM_LANG=zh sshm key list`
 
 ---
 
@@ -87,8 +87,8 @@ sshm lang en    # 英文
 **A:**
 
 ```bash
-sshm info       # 查看仓库配置详情
-sshm test       # 测试当前仓库连接
+sshm repo info       # 查看仓库配置详情
+sshm repo test       # 测试当前仓库连接
 ```
 
 ---
@@ -98,8 +98,8 @@ sshm test       # 测试当前仓库连接
 **A:**
 
 ```bash
-sshm update          # 检查并更新
-sshm update --check  # 仅检查
+sshm config update          # 检查并更新
+sshm config update --check  # 仅检查
 ```
 
 程序每次运行也会静默检查更新并提示。
@@ -123,18 +123,18 @@ chcp 65001
 **A:** 通常是 SSH Config 别名未生效。检查：
 
 ```bash
-sshm info        # 确认别名配置
+sshm repo info        # 确认别名配置
 cat ~/.ssh/config
-sshm test        # 测试连接
+sshm repo test        # 测试连接
 ```
 
-若使用 `sshm use` 配置后仍报错，可手动执行 `sshm use <标签>` 重新生成配置。
+若使用 `sshm repo use` 配置后仍报错，可手动执行 `sshm repo use <标签>` 重新生成配置。
 
 ---
 
-### Q: 为什么 `sshm list` 提示有新版本但不更新？
+### Q: 为什么 `sshm key list` 提示有新版本但不更新？
 
-**A:** 静默检查只会**提示**，不会自动更新。执行 `sshm update` 并按提示确认即可。
+**A:** 静默检查只会**提示**，不会自动更新。执行 `sshm config update` 并按提示确认即可。
 
 ---
 
@@ -144,7 +144,7 @@ sshm test        # 测试连接
 
 ```bash
 cd SSHManager
-PYTHONPATH=src python -m sshm list
+PYTHONPATH=src python -m sshm key list
 ```
 
 ---

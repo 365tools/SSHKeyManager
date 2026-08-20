@@ -6,8 +6,8 @@
 
 # 注意: 必须使用直接导入(非延迟/__getattr__), 否则 PyInstaller 静态分析
 # 无法追踪到 sshm.core.manager 等子模块, 打包后运行时报 ModuleNotFoundError
-from .config import SSHConfigManager
-from .state import StateManager
+from .services.ssh.config import SSHConfigManager
+from .services.storage.state import StateManager
 from .manager import SSHKeyManager
 
 __all__ = ['SSHConfigManager', 'StateManager', 'SSHKeyManager']

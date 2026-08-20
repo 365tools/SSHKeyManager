@@ -12,7 +12,7 @@ def state_file(tmp_path):
 
 @pytest.fixture
 def state(state_file):
-    from sshm.core.state import StateManager
+    from sshm.core.services.storage.state import StateManager
     return StateManager(state_file)
 
 
@@ -52,3 +52,47 @@ class TestHostsAuthors:
     def test_active_keys(self, state):
         state.write_active_key('ed25519', 'work')
         assert state.read_active_keys()['ed25519'] == 'work'
+
+
+class TestUpdateDeleteAuthor:
+    """author update / delete 命令层行为（隔离 state，不碰真实文件）"""
+
+    @pytest.fixture
+    def mgr(self, state):
+        from sshm.core.commands.author import AuthorCommands
+
+        class _FakeManager:
+            state_manager = state
+            had_error = False
+
+            def _fail(self, msg: str):
+                self.had_error = True
+
+        m = _FakeManager()
+        m.author = AuthorCommands(m)
+        return m
+
+    def test_update_keeps_unchanged_field(self, mgr):
+        mgr.state_manager.write_author('work', 'Alice', 'a@x.com')
+        mgr.author.update('work', name='Alice2')
+        assert mgr.state_manager.read_authors()['work'] == {
+            'name': 'Alice2', 'email': 'a@x.com'}
+
+    def test_update_requires_at_least_one(self, mgr):
+        mgr.state_manager.write_author('work', 'Alice', 'a@x.com')
+        mgr.author.update('work')  # 无 name/email
+        assert mgr.had_error is True
+        assert mgr.state_manager.read_authors()['work']['name'] == 'Alice'
+
+    def test_update_missing_label(self, mgr):
+        mgr.author.update('missing', name='X')
+        assert mgr.had_error is True
+
+    def test_delete(self, mgr):
+        mgr.state_manager.write_author('work', 'Alice', 'a@x.com')
+        mgr.author.remove('work', skip_confirm=True)
+        assert 'work' not in mgr.state_manager.read_authors()
+
+    def test_delete_missing_label(self, mgr):
+        mgr.author.remove('missing', skip_confirm=True)
+        assert mgr.had_error is True

@@ -4,7 +4,7 @@
 language 包 - 多语言翻译字典与 key 模版
 
 结构:
-  - i18n_language.py  通用 key 模版（权威 key 清单 + 类型约束）
+  - templates.py      通用 key 模版（权威 key 清单 + 类型约束）
   - i18n_en.py        English (EN) 具体实现
   - i18n_zh.py        中文 (ZH) 具体实现
 
@@ -14,14 +14,16 @@ language 包 - 多语言翻译字典与 key 模版
 
 from .i18n_en import EN
 from .i18n_zh import ZH
-from .i18n_language import (
+from .templates import (
     KEYS,
     LANGUAGES,
     KEY_GROUPS,
     LanguageDict,
 )
+from .keys import K
 
 __all__ = [
     'EN', 'ZH',
     'KEYS', 'LANGUAGES', 'KEY_GROUPS', 'LanguageDict',
+    'K',
 ]

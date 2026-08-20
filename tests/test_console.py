@@ -1,7 +1,7 @@
 """工具函数测试：console 输出对齐"""
 import pytest
 
-from sshm.utils.console import (
+from sshm.ui.console import (
     pad_cell,
     get_display_width,
     format_timestamp,

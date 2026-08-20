@@ -124,8 +124,36 @@ def check_pytest() -> tuple[bool, str]:
 
 def check_pyright() -> tuple[bool, str]:
     """类型检查：basedpyright 0 error / 0 warning / 0 note。"""
-    ok, detail = _run(sys.executable, '-m', 'basedpyright')
+    # 显式指定解释器：避免 basedpyright 自动探测到空/损坏的 .venv 而解析不到依赖
+    ok, detail = _run(sys.executable, '-m', 'basedpyright',
+                      '--pythonpath', sys.executable)
     return ok, detail
+
+
+def check_consistency() -> tuple[bool, str]:
+    """三位一体一致性：CLI命令=注册表=manager方法 命名对齐。"""
+    return _run(sys.executable, str(PROJECT_ROOT / 'scripts' / 'check_consistency.py'))
+
+
+def check_rules() -> tuple[bool, str]:
+    """业务层统一规则：架构规范检测。"""
+    return _run(sys.executable, str(PROJECT_ROOT / 'scripts' / 'check_rules.py'))
+
+
+def check_deadcode() -> tuple[bool, str]:
+    """死代码/冗余检测（含 basedpyright unused + i18n 占位符）。"""
+    return _run(sys.executable, str(PROJECT_ROOT / 'scripts' / 'check_deadcode.py'))
+
+
+def check_cli() -> tuple[bool, str]:
+    """CLI 输出标准化检查（自动导出所有指令+场景+执行+校验）。"""
+    return _run(sys.executable, str(PROJECT_ROOT / 'scripts' / 'cli_snapshot.py'),
+                '--check')
+
+
+def check_rich_output() -> tuple[bool, str]:
+    """输出统一性检查：确保输出走 rich（不允许散落的内置 print）。"""
+    return _run(sys.executable, str(PROJECT_ROOT / 'scripts' / 'check_rich_output.py'))
 
 
 # ---------------------------------------------------------------------------
@@ -133,16 +161,26 @@ def check_pyright() -> tuple[bool, str]:
 # ---------------------------------------------------------------------------
 # 元素: (name, is_fast, func)
 CHECKS: List[tuple[str, bool, Callable[[], tuple[bool, str]]]] = [
-    ('compile', True, check_compile),   # 语法编译（快速）
-    ('i18n',    True, check_i18n),      # 多语言 key 一致性（快速）
-    ('pytest',  False, check_pytest),   # 完整测试
-    ('pyright', False, check_pyright),  # 类型检查
+    ('compile',      True, check_compile),       # 语法编译（快速）
+    ('i18n',         True, check_i18n),          # 多语言 key 一致性（快速）
+    ('consistency',  False, check_consistency),  # 三位一体一致性
+    ('rules',        False, check_rules),        # 业务层统一规则
+    ('deadcode',     False, check_deadcode),     # 死代码/冗余
+    ('cli',          False, check_cli),          # CLI 输出标准化
+    ('rich_output',  False, check_rich_output),  # 输出统一性（走 rich，无内置 print）
+    ('pytest',       False, check_pytest),       # 完整测试
+    ('pyright',      False, check_pyright),      # 类型检查
 ]
 
 # 各检查对应的人类可读说明
 CHECKS_HELP: Dict[str, str] = {
     'compile': '语法编译检查（所有 src 文件可编译）',
     'i18n':    'i18n key 模版 / EN / ZH 一致性（含占位符）',
+    'consistency': '三位一体一致性（CLI命令=注册表=manager方法）',
+    'rules':    '业务层统一规则检测',
+    'deadcode': '死代码/冗余检测（含 basedpyright unused）',
+    'cli':      'CLI 输出标准化检查（导出指令+场景+执行+校验）',
+    'rich_output': '输出统一性检查（输出必须走 rich，不允许散落的内置 print）',
     'pytest':  '完整单元测试套件',
     'pyright': 'basedpyright 类型检查（0 error 0 warning）',
 }

@@ -35,7 +35,10 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pyinstaller
+          # 安装项目自身依赖（typer/click/wcwidth，来自 pyproject.toml），
+          # 否则 PyInstaller 打出的包里缺 typer，可执行文件运行时直接崩溃
+          # （ModuleNotFoundError: No module named 'typer'）
+          pip install . pyinstaller
 
       - name: Build with PyInstaller (Windows)
         if: matrix.os == 'windows-latest'
@@ -62,9 +65,35 @@ jobs:
           name: ${{ matrix.asset_name }}
           path: dist/${{ matrix.artifact_name }}
 
+  test:
+    name: Test on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Run tests
+        run: |
+          python -m pytest -q
+
   release:
     name: Create Release
-    needs: build
+    needs: [build, test]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/')
     permissions:

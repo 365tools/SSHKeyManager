@@ -21,37 +21,45 @@
 ```text
 SSHManager/
 ├── src/
-│   ├── run_sshm.py              # PyInstaller 入口点（绝对导入）
+│   ├── run_sshm.py              # PyInstaller 入口点
 │   └── sshm/
 │       ├── __init__.py          # 包入口（自动初始化 Windows 控制台）
 │       ├── __main__.py          # python -m sshm 入口
 │       ├── constants.py         # 密钥类型等常量（版本号从 CHANGELOG 自动解析）
 │       ├── i18n.py              # 国际化组装（翻译函数 + 语言状态）
-│       ├── language/
-│       │   ├── i18n_language.py # 通用 key 模版（权威 key 清单 + 分组约定）
+│       ├── language/            # i18n 翻译字典（权威 key 模版 + EN/ZH）
+│       │   ├── templates.py     # key 模版（KEYS 权威清单 + 分组约定）
 │       │   ├── i18n_en.py       # 英文 (EN) 字典
 │       │   ├── i18n_zh.py       # 中文 (ZH) 字典
 │       │   └── __init__.py      # language 包导出
-│       ├── cli/
+│       ├── cli/                 # 交互适配层（参数解析 / 渲染）
 │       │   ├── cli.py           # Typer 主应用（16 命令 + author 子命令）
 │       │   ├── interactive.py   # 交互式 TUI 菜单
 │       │   └── __init__.py      # 导出 app + 交互菜单
-│       ├── core/
-│       │   ├── manager.py       # SSHKeyManager 核心业务
-│       │   ├── config.py        # SSHConfigManager Config 管理
-│       │   ├── state.py         # StateManager 状态持久化
-│       │   └── rewrite.py       # git 历史重写
-│       └── utils/
-│           ├── console.py       # 输出格式化、Windows 编码修复
-│           ├── system.py        # PATH 配置等系统操作
-│           └── updater.py       # 自动更新
+│       ├── ui/                  # 展示层
+│       │   ├── output.py        # Output 抽象 + ConsoleOutput / NullOutput
+│       │   └── console.py       # 表格渲染 / 对齐 / 确认 / Windows 编码
+│       ├── core/                # 业务核心层
+│       │   ├── manager.py       # SSHKeyManager 门面（组合 services + commands）
+│       │   ├── errors.py        # 业务异常（SSHMError / ValidationError）
+│       │   ├── services/        # 服务层（按业务域分组）
+│       │   │   ├── ssh/         # SSH 基础设施：keystore / config / path
+│       │   │   ├── git/         # Git 域：gitrepo / author / rewrite
+│       │   │   ├── storage/     # 持久化：state / backup
+│       │   │   └── net/         # 网络与工具：sshtest / updater
+│       │   └── commands/        # 命令编排层（按指令分包）
+│       │       ├── keys.py      # KeyCommands：list/create/remove/rename/label/switch/current
+│       │       ├── repo.py      # RepoCommands：use/clone/info/test
+│       │       ├── author.py    # AuthorCommands：author 系列 + auto-author
+│       │       ├── history.py   # HistoryCommands：rewrite
+│       │       └── system.py    # SystemCommands：language/auto-author/update
 ├── scripts/
 │   ├── build_local.py           # 本地构建脚本
 │   ├── check_all.py             # 提交前统一检查（compile/i18n/pytest/pyright）
 │   ├── hooks/                   # git pre-commit 钩子模板 + 安装脚本
 │   ├── install.ps1              # Windows 一键安装
 │   └── install.sh               # Linux/macOS 一键安装
-├── tests/                       # pytest 测试套件（75 用例，含 i18n 守门测试）
+├── tests/                       # pytest 测试套件（含 i18n 守门测试）
 ├── .github/workflows/
 │   └── build-release.yml        # 三平台打包发布
 └── docs/                        # 项目文档
@@ -63,22 +71,20 @@ SSHManager/
 
 ### 分层结构
 
+- **cli 层**：交互适配（参数解析 / Typer / 交互菜单），只负责翻译用户意图并调用门面
+- **ui 层**：展示（`Output` 抽象 + 终端渲染），核心层只依赖 `Output` 抽象，可替换为 JSON/GUI/静默实现
 - **core 层**：纯业务逻辑，不依赖 CLI
-  - `SSHKeyManager`：核心业务（创建、切换、配置、测试）
-  - `SSHConfigManager`：`~/.ssh/config` 读写
-  - `StateManager`：状态文件（`.sshm_state`）持久化
-- **cli 层**：命令行交互
-  - `cli.py`：Typer 框架声明式定义全部命令（`@app.command()`），自动生成 `--help`/参数校验/补全
-  - `interactive.py`：交互式 TUI 菜单
-- **utils 层**：通用工具（控制台、系统、更新）
+  - 服务（按业务域分组于 `services/`）：`ssh/`（KeyStore / SSHConfigManager / path）、`git/`（GitRepoService / AuthorService / rewrite）、`storage/`（StateManager / BackupService）、`net/`（SSHTester / UpdateManager）；业务异常 `errors` 留在 `core/` 顶层
+  - 门面：`SSHKeyManager`（组合服务，公开 API 委托到服务与命令编排组）
+  - 命令编排：`commands/`（keys / repo / author / history / system，按指令分包，每模块单一职责）
 - **language 层**：i18n 翻译字典（`i18n_en.py`/`i18n_zh.py` + key 模版），`i18n.py` 组装翻译函数
 
-> 核心采用**组合模式**：`SSHKeyManager` 内部组合 `SSHConfigManager` 与 `StateManager`，而非继承，降低耦合、便于测试。
+> 核心采用**组合 + 门面模式**：`SSHKeyManager` 组合各服务类（而非继承），命令编排组持门面引用；依赖方向单向：`cli → core → ui`。
 
 ### 国际化 (i18n)
 
 - **稳定 key 方案**：翻译键为稳定 key（如 `cmd.list` / `opt.label`），英文（`EN`）与中文（`ZH`）两套字典都映射到同一 key，杜绝"改描述要改两处"与废弃键冗余
-- 字典按语言拆分为独立文件（`language/i18n_en.py` / `i18n_zh.py`），通用 key 模版（`language/i18n_language.py`）持有权威 `KEYS` 清单
+- 字典按语言拆分为独立文件（`language/i18n_en.py` / `i18n_zh.py`），通用 key 模版（`language/templates.py`）持有权威 `KEYS` 清单
 - 语言优先级：`SSHM_LANG` 环境变量 > 状态文件 `lang` 字段 > 默认 `en`
 - 翻译函数 `_(key, **kwargs)`：按当前语言查表，支持 `{placeholder}` 格式化；缺失时回退英文，再缺失回退 key 本身便于发现遗漏
 - **一致性守门**：`tests/test_i18n.py` 自动校验 key 模版 / EN / ZH 三方同步、翻译非空、占位符一致
@@ -92,7 +98,7 @@ flowchart LR
     D --> E[SSHConfigManager]
     D --> F[StateManager]
     D --> G[~/.ssh 文件系统]
-    B --> H[utils/updater]
+    B --> H[core/services/net/updater]
     D --> I[i18n 输出]
 ```
 
@@ -114,15 +120,16 @@ flowchart TB
     end
 
     subgraph Core["核心业务层 (src/sshm/core/)"]
-        Manager["manager.py<br/>SSHKeyManager<br/>全部业务逻辑"]
-        Config["config.py<br/>SSHConfigManager<br/>SSH config 读写"]
-        State["state.py<br/>StateManager<br/>状态持久化"]
+        Manager["manager.py<br/>SSHKeyManager 门面"]
+        Commands["commands/<br/>keys / repo / author / history / system"]
+        Services["services/ 服务层<br/>ssh / git / storage / net 按域分组"]
+        Updater["net/updater.py<br/>版本更新"]
+        Path["ssh/path.py<br/>PATH 管理"]
     end
 
-    subgraph Utils["工具层 (src/sshm/utils/)"]
+    subgraph UI["展示层 (src/sshm/ui/)"]
+        Output["output.py<br/>Output 抽象"]
         Console["console.py<br/>表格/对齐/编码/确认"]
-        System["system.py<br/>PATH 管理"]
-        Updater["updater.py<br/>版本更新"]
     end
 
     subgraph External["外部系统"]
@@ -140,18 +147,16 @@ flowchart TB
     CliApp --> Manager
     Interactive --> Manager
 
-    Manager --> Config
-    Manager --> State
+    Manager --> Commands
+    Manager --> Services
+    Manager --> Output
+    Commands --> Services
+    Commands --> Updater
+    Commands --> Path
 
-    Manager --> Console
-    Manager --> System
-    Manager --> Updater
-
-    Manager --> SSH_DIR
-    Manager --> STATE_FILE
-    Manager --> GIT
-    Config --> SSH_DIR
-    State --> STATE_FILE
+    Services --> SSH_DIR
+    Services --> STATE_FILE
+    Services --> GIT
     GIT --> SSHD
 
     Updater --> GIT
@@ -180,7 +185,7 @@ pip install -e ".[dev]"     # 安装开发依赖（pytest / basedpyright / pyins
 
 ```bash
 # 命令行方式
-PYTHONPATH=src python -m sshm list
+PYTHONPATH=src python -m sshm key list
 
 # 交互模式
 python src/run_sshm.py
@@ -228,7 +233,7 @@ pyinstaller --onefile --name sshm --console --paths src src/run_sshm.py
 
 ```bash
 ./dist/sshm --help
-./dist/sshm list
+./dist/sshm key list
 ```
 
 ---

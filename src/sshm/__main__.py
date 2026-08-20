@@ -5,12 +5,16 @@
 """
 
 import sys
+import threading
 from pathlib import Path
 
+import click
+
 from .constants import STATE_FILE_NAME
-from .core.state import StateManager
+from .core.errors import SSHMError
+from .core.services.net.updater import UpdateManager
+from .core.services.storage.state import StateManager
 from .i18n import load_from_state
-from .utils.updater import UpdateManager
 
 def _load_lang_before_parse() -> None:
     """在解析参数/显示帮助前应用语言（环境变量优先于状态文件）"""
@@ -32,14 +36,17 @@ def _silent_update_check() -> None:
 
 
 def _should_silent_check() -> bool:
-    """判断是否需要静默更新检查（排除版本/帮助/更新命令自身）"""
-    if 'update' in sys.argv:
-        return False
-    # 只检查第一个参数（命令行入口）
+    """判断是否需要静默更新检查（排除版本/帮助/更新命令自身）
+
+    仅当首个非选项参数是实际业务命令时才检查；`sshm update` 自身、
+    以及 `-v` / `--help` 等无命令调用均跳过，避免把命令参数里的
+    "update" 字样误判（如 `sshm add my-update-key`）。
+    """
     args = [a for a in sys.argv[1:] if not a.startswith('-')]
     if not args:
         return False  # 无子命令（如 -v / --help / 空）
-    return True
+    # 分组后更新命令为 `sshm config update`：跳过静默检查（自身会检查）
+    return not (len(args) >= 2 and args[0] == 'config' and args[1] == 'update')
 
 
 def main() -> None:
@@ -53,13 +60,34 @@ def main() -> None:
         show_interactive_menu()
         return
 
-    # 实际执行业务命令时静默检查更新
+    # 实际执行业务命令时静默检查更新（后台线程，避免网络等待阻塞命令执行）
     if _should_silent_check():
-        _silent_update_check()
+        threading.Thread(target=_silent_update_check, daemon=True).start()
 
-    # 运行 Typer 应用
-    from .cli.cli import app
-    app()
+    # 运行 Typer 应用（统一捕获业务异常，避免裸 traceback 抛给用户）
+    from .cli import suggest
+    from .cli.app import app
+
+    # 未知命令预校验：基于注册表层级做模糊建议，取代 Click 无建议的报错
+    suggestions = suggest.suggest(list(sys.argv[1:]))
+    if suggestions is not None:
+        suggest.render_error(list(sys.argv[1:]), suggestions)
+        raise SystemExit(2)
+
+    try:
+        # standalone_mode=False：让 Click 的 UsageError（缺参数/非法值/未知选项/
+        # 未知命令）抛出来，统一走 suggest.render_usage_error 渲染，取代原生面板
+        app(standalone_mode=False)
+    except SSHMError as e:
+        # 业务错误统一走 rich 输出（与正常命令一致的首行空行 + ❌ 错误行）
+        from .ui.output import print as _print
+        _print()
+        _print(f"❌ {e}")
+        raise SystemExit(e.exit_code)
+    except click.UsageError as e:
+        # 用法错误（缺参数/非法枚举/未知选项/未知命令等）：统一模板渲染
+        suggest.render_usage_error(e, list(sys.argv[1:]))
+        raise SystemExit(e.exit_code)
 
 
 if __name__ == '__main__':

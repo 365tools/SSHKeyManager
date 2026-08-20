@@ -205,6 +205,46 @@ source ~/.bashrc  # 或 ~/.zshrc
 
 ---
 
+## 🛠 本地开发/在线统一部署脚本（dev_local.ps1）
+
+面向**开发者 / 想要用本地编译最新代码**的用户。采用「**单一安装目录 + 单一 PATH**」策略：
+本地编译版与在线安装版**都写入同一个目录** `%LOCALAPPDATA%\Programs\sshm\sshm.exe`，
+PATH 只指向这一个目录，任意位置敲 `sshm xxx` 始终命中同一路径，只是文件被谁覆盖而已。
+**无需在多个 PATH 目录间切换，最简单也最不易出错。**
+
+### 用法
+
+```powershell
+# 1) 本地打包并部署（覆盖安装目录为本地编译版）
+.\scripts\dev_local.ps1 install-local
+
+# 2) 从 GitHub 下载最新在线版并部署（覆盖为 sshm.exe）
+.\scripts\dev_local.ps1 install-release
+
+# 3) 查看当前安装的是本地版还是在线版
+.\scripts\dev_local.ps1 status
+
+# 4) 从 PATH 移除安装目录（不删文件；完全卸载请用 install.ps1 -Uninstall）
+.\scripts\dev_local.ps1 uninstall
+```
+
+### 关键机制与回答常见疑问
+
+- **PATH 存的是「目录」，不是文件名**。敲 `sshm` 时系统只在 PATH 目录里找 `sshm.exe` / `sshm.bat` / `sshm.cmd`。因此：
+  - **远端下载的 `sshm-windows-amd64.exe` 必须重命名为 `sshm.exe`** 才能通过 `sshm` 简写调用；
+  - 环境变量**不能**直接支持 `sshm-windows-amd64.exe`（除非你每次都敲全名）。
+- **PATH 只需配置一次**：脚本首次会把安装目录加入 User PATH，之后无论 `install-local` 还是 `install-release` 都只替换 `sshm.exe` 文件，不再动 PATH。
+- `status` 通过来源标记文件（`.source_local` / `.source_release`）区分当前是本地编译版还是在线版。
+- 本地打包复用 `sshm.spec`，与 CI 线上产物**版本解析行为完全一致**（都打入 `CHANGELOG.md` + metadata），不会出现"本地打包后误报有新版本"。
+
+### 注意事项
+
+- `install-local` 会调用 `scripts\build_local.py` 做 PyInstaller 打包（需已安装 `pyinstaller`）。首次打包约需 1–2 分钟。
+- 需要管理员权限？不需要，本脚本只改**用户级** PATH（注册表 `HKCU`）和用户目录下的安装目录。
+- 若历史上有多个 PATH 目录都含 `sshm`（如 pip 脚本、旧安装），本脚本保证安装目录在 User PATH 最前；`status` 会提示实际命中情况，必要时重开终端。
+
+---
+
 ## 🎯 设计理念
 
 ### 为什么合并安装和卸载脚本？

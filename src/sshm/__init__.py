@@ -18,7 +18,7 @@ sshm - 企业级多账号 SSH 密钥管理工具
 
 from .constants import VERSION
 from .core import SSHKeyManager, SSHConfigManager, StateManager
-from .utils import setup_windows_console
+from .ui.console import setup_windows_console
 
 __version__ = VERSION
 __all__ = [

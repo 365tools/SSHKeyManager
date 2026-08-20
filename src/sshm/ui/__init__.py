@@ -1,7 +1,12 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-工具模块初始化
+展示层 - 输出抽象与终端渲染。
+
+- output.py：Output 抽象（核心层输出边界）+ ConsoleOutput / NullOutput 实现
+- console.py：终端渲染（表格 / 对齐 / 确认 / Windows 编码修复 / 通用格式化）
+
+核心层（core）只依赖 Output 抽象；cli 等适配层直接使用 console 渲染能力。
 """
 
 from .console import (
@@ -15,10 +20,9 @@ from .console import (
     print_separator,
     print_section_header,
     print_table,
-    wait_for_key
+    wait_for_key,
 )
-
-from .system import add_to_path
+from .output import ConsoleOutput, NullOutput, Output
 
 __all__ = [
     'setup_windows_console',
@@ -32,5 +36,5 @@ __all__ = [
     'print_section_header',
     'print_table',
     'wait_for_key',
-    'add_to_path'
+    'Output', 'ConsoleOutput', 'NullOutput',
 ]

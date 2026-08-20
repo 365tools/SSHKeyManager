@@ -14,6 +14,8 @@ keywords = ["ssh", "git", "key-manager", "cli"]
 dependencies = [
     "typer>=0.12",
     "click>=8.1",
+    "rich>=13.7",
+    "packaging>=23.0",
     "wcwidth>=0.2.13",
 ]
 
@@ -51,8 +53,3 @@ exclude = ["**/__pycache__", "**/*.pyc", "**/.git", "scripts", "docs", "repo"]
 typeCheckingMode = "basic"
 pythonVersion = "3.14"
 analyzeUnannotatedFunctions = false
-reportMissingTypeStubs = "none"
-reportMissingImports = true
-reportUnusedImport = "warning"
-reportUnusedVariable = "warning"
-reportUnusedFunction = "warning"

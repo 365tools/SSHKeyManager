@@ -13,9 +13,9 @@ SSH Manager 内置自动检查更新与一键更新能力。
    - 不干扰正常使用
 
 2. **手动更新命令**
-   - `sshm update`：检查并更新到最新版本
-   - `sshm update --check`：仅检查更新，不执行更新
-   - `sshm update --force`：强制检查，忽略缓存
+   - `sshm config update`：检查并更新到最新版本
+   - `sshm config update --check`：仅检查更新，不执行更新
+   - `sshm config update --force`：强制检查，忽略缓存
 
 3. **版本比较**
    - 自动解析语义化版本号
@@ -41,16 +41,16 @@ sshm --help
 ### 2. 仅检查更新
 
 ```bash
-sshm update --check
+sshm config update --check
 
 # 强制检查（忽略缓存）
-sshm update --check --force
+sshm config update --check --force
 ```
 
 ### 3. 更新到最新版本
 
 ```bash
-sshm update
+sshm config update
 ```
 
 **执行流程：**
@@ -66,11 +66,11 @@ sshm update
 每次运行任意命令时，程序会自动检查更新：
 
 ```bash
-sshm list
+sshm key list
 
 # 如果有新版本，会在输出前显示提示：
 # 💡 有新版本可用: v2.2.0 (当前: v0.0.3)
-#    运行 'sshm update' 更新到最新版本
+#    运行 'sshm config update' 更新到最新版本
 ```
 
 ## 注意事项
