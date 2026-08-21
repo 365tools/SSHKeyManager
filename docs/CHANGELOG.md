@@ -9,6 +9,17 @@
 
 ## [未发布]
 
+### 规划中
+
+- [ ] SSH Agent 管理
+- [ ] 密钥导入/导出
+- [ ] 远程备份与云同步
+- [ ] 团队协作与密钥安全扫描
+
+---
+
+## [0.0.4] - 2026-08-21
+
 ### ✨ 新功能
 
 - **`-h` 帮助简写**：`--help` 现在可用 `-h` 触发，顶层与所有子命令均生效
@@ -32,13 +43,9 @@
 - **分组默认视图 tip 段统一**：`sshm repo`/`sshm author` 底部裸 `print("💡 ...")` 收尾改为统一 `render_tip_block` 模板；`sshm config`/`sshm backup` 默认视图补齐「相关命令」提示段，6 个分组默认视图（key/repo/author/backup/config）输出格式完全一致
 - **cli-report 覆盖增强**：校验升级为格式断言（`--help` 必有 `Usage:` 行、失败场景必有统一 `❌` 标记）；补齐 `config auto-author` 非法值、`--type` 选项缺值等快照场景
 - **core 服务层按业务域分组**：将 `core/` 扁平服务拆为 `services/` 子包并按域分组——`ssh/`（KeyStore / SSHConfigManager / path）、`git/`（GitRepoService / AuthorService / rewrite）、`storage/`（StateManager / BackupService）、`net/`（SSHTester / UpdateManager）；门面 `manager.py`、异常 `errors.py`、命令编排 `commands/` 留在 `core/` 顶层；同步更新全部 import（源码 / 测试 / 文档 / 架构图），对外导出路径（`sshm.core.*`）经 `core/__init__.py` 重新导出保持不变
-
-### 规划中
-
-- [ ] SSH Agent 管理
-- [ ] 密钥导入/导出
-- [ ] 远程备份与云同步
-- [ ] 团队协作与密钥安全扫描
+- **业务错误全局统一渲染**：收敛此前"各处自行拼 `❌` 并裸 print"的 DIY 散落——新增统一渲染 `ui.tip.render_business_error(msg, *, icon, hint)`（空行 + ❌/⚠️ + 分隔线 + 💡 建议）；`manager._fail` 改为调用它并支持 `icon`/`hint`，新增不置退出码的 `manager._warn` 供软告警；commands 层 55+ 处 `_fail` 调用点去掉 `❌`/`⚠️`/`\n` 前缀，带建议行的场景并入 `hint`；services 辅助函数（updater/path/gitrepo）的错误统一走 `render_business_error`。视图内联提示与交互流程警告保留原样（属展示/交互内容，非错误机制）。新增命令报错只需 `self.m._fail(_('err.xxx'))` 或 `raise ValidationError(...)`，无需定制化格式
+- **相关命令跨组关联（声明式）**：`related_commands` 支持跨分组 related——`key switch` 声明关联 `repo use`（为仓库配置密钥），缺参/用法错误与正常 tip 共用同一推导逻辑，不再出现 `sshm key use` 的错组拼接；`command_list_lines` 用命令自身分组渲染
+- **相关命令分块展示**：tip 的"相关命令"拆分为「本组命令」与「跨组 related 命令」两块，各自带独立标题（`More commands in this group` / `More related commands`，新增 `misc.related_tip_cross`），跨组关联一目了然；无跨组关联的命令只显示本组块
 
 ---
 

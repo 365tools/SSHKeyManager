@@ -65,7 +65,7 @@ class TestUpdateDeleteAuthor:
             state_manager = state
             had_error = False
 
-            def _fail(self, msg: str):
+            def _fail(self, msg: str, *, icon: str = '❌', hint=None):
                 self.had_error = True
 
         m = _FakeManager()

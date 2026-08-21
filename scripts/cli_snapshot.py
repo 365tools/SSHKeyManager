@@ -61,6 +61,11 @@ INVALID_SCENARIOS = [
     (['repo', 'use'], '缺必填参数 LABEL：统一 ❌ 渲染 + 用法提示'),
     # 选项缺值（同样应优雅报错）
     (['key', 'create', 'x', 'y@z.com', '--type'], '选项 --type 缺值应优雅报错'),
+    # 需至少一个匹配选项（history rewrite 缺 --name/--email/--author）
+    (['history', 'rewrite'], 'history rewrite 无匹配条件：统一 ❌ 渲染 + 用法提示'),
+    (['history', 'rewrite', '--author', 'alice', '--name', 'Old:New'],
+     'history rewrite 互斥参数应优雅报错（--author 与 --name/--email 不能混用）'),
+    (['author', 'update', 'work'], 'author update 缺 --name/--email：统一 ❌ 渲染 + 用法提示'),
     # 未知子命令（注意：author 组无 set，属"未知子命令"而非"缺必填参数"）
     (['author', 'set'], 'author 组未知子命令 set 应给建议'),
 ]

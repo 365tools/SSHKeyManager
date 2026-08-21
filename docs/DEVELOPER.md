@@ -81,6 +81,8 @@ SSHManager/
 
 > 核心采用**组合 + 门面模式**：`SSHKeyManager` 组合各服务类（而非继承），命令编排组持门面引用；依赖方向单向：`cli → core → ui`。
 
+**相关命令跨组关联（声明式）**：命令的 tip 由 `registry.related_commands` 推导——命令可在 `CommandMeta(..., related=("命令名",))` 声明**跨分组关联**（命令名全局查找），如 `key switch` 声明 `related=("use",)` 关联 `repo use`（为仓库配置密钥）。缺参/用法错误与正常执行后的 tip 共用同一推导逻辑，保证一致。相关命令按「本组命令」与「跨组 related 命令」分块展示（标题 `More commands in this group` / `More related commands`，见 `ui.tip.related_command_blocks`）。新增跨组关联只需在注册表声明 `related`，无需改动渲染逻辑。
+
 ### 国际化 (i18n)
 
 - **稳定 key 方案**：翻译键为稳定 key（如 `cmd.list` / `opt.label`），英文（`EN`）与中文（`ZH`）两套字典都映射到同一 key，杜绝"改描述要改两处"与废弃键冗余

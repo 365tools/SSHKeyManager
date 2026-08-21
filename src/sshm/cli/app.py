@@ -17,6 +17,7 @@ from enum import Enum
 from pathlib import Path
 from typing import Optional
 
+import click
 import typer
 
 from ..constants import SUPPORTED_KEY_TYPES
@@ -76,9 +77,13 @@ def _manager() -> SSHKeyManager:
 
 
 def _fail_exit(manager: SSHKeyManager) -> None:
-    """业务层报错时以非零码退出"""
+    """业务层报错时以非零码退出。
+
+    用 SystemExit 而非 typer.Exit：在 `app(standalone_mode=False)` 下 typer.Exit 会被
+    Click 内部吞掉导致错误场景退出码仍为 0，SystemExit 能正确传播并置退出码 1。
+    """
     if getattr(manager, '_had_error', False):
-        raise typer.Exit(code=1)
+        raise SystemExit(1)
 
 
 def _show_tip(group: str, current: str, extra: tuple = ()) -> None:
@@ -89,11 +94,12 @@ def _show_tip(group: str, current: str, extra: tuple = ()) -> None:
         current: 当前命令名（用于排除自身）
         extra: 可选，额外追加的跨分组相关命令
     """
-    from ..ui.tip import command_list_lines, render_tip_block
+    from ..ui.tip import related_command_blocks, render_tip_block
     cmds = related_commands(group, current, extra)
     if not cmds:
         return
-    render_tip_block(command_list_lines(group, cmds), style='dim')
+    for block in related_command_blocks(group, cmds):
+        render_tip_block(block, style='dim')
 
 
 def _print_version_rows(rows) -> None:
@@ -255,7 +261,7 @@ def key_switch(
     manager = _manager()
     manager.key.switch(label, type.value if type else None)
     _fail_exit(manager)
-    _show_tip("key", "switch", extra=("use",))
+    _show_tip("key", "switch")
 
 
 @key_app.command("current", help=_(K.cmd.key_current))
@@ -446,6 +452,9 @@ def author_update(
     email: str = typer.Option(
         None, "--email", "-e", help=_("opt.author_email_update")),
 ):
+    # 至少提供 --name 或 --email 之一：纯参数校验，前置以渲染统一 tip 模板 + 非零退出
+    if not name and not email:
+        raise click.UsageError(_("msg.update_author_need"))
     manager = _manager()
     manager.author.update(label, name, email)
     _fail_exit(manager)
@@ -517,6 +526,31 @@ def history_rewrite(
     author: str = typer.Option(None, "--author", "-a", help=_("opt.author")),
     yes: bool = typer.Option(False, "--yes", "-y", help=_("opt.yes")),
 ):
+    # —— 用法/参数校验（判定与 manager 层一致，前置到 CLI 层以渲染统一 tip
+    #     模板 + 非零退出，取代 manager 层的裸 _fail 输出）——
+    def _split_pair(v: Optional[str]):
+        if not v:
+            return None, None
+        if ':' in v:
+            p = v.split(':', 1)
+            return p[0], p[1]
+        return None, v
+    old_name, new_name = _split_pair(name)
+    old_email, new_email = _split_pair(email)
+    precise = bool(old_name or old_email)
+    full_name = bool(new_name and not old_name)
+    full_email = bool(new_email and not old_email)
+    full_author = bool(author)
+    if precise and (full_author or full_name or full_email):
+        raise click.UsageError(_("err.author_exclusive"))
+    if full_author and (full_name or full_email):
+        raise click.UsageError(_("err.author_exclusive"))
+    if not (full_author or full_name or full_email):
+        if not old_name and not old_email:
+            raise click.UsageError(_("err.need_old"))
+        if not new_name and not new_email:
+            raise click.UsageError(_("err.need_new"))
+    # —— 结束参数校验 ——
     manager = _manager()
     manager.history.rewrite(path, name, email, author, yes)
     _fail_exit(manager)

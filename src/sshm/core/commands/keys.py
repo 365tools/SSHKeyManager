@@ -288,7 +288,7 @@ class KeyCommands:
                     pass
             detail = ((e.stderr or b'').decode('utf-8', 'replace').strip()
                       or str(e))
-            self.m._fail(f"❌ {_('err.create_failed', err=detail)}")
+            self.m._fail(_('err.create_failed', err=detail))
         except subprocess.TimeoutExpired:
             # 生成超时（如熵不足）：清理残留并给出明确提示
             for p in (key_file, Path(str(key_file) + '.pub')):
@@ -297,9 +297,9 @@ class KeyCommands:
                         p.unlink()
                 except OSError:
                     pass
-            self.m._fail("❌ " + _("err.keygen_timeout"))
+            self.m._fail(_("err.keygen_timeout"))
         except Exception as e:
-            self.m._fail(f"❌ {_('misc.error')}: {e}")
+            self.m._fail(f"{_('misc.error')}: {e}")
 
     def remove(self, label: str, key_type: Optional[str] = None):
         """删除密钥"""
@@ -312,7 +312,7 @@ class KeyCommands:
                 confirm_msg = _("err.delete_all_default")
 
             if not prompt_confirm("⚠️  " + confirm_msg):
-                self.m._fail("❌ " + _("misc.operation_cancelled"))
+                self.m._fail(_("misc.operation_cancelled"))
                 return
 
         removed_files = []
@@ -375,7 +375,7 @@ class KeyCommands:
             print(f"💡 {_('msg.tip_alias_remote', alias=self.m.gitrepo.get_host_alias(label))}")
             print("   " + _("msg.rerun_other_label"))
         else:
-            self.m._fail(f"⚠️  {_('err.key_not_found', label=label)}")
+            self.m._fail(_('err.key_not_found', label=label), icon='⚠️')
 
     # ------------------------------------------------------------------
     # 切换 / 打标签 / 重命名
@@ -387,14 +387,14 @@ class KeyCommands:
 
         if label_lower in self.m.RESERVED_LABELS:
             label_msg = _('err.label_reserved_switch', label=label)
-            self.m._fail(f"❌ {label_msg}")
+            self.m._fail(label_msg)
             return
 
         if not key_type:
             key_type = self.m.keystore.detect_key_type_for_label(label)
             if not key_type:
                 msg = _("err.key_not_found_short", label=label)
-                self.m._fail(f"❌ {msg}")
+                self.m._fail(msg)
                 return
             print(f"🔍 {_('msg.auto_detected_type', key_type=key_type)}")
 
@@ -402,7 +402,7 @@ class KeyCommands:
         target_file = self.m.ssh_dir / f"id_{key_type}"
 
         if not source_file.exists():
-            self.m._fail(f"❌ {_('err.key_missing', name=source_file.name)}")
+            self.m._fail(_('err.key_missing', name=source_file.name))
             return
 
         if target_file.exists():
@@ -439,14 +439,14 @@ class KeyCommands:
         if not key_type:
             key_type = self.m.keystore.detect_default_key_type()
             if not key_type:
-                self.m._fail("❌ " + _("err.no_default_key"))
+                self.m._fail(_("err.no_default_key"))
                 return
 
         source_file = self.m.ssh_dir / f"id_{key_type}"
         target_file = self.m.ssh_dir / f"id_{key_type}.{new_label}"
 
         if not source_file.exists():
-            self.m._fail(f"❌ {_('err.default_key_missing', name=source_file.name)}")
+            self.m._fail(_('err.default_key_missing', name=source_file.name))
             return
 
         if target_file.exists():
@@ -501,12 +501,12 @@ class KeyCommands:
         new_label_lower = new_label.lower()
 
         if old_label_lower == 'default':
-            self.m._fail("❌ " + _("err.cannot_rename_default"))
+            self.m._fail(_("err.cannot_rename_default"))
             return
 
         self._validate_label(new_label)
         if new_label_lower == old_label_lower:
-            self.m._fail("⚠️  " + _("err.same_label"))
+            self.m._fail(_("err.same_label"), icon='⚠️')
             return
 
         # 确定要重命名的密钥类型集合：
@@ -522,14 +522,15 @@ class KeyCommands:
 
         if not types_to_rename:
             msg = _("err.key_not_found_short", label=old_label)
-            self.m._fail(f"❌ {msg}")
+            self.m._fail(msg)
             return
 
         # 检查目标文件是否全部可用，避免部分重命名后中断
         for t in types_to_rename:
             new_file = self.m.ssh_dir / f"id_{t}.{new_label}"
             if new_file.exists():
-                self.m._fail(f"⚠️  {_('err.target_exists', new_label=new_label, type=t)}")
+                self.m._fail(_('err.target_exists', new_label=new_label, type=t),
+                             icon='⚠️')
                 print(f"   {_('lbl.file_placeholder')} {new_file.name}")
                 return
 

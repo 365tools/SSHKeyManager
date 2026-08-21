@@ -20,6 +20,7 @@ from packaging.version import Version, InvalidVersion
 from ....constants import VERSION
 from ....i18n import _
 from ....ui.output import print, progress
+from ....ui.tip import render_business_error
 
 
 class UpdateManager:
@@ -186,8 +187,8 @@ class UpdateManager:
         """
         # 源码运行模式：无法用下载的 exe 替换 .py 入口，直接提示
         if not getattr(sys, 'frozen', False):
-            print("\n⚠️  " + _("upd.from_source"))
-            print("   " + _("upd.use_git_pull"))
+            render_business_error(_("upd.from_source"),
+                                  icon='⚠️', hint=_("upd.use_git_pull"))
             return False
 
         try:
@@ -261,14 +262,16 @@ del "%~f0"
                     print(_("upd.run_again"))
                 except PermissionError:
                     # 需要 sudo
-                    print(f"\n⚠️  " + _("upd.need_admin"))
-                    print(_("upd.run_manual", src=temp_path, dst=current_exe))
+                    render_business_error(_("upd.need_admin"),
+                                          icon='⚠️',
+                                          hint=_("upd.run_manual",
+                                                 src=temp_path, dst=current_exe))
                     return False
             
             return True
             
         except Exception as e:
-            print(f"\n❌ {_('upd.failed')} {e}")
+            render_business_error(f"{_('upd.failed')} {e}")
             return False
     
     def check_and_notify(self) -> None:

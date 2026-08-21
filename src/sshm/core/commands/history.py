@@ -61,7 +61,7 @@ class HistoryCommands:
 
         repo_path = Path(repo_path).resolve()
         if not (repo_path / '.git').exists():
-            self.m._fail(f"❌ {_('err.not_git_repo', path=repo_path)}")
+            self.m._fail(_('err.not_git_repo', path=repo_path))
             return
 
         old_name, new_name = self._split_pair(name)
@@ -75,25 +75,25 @@ class HistoryCommands:
 
         # 互斥校验：精细替换不能与任何全量刷新混用
         if precise and (full_author or full_name or full_email):
-            self.m._fail("❌ " + _("err.author_exclusive"))
+            self.m._fail(_("err.author_exclusive"))
             return
         # --author 不能与 --name/--email 单值全量混用
         if full_author and (full_name or full_email):
-            self.m._fail("❌ " + _("err.author_exclusive"))
+            self.m._fail(_("err.author_exclusive"))
             return
 
         if author:
             # 从作者列表读取 label 对应的 name/email
             stored = self.m.state_manager.read_authors().get(author.lower())
             if not stored:
-                self.m._fail(f"❌ {_('err.author_not_found', label=author)}")
-                print("   " + _("err.use_author_list"))
+                self.m._fail(_('err.author_not_found', label=author),
+                             hint=_("err.use_author_list"))
                 return
             match_all = True
             new_name = stored.get('name') or None
             new_email = stored.get('email') or None
             if not new_name and not new_email:
-                self.m._fail("❌ " + _("err.author_empty", label=author))
+                self.m._fail(_("err.author_empty", label=author))
                 return
         elif full_name or full_email:
             # 单值全量刷新：match_all 模式，只刷新提供的字段
@@ -101,10 +101,10 @@ class HistoryCommands:
         else:
             match_all = False
             if not old_name and not old_email:
-                self.m._fail("❌ " + _("err.need_old"))
+                self.m._fail(_("err.need_old"))
                 return
             if not new_name and not new_email:
-                self.m._fail("❌ " + _("err.need_new"))
+                self.m._fail(_("err.need_new"))
                 return
 
         print_section_header(_("hdr.rewrite"))
@@ -150,7 +150,7 @@ class HistoryCommands:
         except Exception:
             matched = 0
         if matched == 0:
-            self.m._fail(f"⚠️  {_('err.no_matches')}")
+            self.m._fail(_('err.no_matches'), icon='⚠️')
             return
         print(f"ℹ️  {_('msg.will_rewrite_count', count=matched)}")
 
@@ -159,14 +159,14 @@ class HistoryCommands:
         print("   " + _("msg.force_push"))
         if not skip_confirm:
             if not prompt_confirm(_("msg.continue_rewrite")):
-                self.m._fail("❌ " + _("misc.operation_cancelled"))
+                self.m._fail(_("misc.operation_cancelled"))
                 return
 
         try:
             with output_status(_('msg.rewriting')):
                 result = rewrite_history(repo_path, cfg)
         except Exception as e:
-            self.m._fail(f"❌ {_('err.rewrite_failed', err=e)}")
+            self.m._fail(_('err.rewrite_failed', err=e))
             return
 
         print(f"\n✅ {_('msg.history_rewritten')}")

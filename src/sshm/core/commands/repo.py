@@ -40,14 +40,14 @@ class RepoCommands:
         repo_path = Path(repo_path).resolve()
 
         if not (repo_path / '.git').exists():
-            self.m._fail(f"❌ {_('err.not_git_repo', path=repo_path)}")
+            self.m._fail(_('err.not_git_repo', path=repo_path))
             print("   " + _("err.run_in_repo"))
             return
 
         key_type = self.m.keystore.detect_key_type_for_label(label)
         if not key_type:
             msg = _("err.key_not_found_short", label=label)
-            self.m._fail(f"❌ {msg}")
+            self.m._fail(msg)
             return
 
         print_section_header(_("hdr.configure", label=label))
@@ -67,7 +67,7 @@ class RepoCommands:
 
             parsed = self.m.gitrepo.parse_git_url(current_url)
             if not parsed:
-                self.m._fail("❌ " + _("err.failed_parse"))
+                self.m._fail(_("err.failed_parse"))
                 return
 
             platform, user, repo = parsed
@@ -91,7 +91,7 @@ class RepoCommands:
 
             if not skip_confirm:
                 if not prompt_confirm(_("msg.update_url_prompt")):
-                    self.m._fail("❌ " + _("misc.operation_cancelled"))
+                    self.m._fail(_("misc.operation_cancelled"))
                     return
 
             # 先测试 SSH 连接，再更新 URL，避免留下无法认证的坏配置
@@ -107,7 +107,7 @@ class RepoCommands:
                 print("   " + _("msg.not_added_yet"))
                 if not skip_confirm:
                     if not prompt_confirm(_("msg.update_url_anyway")):
-                        self.m._fail("❌ " + _("misc.operation_cancelled"))
+                        self.m._fail(_("misc.operation_cancelled"))
                         return
 
             subprocess.run(
@@ -129,14 +129,14 @@ class RepoCommands:
 
         except subprocess.CalledProcessError as e:
             if 'No such remote' in str(e.stderr):
-                self.m._fail("❌ " + _("msg.no_origin_remote"))
-                print("   " + _("msg.add_remote_first"))
+                self.m._fail(_("msg.no_origin_remote"),
+                             hint=_("msg.add_remote_first"))
             else:
-                self.m._fail(f"❌ {_('err.git_failed', err=e)}")
+                self.m._fail(_('err.git_failed', err=e))
         except subprocess.TimeoutExpired:
-            self.m._fail("⚠️  " + _("msg.ssh_test_timed_out"))
+            self.m._fail(_("msg.ssh_test_timed_out"), icon='⚠️')
         except Exception as e:
-            self.m._fail(f"❌ {_('misc.error')}: {e}")
+            self.m._fail(f"{_('misc.error')}: {e}")
 
     def clone(self, label: str, url: str,
                          target_dir: Optional[str] = None,
@@ -146,14 +146,14 @@ class RepoCommands:
         key_type = self.m.keystore.detect_key_type_for_label(label)
         if not key_type:
             msg = _("err.key_not_found_short", label=label)
-            self.m._fail(f"❌ {msg}")
+            self.m._fail(msg)
             print("   " + _("msg.use_all_keys_tip"))
             return
 
         # 解析 URL
         parsed = self.m.gitrepo.parse_git_url(url)
         if not parsed:
-            self.m._fail("❌ " + _("err.failed_parse"))
+            self.m._fail(_("err.failed_parse"))
             return
         _platform, user, repo = parsed
         repo_name = repo.rstrip('.git') or repo
@@ -179,7 +179,7 @@ class RepoCommands:
 
         if not skip_confirm:
             if not prompt_confirm(_("msg.clone_confirm")):
-                self.m._fail("❌ " + _("misc.operation_cancelled"))
+                self.m._fail(_("misc.operation_cancelled"))
                 return
 
         # 执行 git clone（支持可选的目录名）
@@ -191,7 +191,7 @@ class RepoCommands:
         except subprocess.CalledProcessError as e:
             detail = ((e.stderr or b'').decode('utf-8', 'replace').strip()
                       or str(e))
-            self.m._fail(f"❌ {_('err.clone_failed', err=detail)}")
+            self.m._fail(_('err.clone_failed', err=detail))
             return
 
         # 克隆完成后定位仓库目录（用于后续 author 设置）
@@ -223,7 +223,7 @@ class RepoCommands:
         repo_path = Path(repo_path).resolve()
 
         if not (repo_path / '.git').exists():
-            self.m._fail(f"❌ {_('err.not_valid_git', path=repo_path)}")
+            self.m._fail(_('err.not_valid_git', path=repo_path))
             return
 
         print(f"{_('lbl.repo_path')} {repo_path}")
@@ -295,9 +295,9 @@ class RepoCommands:
             if 'No such remote' in str(e.stderr):
                 print("\n⚠️  " + _("msg.no_origin_configured"))
             else:
-                print(f"\n❌ {_('err.git_failed', err=e)}")
+                self.m._fail(_('err.git_failed', err=e))
         except Exception as e:
-            print(f"\n❌ {_('misc.error')}: {e}")
+            self.m._fail(f"{_('misc.error')}: {e}")
 
     def test(self, label: Optional[str] = None, test_all: bool = False,
                         repo_path: Union[str, Path] = '.'):
@@ -307,7 +307,7 @@ class RepoCommands:
 
             keys_by_label = self.m.keystore.scan_all_keys()
             if not keys_by_label:
-                self.m._fail("❌ " + _("err.no_keys"))
+                self.m._fail(_("err.no_keys"))
                 return
 
             results = []
@@ -371,7 +371,7 @@ class RepoCommands:
             key_type = self.m.keystore.detect_key_type_for_label(label)
             if not key_type:
                 msg = _("err.key_not_found_files", label=label)
-                self.m._fail(f"❌ {msg}")
+                self.m._fail(msg)
                 print(f"\n💡 " + _("msg.use_all_keys_tip"))
                 return
 
@@ -394,14 +394,14 @@ class RepoCommands:
             if success:
                 print(f"✅ {message}")
             else:
-                self.m._fail(f"❌ {message}")
+                self.m._fail(message)
         else:
             print_section_header(_("hdr.test_current"))
 
             repo_path = Path(repo_path).resolve()
 
             if not (repo_path / '.git').exists():
-                self.m._fail(f"❌ {_('err.not_valid_git', path=repo_path)}")
+                self.m._fail(_('err.not_valid_git', path=repo_path))
                 return
 
             print(f"{_('lbl.repo_path')} {repo_path}")
@@ -427,7 +427,7 @@ class RepoCommands:
                     if success:
                         print(f"✅ {message}")
                     else:
-                        self.m._fail(f"❌ {message}")
+                        self.m._fail(message)
                         print(f"\n💡 " + _("msg.check_config_tip"))
                         print(f"   " + _("msg.use_info"))
                 else:
@@ -438,6 +438,6 @@ class RepoCommands:
                 if 'No such remote' in str(e.stderr):
                     print("\n⚠️  " + _("msg.no_origin_configured"))
                 else:
-                    print(f"\n❌ {_('err.git_failed', err=e)}")
+                    self.m._fail(_('err.git_failed', err=e))
             except Exception as e:
-                print(f"\n❌ {_('misc.error')}: {e}")
+                self.m._fail(f"{_('misc.error')}: {e}")

@@ -42,7 +42,7 @@ GROUPS: Dict[str, List[CommandMeta]] = {
         CommandMeta("remove", K.cmd.key_remove, "key"),
         CommandMeta("rename", K.cmd.key_rename, "key"),
         CommandMeta("label", K.cmd.key_label, "key"),
-        CommandMeta("switch", K.cmd.key_switch, "key"),
+        CommandMeta("switch", K.cmd.key_switch, "key", related=("use",)),
         CommandMeta("current", K.cmd.key_current, "key"),
     ],
     "repo": [
@@ -89,20 +89,26 @@ def commands_in_group(group: str) -> List[CommandMeta]:
 
 def related_commands(group: str, current: str,
                      extra: tuple = ()) -> List[CommandMeta]:
-    """返回某命令在同分组下的"相关指令"（用于 tip）。
+    """返回某命令的"相关指令"（用于 tip）。
 
-    - 若命令显式声明 related，则按声明的顺序返回；
-    - 否则自动取同分组其余命令（保持分组定义顺序）。
+    - related 命令名作为**追加的跨组关联**（可跨分组，如 `key switch` 追加 `repo use`），
+      命令名全局查找；同时仍保留同分组其余命令。
+    - 无 related 时，自动取同分组其余命令（保持分组定义顺序）。
     - extra 用于手动追加跨分组的关联命令。
     """
     group_cmds = commands_in_group(group)
+    # related 命令名可能跨分组，全局查找一次即可
+    all_cmds = [m for g in GROUPS.values() for m in g]
+    related_ordered: List[CommandMeta] = []
     for meta in group_cmds:
         if meta.name == current and meta.related:
-            ordered = []
             for nm in meta.related:
-                for m in group_cmds:
+                for m in all_cmds:
                     if m.name == nm:
-                        ordered.append(m)
-            return ordered + list(extra)
-    rest = [m for m in group_cmds if m.name != current]
-    return rest + list(extra)
+                        related_ordered.append(m)
+                        break
+            break
+    related_names = {m.name for m in related_ordered}
+    rest = [m for m in group_cmds
+            if m.name != current and m.name not in related_names]
+    return related_ordered + rest + list(extra)

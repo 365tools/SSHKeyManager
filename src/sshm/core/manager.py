@@ -25,6 +25,7 @@ from .services.ssh.keystore import KeyStore
 from .services.storage.backup import BackupService
 from .services.storage.state import StateManager
 from ..ui.output import print
+from ..ui.tip import render_business_error
 
 
 class SSHKeyManager:
@@ -82,13 +83,27 @@ class SSHKeyManager:
         self.keystore.ensure_directories()
         self.backup_dir.mkdir(mode=0o700, exist_ok=True)
 
-    def _fail(self, msg: str):
-        """记录业务失败并打印错误信息（不抛异常，保持原有控制流）
+    def _fail(self, msg: str, *, icon: str = '❌', hint: Optional[str] = None):
+        """记录业务失败并渲染统一错误（不抛异常，保持原有控制流）。
+
+        Args:
+            msg: 错误消息（不含图标前缀，调用点只传纯消息）。
+            icon: 状态图标，默认 ❌（硬错误）；软告警传 ⚠️。
+            hint: 可选建议行，渲染为 💡 tip 段。
 
         由 CLI 层在命令结束后检查 `_had_error` 决定退出码。
+        统一走 `ui.tip.render_business_error`，避免各调用点自行拼 `❌` 与格式化。
         """
         self._had_error = True
-        print(msg)
+        render_business_error(msg, icon=icon, hint=hint)
+
+    def _warn(self, msg: str, *, hint: Optional[str] = None) -> None:
+        """渲染统一软告警（⚠️ + 可选 💡 建议）。
+
+        与 `_fail` 的区别：**不置 `_had_error`**，命令仍按成功退出。
+        用于"提示但命令正常完成"的告警场景，避免误报非零退出码。
+        """
+        render_business_error(msg, icon='⚠️', hint=hint)
 
     def _mark_error(self) -> None:
         """仅标记业务失败（不打印）。

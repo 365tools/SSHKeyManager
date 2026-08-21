@@ -11,6 +11,7 @@ from pathlib import Path
 from ....i18n import _
 from ....ui.console import print_section_header, prompt_confirm
 from ....ui.output import print
+from ....ui.tip import render_business_error
 
 
 def add_to_path() -> None:
@@ -87,7 +88,7 @@ def _add_to_windows_path(exe_dir: Path) -> None:
                     print("\n💡 " + _("sys.restart_tip"))
                     print("   " + _("sys.use_sshm_directly"))
                 else:
-                    print("\n❌ " + _("misc.operation_cancelled"))
+                    render_business_error(_("misc.operation_cancelled"))
                     winreg.CloseKey(key)
             else:
                 winreg.CloseKey(key)
@@ -108,9 +109,9 @@ def _add_to_windows_path(exe_dir: Path) -> None:
             print("   " + _("sys.use_sshm_directly"))
     
     except PermissionError:
-        print("\n❌ " + _("err.permission_denied"))
+        render_business_error(_("err.permission_denied"))
     except Exception as e:
-        print(f"\n❌ {_('err.add_failed', err=e)}")
+        render_business_error(_('err.add_failed', err=e))
 
 
 def _add_to_unix_path(exe_dir: Path) -> None:
@@ -150,9 +151,9 @@ def _add_to_unix_path(exe_dir: Path) -> None:
             print(f"   source {rc_file}")
             print("\n   " + _("sys.or_restart"))
         except Exception as e:
-            print(f"\n❌ {_('err.add_failed', err=e)}")
+            render_business_error(_('err.add_failed', err=e))
     else:
-        print("\n❌ " + _("misc.operation_cancelled"))
+        render_business_error(_("misc.operation_cancelled"))
 
 
 def _broadcast_env_change() -> None:

@@ -22,7 +22,7 @@ class AuthorService:
     """作者服务：作者信息解析与应用。"""
 
     def __init__(self, state_manager, keystore, gitrepo,
-                 fail: Callable[[str], None]):
+                 fail: Callable[..., None]):
         self.state_manager = state_manager
         self.keystore = keystore
         self.gitrepo = gitrepo
@@ -82,16 +82,16 @@ class AuthorService:
             key_type = self.keystore.detect_key_type_for_label(label)
             if not key_type:
                 msg = _("err.key_not_found_short", label=label)
-                self._fail(f"❌ {msg}")
-                print("\n💡 " + _("msg.use_all_keys_tip"))
+                self._fail(msg, hint=_("msg.use_all_keys_tip"))
                 return None
             msg = _("msg.not_usable_author", label=label)
-            self._fail(f"⚠️  {msg}")
-            print("   " + _("msg.available_remedies"))
-            print(f"   - sshm key create {label} <email> --name \"name\"  # "
-                  + _("msg.recreate_key"))
-            print(f"   - sshm author add {label} --name \"name\" --email <email>  # "
-                  + _("msg.temp_override"))
+            self._fail(msg, icon='⚠️', hint="\n".join([
+                _("msg.available_remedies"),
+                f"   - sshm key create {label} <email> --name \"name\"  # "
+                + _("msg.recreate_key"),
+                f"   - sshm author add {label} --name \"name\" --email <email>  # "
+                + _("msg.temp_override"),
+            ]))
             return None
 
         return result
@@ -153,7 +153,7 @@ class AuthorService:
                     check=True, capture_output=True
                 )
         except (subprocess.CalledProcessError, OSError) as e:
-            self._fail(f"⚠️  {_('err.auto_author_failed', err=e)}")
+            self._fail(_('err.auto_author_failed', err=e), icon='⚠️')
             return
 
         print(f"{_('msg.auto_set_author', label=label)}: "

@@ -16,6 +16,7 @@ from typing import Callable, List, Optional, Tuple, Union
 
 from ....i18n import _
 from ....ui.output import confirm, print
+from ....ui.tip import render_business_error
 
 
 class GitRepoService:
@@ -185,10 +186,13 @@ class GitRepoService:
         if current == repo_hostname:
             return True
 
-        print(f"\n⚠️  " + _("msg.hostname_differs",
-                          host=repo_hostname, label=label, cur=current))
-        print("   " + _("msg.private_server"))
-        print("   " + _("msg.need_ssh_config", host=repo_hostname))
+        render_business_error(
+            _("msg.hostname_differs", host=repo_hostname, label=label, cur=current),
+            icon='⚠️',
+            hint="\n".join([
+                _("msg.private_server"),
+                _("msg.need_ssh_config", host=repo_hostname),
+            ]))
 
         if skip_confirm:
             self.state_manager.write_host(label, repo_hostname)

@@ -135,9 +135,11 @@ def test_render_usage_error_missing_parameter_shows_usage_and_commands(capsys):
     assert 'Required  key label' in out
     assert '[--type/-t ed25519|rsa|ecdsa|dsa]' in out
     assert 'Optional  key type (default: auto-detect)' in out
-    # 同组相关命令（带 ➖ 前缀）
+    # 相关命令（带 ➖ 前缀）：key switch 显式关联跨组 repo use（为仓库配置密钥），
+    # 而非默认的同组其余命令
     assert '💡 More commands in this group' in out
-    assert '➖ sshm key list' in out
+    assert '➖ sshm repo use' in out
+    assert 'configure a key for a Git repo' in out
 
 
 def test_render_usage_error_bad_parameter(capsys):

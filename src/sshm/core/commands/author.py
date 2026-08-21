@@ -59,7 +59,7 @@ class AuthorCommands:
         repo_path = Path(repo_path).resolve()
 
         if not (repo_path / '.git').exists():
-            self.m._fail(f"❌ {_('err.not_git_repo', path=repo_path)}")
+            self.m._fail(_('err.not_git_repo', path=repo_path))
             print("   " + _("err.run_in_repo"))
             return
 
@@ -96,7 +96,7 @@ class AuthorCommands:
         repo_path = Path(repo_path).resolve()
 
         if scope != 'global' and not (repo_path / '.git').exists():
-            self.m._fail(f"❌ {_('err.not_git_repo', path=repo_path)}")
+            self.m._fail(_('err.not_git_repo', path=repo_path))
             print("   " + _("err.run_in_repo"))
             return
 
@@ -129,7 +129,7 @@ class AuthorCommands:
             print(f"   user.name: {current_name or not_set}")
             print(f"   user.email: {current_email or not_set}")
             if not prompt_confirm(_("misc.overwrite")):
-                self.m._fail("❌ " + _("misc.operation_cancelled"))
+                self.m._fail(_("misc.operation_cancelled"))
                 return
 
         changed = []
@@ -152,11 +152,11 @@ class AuthorCommands:
             else:
                 unchanged.append(f"user.email = {current_email or _('misc.not_set')}")
         except subprocess.CalledProcessError as e:
-            self.m._fail(f"❌ {_('err.git_failed', err=e)}")
+            self.m._fail(_('err.git_failed', err=e))
             return
 
         if not changed:
-            self.m._fail("\n⚠️  " + _("err.no_author_set"))
+            self.m._fail(_("err.no_author_set"), icon='⚠️')
             return
 
         print(f"\n✅ {_('msg.set_scope', scope=scope_name)}")
@@ -174,7 +174,7 @@ class AuthorCommands:
         repo_path = Path(repo_path).resolve()
 
         if not (repo_path / '.git').exists():
-            self.m._fail(f"❌ {_('err.not_git_repo', path=repo_path)}")
+            self.m._fail(_('err.not_git_repo', path=repo_path))
             print("   " + _("err.run_in_repo"))
             return
 
@@ -184,7 +184,7 @@ class AuthorCommands:
             "msg.confirm_clear",
             scope=scope_name, fallback=fallback_name,
         )):
-            self.m._fail("❌ " + _("misc.operation_cancelled"))
+            self.m._fail(_("misc.operation_cancelled"))
             return
 
         removed = []
@@ -215,7 +215,7 @@ class AuthorCommands:
                        or self.m.author_service.extract_email_from_pubkey(label_lower) or '')
 
         if not (final_name or final_email):
-            self.m._fail("❌ " + _("msg.need_author"))
+            self.m._fail(_("msg.need_author"))
             print("   " + _("msg.author_usage"))
             print("   " + _("msg.fix_author_tip"))
             return
@@ -236,12 +236,12 @@ class AuthorCommands:
         label_lower = label.lower()
         authors = self.m.state_manager.read_authors()
         if label_lower not in authors:
-            self.m._fail(f"❌ {_('err.author_not_found', label=label)}")
-            print("   " + _("err.use_author_list"))
+            self.m._fail(_('err.author_not_found', label=label),
+                         hint=_("err.use_author_list"))
             return
 
         if not name and not email:
-            self.m._fail("❌ " + _("msg.update_author_need"))
+            self.m._fail(_("msg.update_author_need"))
             return
 
         stored = authors[label_lower]
@@ -326,8 +326,8 @@ class AuthorCommands:
         label_lower = label.lower()
         authors = self.m.state_manager.read_authors()
         if label_lower not in authors:
-            self.m._fail(f"❌ {_('err.author_not_found', label=label)}")
-            print("   " + _("err.use_author_list"))
+            self.m._fail(_('err.author_not_found', label=label),
+                         hint=_("err.use_author_list"))
             return
 
         not_set = _("misc.not_set")
@@ -337,7 +337,7 @@ class AuthorCommands:
         print(f"  {_('lbl.author_email')} {info.get('email') or not_set}")
 
         if not skip_confirm and not prompt_confirm(_("msg.confirm_delete")):
-            self.m._fail("❌ " + _("misc.operation_cancelled"))
+            self.m._fail(_("misc.operation_cancelled"))
             return
 
         self.m.state_manager.delete_author(label_lower)

@@ -51,6 +51,7 @@ KEYS: Tuple[str, ...] = (
     'misc.on',
     'misc.off',
     'misc.related_tip',
+    'misc.related_tip_cross',
     'misc.current_key',
     'msg.current_key_none',
     'msg.current_key_tip',

@@ -29,7 +29,8 @@ from typing import Any, Iterable, List, Optional
 from .console import print_separator
 from .output import print as _print
 
-__all__ = ['render_tip_block', 'command_list_lines', 'ITEM_BULLET']
+__all__ = ['render_tip_block', 'render_business_error',
+           'command_list_lines', 'related_command_blocks', 'ITEM_BULLET']
 
 # 命令/建议列表项统一前缀图标（与 💡 标题形成视觉层级，一处定义全局复用）
 ITEM_BULLET = "➖"
@@ -70,7 +71,8 @@ def render_tip_block(lines: Iterable[str], *, top: bool = True,
 
 
 def command_list_lines(group: Optional[str],
-                       cmds: Iterable[Any]) -> List[str]:
+                       cmds: Iterable[Any],
+                       title_key: str = 'misc.related_tip') -> List[str]:
     """统一生成"💡 More commands in this group"命令清单行（唯一格式来源）。
 
     收敛了原先散落在 app._show_tip 与 suggest._group_commands_lines /
@@ -86,11 +88,63 @@ def command_list_lines(group: Optional[str],
     """
     from ..i18n import _
     from ..language import K
-    lines = [f"💡 {_(K.misc.related_tip)}"]
+    lines = [f"💡 {_(title_key)}"]
     for item in cmds:
         if isinstance(item, str):
             lines.append(f"{ITEM_BULLET} sshm {item}")
         else:
             desc = _(item.help_key)
-            lines.append(f"{ITEM_BULLET} sshm {group} {item.name:<10} {desc}")
+            # 用命令自身的分组（item.group）而非调用方传入的 group，
+            # 使跨组 related 命令（如 key switch → repo use）正确显示为 `sshm repo use`
+            item_group = item.group or group
+            lines.append(f"{ITEM_BULLET} sshm {item_group} {item.name:<10} {desc}")
     return lines
+
+
+def related_command_blocks(group: Optional[str],
+                           cmds: Iterable[Any]) -> List[List[str]]:
+    """把相关命令分为「本组」与「跨组 related」两块，各自带标题行。
+
+    同组命令标题为 misc.related_tip（More commands in this group）；
+    跨组 related 命令（item.group != group）标题为 misc.related_tip_cross
+    （More related commands），使 `key switch` 这类跨组关联一目了然。
+    顶层分组名（字符串项）归入本组块。返回可逐块交给 render_tip_block 的二维列表。
+    """
+    from ..language import K
+    local, cross = [], []
+    for item in cmds:
+        if isinstance(item, str):
+            local.append(item)
+        elif (item.group or group) != (group or ''):
+            cross.append(item)
+        else:
+            local.append(item)
+    blocks = []
+    if local:
+        blocks.append(command_list_lines(group, local,
+                                        title_key=K.misc.related_tip))
+    if cross:
+        blocks.append(command_list_lines(group, cross,
+                                        title_key=K.misc.related_tip_cross))
+    return blocks
+
+
+def render_business_error(msg: str, *, icon: str = '❌',
+                          hint: Optional[str] = None) -> None:
+    """统一渲染业务错误：顶部空行 + icon 消息 +（可选）💡 建议 tip 段。
+
+    这是所有业务错误（_fail / SSHMError 的 CLI 出口）的唯一渲染点，
+    避免调用点各自拼 `❌` 与手工格式化。
+
+    Args:
+        msg: 错误消息（不含图标前缀，调用点只需传纯消息）。
+        icon: 状态图标，默认 ❌（硬错误、终止命令）；软告警传 ⚠️。
+        hint: 可选建议行，如 `Use 'sshm author list' ...`，渲染为 💡 tip 段。
+    """
+    _print()
+    _print(f"{icon} {msg}")
+    if hint:
+        # hint 可为多行（\n 分隔），逐行渲染为 💡 tip 段，保留既有缩进/前缀
+        lines = [f"💡 {ln}" if idx == 0 else ln
+                 for idx, ln in enumerate(hint.split('\n'))]
+        render_tip_block(lines)

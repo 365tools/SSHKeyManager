@@ -22,7 +22,7 @@ from ..i18n import _
 from ..language import K
 from ..ui.console import _console, get_display_width
 from ..ui.tip import command_list_lines
-from .registry import GROUP_ORDER, commands_in_group
+from .registry import GROUP_ORDER, commands_in_group, related_commands
 
 # difflib 相似度阈值：精确/拼写错误的强匹配阈值，低于此值视为无相近候选
 _CUTOFF = 0.6
@@ -247,16 +247,22 @@ def _command_params_block(exc: Any) -> List[str]:
     return [escape(line) for line in lines]
 
 
-def _infer_group_commands(argv: List[str]) -> List[str]:
-    """从 argv 推断当前分组，生成同组相关命令清单（与 No such command 一致）。
+def _infer_group_commands(argv: List[str]) -> List[List[str]]:
+    """从 argv 推断当前分组，生成相关命令块（本组 + 跨组 related，各带标题）。
 
-    如 `sshm key switch` → 分组 `key` → 该组命令清单。无法推断时返回 []。
+    如 `sshm key switch` → 分组 `key` → [本组 key 命令块, 跨组 repo use 块]。
+    无法推断时返回 []。返回二维列表，逐块交给 render_tip_block。
     """
+    from ..ui.tip import related_command_blocks
     args = [a for a in argv if not a.startswith('-') and a]
     if not args or args[0] not in _known_groups():
         return []
     group = args[0]
-    return command_list_lines(group, commands_in_group(group))
+    current = args[1] if len(args) > 1 else ''
+    # 用 related_commands 推导：命令若声明了跨组 related（如 key switch → repo use），
+    # 缺参/用法错误提示同样能展示该跨组关联命令，与命令正常执行后的 tip 一致。
+    cmds = related_commands(group, current) if current else commands_in_group(group)
+    return related_command_blocks(group, cmds)
 
 
 def render_usage_error(exc: Any, argv: List[str]) -> None:
@@ -301,6 +307,5 @@ def render_usage_error(exc: Any, argv: List[str]) -> None:
     params = _command_params_block(exc) if getattr(exc, 'ctx', None) else []
     if params:
         render_tip_block(params)
-    more = _infer_group_commands(argv)
-    if more:
-        render_tip_block(more, style='dim')
+    for block in _infer_group_commands(argv):
+        render_tip_block(block, style='dim')

@@ -92,10 +92,10 @@ class SystemCommands:
         try:
             response = input(_("upd.prompt", version=update_info["version"]))
             if response.lower() == "n":
-                print("❌ " + _("upd.cancelled"))
+                self.m._fail(_("upd.cancelled"))
                 return None
         except KeyboardInterrupt:
-            print("\n❌ " + _("upd.cancelled"))
+            self.m._fail(_("upd.cancelled"))
             return None
 
         print()
