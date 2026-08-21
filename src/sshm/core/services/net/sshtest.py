@@ -23,29 +23,29 @@ from ....language import K
 
 # 成功关键词：优先精确匹配，避免误报（不采用过宽的 'hi '）
 _SSH_SUCCESS_MARKERS = (
-    'successfully authenticated',
-    'welcome to github',
-    'welcome to gitlab',
+    "successfully authenticated",
+    "welcome to github",
+    "welcome to gitlab",
     "you've successfully authenticated",
-    'authenticated via ssh',
-    'access granted',
-    'connection established',
+    "authenticated via ssh",
+    "access granted",
+    "connection established",
 )
 
 # 失败关键词：命中即判失败
 _SSH_FAILURE_MARKERS = (
-    'permission denied',
-    'could not resolve hostname',
-    'connection refused',
-    'connection timed out',
-    'authentication failed',
-    'host key verification failed',
-    'no such file or directory',
-    'please make sure you have the correct access rights',
-    'invalid key',
-    'unable to negotiate',
-    'remote host identification has changed',
-    'error: ',
+    "permission denied",
+    "could not resolve hostname",
+    "connection refused",
+    "connection timed out",
+    "authentication failed",
+    "host key verification failed",
+    "no such file or directory",
+    "please make sure you have the correct access rights",
+    "invalid key",
+    "unable to negotiate",
+    "remote host identification has changed",
+    "error: ",
 )
 
 
@@ -53,8 +53,8 @@ class SSHTester:
     """SSH 连接测试器：只负责单次连接探测，返回 (是否成功, 说明)。"""
 
     # 识别 "Hi <user>!" 形式的认证欢迎语，用于提取用户名
-    _HI_RE = re.compile(r'Hi ([^!]+)!', re.IGNORECASE)
-    _WELCOME_RE = re.compile(r'Welcome to [^,]+, (@?[\w.-]+)')
+    _HI_RE = re.compile(r"Hi ([^!]+)!", re.IGNORECASE)
+    _WELCOME_RE = re.compile(r"Welcome to [^,]+, (@?[\w.-]+)")
 
     def test(self, host: str) -> Tuple[bool, str]:
         """测试 SSH 连接（兼容 GitHub/GitLab/Bitbucket/自建 Git 平台）
@@ -64,20 +64,26 @@ class SSHTester:
         """
         try:
             result = subprocess.run(
-                ['ssh', '-T', '-o', 'BatchMode=yes', '-o', 'ConnectTimeout=10',
-                 f'git@{host}'],
+                [
+                    "ssh",
+                    "-T",
+                    "-o",
+                    "BatchMode=yes",
+                    "-o",
+                    "ConnectTimeout=10",
+                    f"git@{host}",
+                ],
                 capture_output=True,
                 text=True,
                 timeout=10,
             )
 
-            output = (result.stdout or '') + (result.stderr or '')
+            output = (result.stdout or "") + (result.stderr or "")
             low = output.lower()
 
             # 1) 失败关键词优先（失败通常比成功更明确）
             if any(m in low for m in _SSH_FAILURE_MARKERS):
-                return (False, _(K.err.connection_failed,
-                                 detail=output.strip()[:100]))
+                return (False, _(K.err.connection_failed, detail=output.strip()[:100]))
 
             # 2) 成功关键词 / 欢迎语
             if any(m in low for m in _SSH_SUCCESS_MARKERS):
@@ -89,8 +95,7 @@ class SSHTester:
             # 3) 未知平台文案：以退出码兜底
             if result.returncode == 0:
                 return (True, _(K.msg.connected))
-            return (False, _(K.err.connection_failed,
-                             detail=output.strip()[:100]))
+            return (False, _(K.err.connection_failed, detail=output.strip()[:100]))
 
         except subprocess.TimeoutExpired:
             return (False, _(K.err.connection_timeout))

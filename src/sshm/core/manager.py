@@ -13,9 +13,18 @@ SSH 密钥管理器 - 门面（Facade）
 from pathlib import Path
 from typing import Optional
 
-from ..constants import BACKUP_DIR_NAME, DEFAULT_SSH_DIR, SSH_CONFIG_NAME, STATE_FILE_NAME
+from ..constants import (
+    BACKUP_DIR_NAME,
+    DEFAULT_SSH_DIR,
+    SSH_CONFIG_NAME,
+    STATE_FILE_NAME,
+)
 from .commands import (
-    AuthorCommands, HistoryCommands, KeyCommands, RepoCommands, SystemCommands,
+    AuthorCommands,
+    HistoryCommands,
+    KeyCommands,
+    RepoCommands,
+    SystemCommands,
 )
 from .services.git.author import AuthorService
 from .services.git.gitrepo import GitRepoService
@@ -32,7 +41,7 @@ class SSHKeyManager:
     """SSH 密钥管理器 - 门面，组合服务与命令编排，公开 API 委托。"""
 
     # 保留标签：original 为 use -g 切换时的系统备份，default 为默认密钥
-    RESERVED_LABELS = ('default', 'original')
+    RESERVED_LABELS = ("default", "original")
 
     def __init__(self, ssh_dir: Optional[Path] = None):
         """初始化管理器
@@ -51,6 +60,7 @@ class SSHKeyManager:
 
         # 应用输出语言（环境变量优先于状态文件）
         from ..i18n import load_from_state
+
         load_from_state(self.state_manager.read_lang())
 
         # 本次命令是否发生业务失败（供 CLI 层决定退出码）
@@ -59,14 +69,19 @@ class SSHKeyManager:
         # 组合服务（门面委托给聚焦服务）
         self.keystore = KeyStore(self.ssh_dir)
         self.gitrepo = GitRepoService(
-            self.ssh_dir, self.config_manager, self.state_manager,
-            self.keystore, self._fail)
+            self.ssh_dir,
+            self.config_manager,
+            self.state_manager,
+            self.keystore,
+            self._fail,
+        )
         self.backup = BackupService(
-            self.ssh_dir, self.backup_dir, self.state_file,
-            self.config_file, self._fail)
+            self.ssh_dir, self.backup_dir, self.state_file, self.config_file, self._fail
+        )
         self.tester = SSHTester()
         self.author_service = AuthorService(
-            self.state_manager, self.keystore, self.gitrepo, self._fail)
+            self.state_manager, self.keystore, self.gitrepo, self._fail
+        )
 
         # 命令编排组（与 CLI 分组一一对应：key/repo/backup/author/history/config）
         self.key = KeyCommands(self)
@@ -112,5 +127,3 @@ class SSHKeyManager:
         重复输出。命令层不应直接改 `_had_error`，统一走本方法或 `_fail`。
         """
         self._had_error = True
-
-

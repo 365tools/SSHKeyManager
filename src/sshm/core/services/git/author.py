@@ -23,8 +23,7 @@ from ...utils.process import git
 class AuthorService:
     """作者服务：作者信息解析与应用。"""
 
-    def __init__(self, state_manager, keystore, gitrepo,
-                 fail: Callable[..., None]):
+    def __init__(self, state_manager, keystore, gitrepo, fail: Callable[..., None]):
         self.state_manager = state_manager
         self.keystore = keystore
         self.gitrepo = gitrepo
@@ -34,11 +33,10 @@ class AuthorService:
     # git 配置读取
     # ------------------------------------------------------------------
 
-    def git_get_config(self, repo_path: Path, scope: str,
-                       key: str) -> Optional[str]:
+    def git_get_config(self, repo_path: Path, scope: str, key: str) -> Optional[str]:
         """读取 git 配置项（local/global）"""
         try:
-            result = git(repo_path, 'config', f'--{scope}', key)
+            result = git(repo_path, "config", f"--{scope}", key)
             return result.stdout.strip() or None
         except (subprocess.CalledProcessError, OSError):
             return None
@@ -47,10 +45,14 @@ class AuthorService:
     # 作者信息解析
     # ------------------------------------------------------------------
 
-    def get_author_info(self, label: str, name: Optional[str] = None,
-                        email: Optional[str] = None,
-                        repo_path: Optional[Union[str, Path]] = None,
-                        infer_from_remote: bool = True) -> Optional[Dict[str, str]]:
+    def get_author_info(
+        self,
+        label: str,
+        name: Optional[str] = None,
+        email: Optional[str] = None,
+        repo_path: Optional[Union[str, Path]] = None,
+        infer_from_remote: bool = True,
+    ) -> Optional[Dict[str, str]]:
         """按优先级获取标签对应的作者信息
 
         infer_from_remote：当标签无显式作者名时，是否从 remote URL 推断用户名。
@@ -58,39 +60,44 @@ class AuthorService:
         （git@github-work:org/repo.git），其 user 段是组织名而非作者名。
         """
         label_lower = label.lower()
-        result: Dict[str, str] = {'name': name or '', 'email': email or ''}
+        result: Dict[str, str] = {"name": name or "", "email": email or ""}
 
         # 1. 状态文件中的 authors 映射（add 时自动记录）
         stored = self.state_manager.read_authors().get(label_lower)
         if stored:
-            if not result['name']:
-                result['name'] = stored.get('name', '')
-            if not result['email']:
-                result['email'] = stored.get('email', '')
+            if not result["name"]:
+                result["name"] = stored.get("name", "")
+            if not result["email"]:
+                result["email"] = stored.get("email", "")
 
         # 2. 从公钥注释提取邮箱（-C email 写入）
-        if not result['email']:
-            result['email'] = self.extract_email_from_pubkey(label_lower) or ''
+        if not result["email"]:
+            result["email"] = self.extract_email_from_pubkey(label_lower) or ""
 
         # 3. 从 remote URL 推断用户名（最低优先级）
-        if not result['name'] and repo_path is not None and infer_from_remote:
-            result['name'] = self.infer_author_name_from_remote(
-                Path(repo_path)) or ''
+        if not result["name"] and repo_path is not None and infer_from_remote:
+            result["name"] = self.infer_author_name_from_remote(Path(repo_path)) or ""
 
-        if not (result['name'] or result['email']):
+        if not (result["name"] or result["email"]):
             key_type = self.keystore.detect_key_type_for_label(label)
             if not key_type:
                 msg = _(K.err.key_not_found_short, label=label)
                 self._fail(msg, hint=_(K.msg.use_all_keys_tip))
                 return None
             msg = _(K.msg.not_usable_author, label=label)
-            self._fail(msg, icon=ICON_WARN, hint="\n".join([
-                _(K.msg.available_remedies),
-                f"   - sshm key create {label} <email> --name \"name\"  # "
-                + _(K.msg.recreate_key),
-                f"   - sshm author add {label} --name \"name\" --email <email>  # "
-                + _(K.msg.temp_override),
-            ]))
+            self._fail(
+                msg,
+                icon=ICON_WARN,
+                hint="\n".join(
+                    [
+                        _(K.msg.available_remedies),
+                        f'   - sshm key create {label} <email> --name "name"  # '
+                        + _(K.msg.recreate_key),
+                        f'   - sshm author add {label} --name "name" --email <email>  # '
+                        + _(K.msg.temp_override),
+                    ]
+                ),
+            )
             return None
 
         return result
@@ -105,7 +112,7 @@ class AuthorService:
     def infer_author_name_from_remote(self, repo_path: Path) -> Optional[str]:
         """从 remote URL 推断用户名（git@github.com:allureyc/repo.git → allureyc）"""
         try:
-            result = git(repo_path, 'remote', 'get-url', 'origin')
+            result = git(repo_path, "remote", "get-url", "origin")
             parsed = self.gitrepo.parse_git_url(result.stdout.strip())
             if parsed:
                 return parsed[1]
@@ -117,8 +124,13 @@ class AuthorService:
     # 密钥↔作者自动联动
     # ------------------------------------------------------------------
 
-    def apply_auto_author(self, label: str, repo_path: Optional[str] = None,
-                          scope: str = 'local', skip_confirm: bool = True) -> None:
+    def apply_auto_author(
+        self,
+        label: str,
+        repo_path: Optional[str] = None,
+        scope: str = "local",
+        skip_confirm: bool = True,
+    ) -> None:
         """密钥↔作者自动联动：切换密钥时，若该 label 绑定了 author，则自动设置。
 
         - scope='local'：设置仓库级 author（use_key_for_repo 调用）
@@ -129,20 +141,21 @@ class AuthorService:
         """
         if not self.state_manager.read_auto_author():
             return
-        author = self.get_author_info(label, repo_path=None,
-                                      infer_from_remote=False)
-        if not author or not (author.get('name') or author.get('email')):
+        author = self.get_author_info(label, repo_path=None, infer_from_remote=False)
+        if not author or not (author.get("name") or author.get("email")):
             return  # 无 author 绑定，不联动
 
         repo = Path(repo_path).resolve() if repo_path else Path.cwd()
         try:
-            if author.get('name'):
-                git(repo, 'config', f'--{scope}', 'user.name', author['name'])
-            if author.get('email'):
-                git(repo, 'config', f'--{scope}', 'user.email', author['email'])
+            if author.get("name"):
+                git(repo, "config", f"--{scope}", "user.name", author["name"])
+            if author.get("email"):
+                git(repo, "config", f"--{scope}", "user.email", author["email"])
         except (subprocess.CalledProcessError, OSError) as e:
             self._fail(_(K.err.auto_author_failed, err=e), icon=ICON_WARN)
             return
 
-        print(f"{_(K.msg.auto_set_author, label=label)}: "
-              f"{author.get('name', '') or ''} <{author.get('email', '') or ''}>")
+        print(
+            f"{_(K.msg.auto_set_author, label=label)}: "
+            f"{author.get('name', '') or ''} <{author.get('email', '') or ''}>"
+        )

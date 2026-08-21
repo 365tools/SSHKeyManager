@@ -108,7 +108,7 @@ python -m pytest -n0      # 串行（-n0 = 禁用 xdist）
    ```python
    def check_black() -> tuple[bool, str]:
        """代码格式化：black --check。"""
-       ok, detail = _run(sys.executable, '-m', 'black', '--check', 'src', 'tests')
+       ok, detail = _run(sys.executable, "-m", "black", "--check", "src", "tests")
        return ok, detail
    ```
 
@@ -117,11 +117,11 @@ python -m pytest -n0      # 串行（-n0 = 禁用 xdist）
 
    ```python
    CHECKS = [
-       ('compile', True,  check_compile),
-       ('i18n',    True,  check_i18n),
-       ('pytest',  False, check_pytest),
-       ('pyright', False, check_pyright),
-       ('black',   False, check_black),   # 新增
+       ("compile", True, check_compile),
+       ("i18n", True, check_i18n),
+       ("pytest", False, check_pytest),
+       ("pyright", False, check_pyright),
+       ("black", False, check_black),  # 新增
    ]
    ```
 

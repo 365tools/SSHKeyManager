@@ -51,26 +51,34 @@ class AuthorCommands:
             self.m.state_manager.write_auto_author(enabled)
             status = _(K.misc.on) if enabled else _(K.misc.off)
             print(f"🔀 {_(K.msg.auto_author_status, status=status)}")
-            print("   " + (_(K.msg.auto_now_apply)
-                           if enabled else
-                           _(K.msg.auto_now_not)))
+            print(
+                "   " + (_(K.msg.auto_now_apply) if enabled else _(K.msg.auto_now_not))
+            )
 
-    def show(self, repo_path: Union[str, Path] = '.'):
+    def show(self, repo_path: Union[str, Path] = "."):
         """显示当前 Git 仓库的作者配置"""
         print_section_header(_(K.hdr.author_info))
         repo_path = Path(repo_path).resolve()
 
-        if not (repo_path / '.git').exists():
+        if not (repo_path / ".git").exists():
             self.m._fail(_(K.err.not_git_repo, path=repo_path))
             print("   " + _(K.err.run_in_repo))
             return
 
         print(f"{_(K.lbl.repo_path)} {repo_path}\n")
 
-        local_name = self.m.author_service.git_get_config(repo_path, 'local', 'user.name')
-        local_email = self.m.author_service.git_get_config(repo_path, 'local', 'user.email')
-        global_name = self.m.author_service.git_get_config(repo_path, 'global', 'user.name')
-        global_email = self.m.author_service.git_get_config(repo_path, 'global', 'user.email')
+        local_name = self.m.author_service.git_get_config(
+            repo_path, "local", "user.name"
+        )
+        local_email = self.m.author_service.git_get_config(
+            repo_path, "local", "user.email"
+        )
+        global_name = self.m.author_service.git_get_config(
+            repo_path, "global", "user.name"
+        )
+        global_email = self.m.author_service.git_get_config(
+            repo_path, "global", "user.email"
+        )
 
         # 统一为 `name <email>` 紧凑格式（local 与 global 保持一致）
         if local_name or local_email:
@@ -84,44 +92,59 @@ class AuthorCommands:
             print(f"🌍 {_(K.lbl.global_author)} {g_author}")
         if local_name or local_email:
             print("   " + _(K.msg.current_effective))
-        render_tip_block([
-            f"💡 {_(K.msg.author_list_tip)}",
-            "   " + _(K.msg.quick_set),
-            "   " + _(K.msg.clear_repo_config),
-        ])
+        render_tip_block(
+            [
+                f"💡 {_(K.msg.author_list_tip)}",
+                "   " + _(K.msg.quick_set),
+                "   " + _(K.msg.clear_repo_config),
+            ]
+        )
 
-    def use(self, label: str, repo_path: Union[str, Path] = '.',
-            name: Optional[str] = None, email: Optional[str] = None,
-            scope: str = 'local', skip_confirm: bool = False,
-            infer_from_remote: bool = True):
+    def use(
+        self,
+        label: str,
+        repo_path: Union[str, Path] = ".",
+        name: Optional[str] = None,
+        email: Optional[str] = None,
+        scope: str = "local",
+        skip_confirm: bool = False,
+        infer_from_remote: bool = True,
+    ):
         """为指定 Git 仓库设置作者信息（global 作用域不需要仓库）"""
         repo_path = Path(repo_path).resolve()
 
-        if scope != 'global' and not (repo_path / '.git').exists():
+        if scope != "global" and not (repo_path / ".git").exists():
             self.m._fail(_(K.err.not_git_repo, path=repo_path))
             print("   " + _(K.err.run_in_repo))
             return
 
-        author = self.m.author_service.get_author_info(label, name, email, repo_path,
-                                         infer_from_remote)
+        author = self.m.author_service.get_author_info(
+            label, name, email, repo_path, infer_from_remote
+        )
         if not author:
             return
 
         print_section_header(_(K.hdr.set_author, label=label))
         print(f"{_(K.lbl.repo_path)} {repo_path}\n")
 
-        current_name = self.m.author_service.git_get_config(repo_path, scope, 'user.name')
-        current_email = self.m.author_service.git_get_config(repo_path, scope, 'user.email')
-        scope_name = _(K.misc.scope_global) if scope == 'global' else _(K.misc.scope_repo)
+        current_name = self.m.author_service.git_get_config(
+            repo_path, scope, "user.name"
+        )
+        current_email = self.m.author_service.git_get_config(
+            repo_path, scope, "user.email"
+        )
+        scope_name = (
+            _(K.misc.scope_global) if scope == "global" else _(K.misc.scope_repo)
+        )
 
         # 摘要：未提供的字段明确展示当前值，并注明将保持不变
         not_set = _(K.misc.not_set)
         keep = _(K.msg.no_new_value)
-        if author['name']:
+        if author["name"]:
             print(f"{_(K.lbl.author_name)} {author['name']}")
         else:
             print(f"{_(K.lbl.author_name)} {current_name or not_set}{keep}")
-        if author['email']:
+        if author["email"]:
             print(f"{_(K.lbl.author_email)} {author['email']}")
         else:
             print(f"{_(K.lbl.author_email)} {current_email or not_set}{keep}")
@@ -137,18 +160,36 @@ class AuthorCommands:
         changed = []
         unchanged = []
         try:
-            if author['name']:
+            if author["name"]:
                 subprocess.run(
-                    ['git', '-C', str(repo_path), 'config', f'--{scope}', 'user.name', author['name']],
-                    check=True, capture_output=True
+                    [
+                        "git",
+                        "-C",
+                        str(repo_path),
+                        "config",
+                        f"--{scope}",
+                        "user.name",
+                        author["name"],
+                    ],
+                    check=True,
+                    capture_output=True,
                 )
                 changed.append(f"user.name = {author['name']}")
             else:
                 unchanged.append(f"user.name = {current_name or _(K.misc.not_set)}")
-            if author['email']:
+            if author["email"]:
                 subprocess.run(
-                    ['git', '-C', str(repo_path), 'config', f'--{scope}', 'user.email', author['email']],
-                    check=True, capture_output=True
+                    [
+                        "git",
+                        "-C",
+                        str(repo_path),
+                        "config",
+                        f"--{scope}",
+                        "user.email",
+                        author["email"],
+                    ],
+                    check=True,
+                    capture_output=True,
                 )
                 changed.append(f"user.email = {author['email']}")
             else:
@@ -170,50 +211,71 @@ class AuthorCommands:
                 print(f"   - {item}")
         print("\n💡 " + _(K.msg.verify_cmd))
 
-    def unset(self, repo_path: Union[str, Path] = '.',
-              scope: str = 'local'):
+    def unset(self, repo_path: Union[str, Path] = ".", scope: str = "local"):
         """清除当前 Git 仓库的作者配置（回落到全局）"""
         repo_path = Path(repo_path).resolve()
 
-        if not (repo_path / '.git').exists():
+        if not (repo_path / ".git").exists():
             self.m._fail(_(K.err.not_git_repo, path=repo_path))
             print("   " + _(K.err.run_in_repo))
             return
 
-        scope_name = _(K.misc.scope_global) if scope == 'global' else _(K.misc.scope_repo)
-        fallback_name = _(K.misc.scope_system) if scope == 'global' else _(K.misc.scope_global)
-        if not prompt_confirm(_(K.msg.confirm_clear,
-            scope=scope_name, fallback=fallback_name,
-        )):
+        scope_name = (
+            _(K.misc.scope_global) if scope == "global" else _(K.misc.scope_repo)
+        )
+        fallback_name = (
+            _(K.misc.scope_system) if scope == "global" else _(K.misc.scope_global)
+        )
+        if not prompt_confirm(
+            _(
+                K.msg.confirm_clear,
+                scope=scope_name,
+                fallback=fallback_name,
+            )
+        ):
             self.m._fail(_(K.misc.operation_cancelled))
             return
 
         removed = []
-        for key in ('user.name', 'user.email'):
+        for key in ("user.name", "user.email"):
             try:
                 subprocess.run(
-                    ['git', '-C', str(repo_path), 'config', f'--{scope}', '--unset-all', key],
-                    check=True, capture_output=True
+                    [
+                        "git",
+                        "-C",
+                        str(repo_path),
+                        "config",
+                        f"--{scope}",
+                        "--unset-all",
+                        key,
+                    ],
+                    check=True,
+                    capture_output=True,
                 )
                 removed.append(key)
             except subprocess.CalledProcessError:
                 pass
 
         if removed:
-            print(f"✅ {_(K.msg.cleared_scope, scope=scope_name, keys=', '.join(removed))}")
+            print(
+                f"✅ {_(K.msg.cleared_scope, scope=scope_name, keys=', '.join(removed))}"
+            )
         else:
             print("ℹ️  " + _(K.msg.no_config_clear))
 
-    def add(self, label: str, name: Optional[str] = None,
-            email: Optional[str] = None):
+    def add(self, label: str, name: Optional[str] = None, email: Optional[str] = None):
         """添加/更新作者到状态文件（author 列表）"""
         label_lower = label.lower()
 
         # 更新语义：未提供的字段保留已有值，邮箱缺失时尝试从公钥注释补全
         stored = self.m.state_manager.read_authors().get(label_lower, {})
-        final_name = name or stored.get('name', '')
-        final_email = (email or stored.get('email', '')
-                       or self.m.author_service.extract_email_from_pubkey(label_lower) or '')
+        final_name = name or stored.get("name", "")
+        final_email = (
+            email
+            or stored.get("email", "")
+            or self.m.author_service.extract_email_from_pubkey(label_lower)
+            or ""
+        )
 
         if not (final_name or final_email):
             self.m._fail(_(K.msg.need_author))
@@ -231,14 +293,16 @@ class AuthorCommands:
         print("   " + _(K.msg.use_author_list))
         print("   " + _(K.msg.use_author_apply))
 
-    def update(self, label: str, name: Optional[str] = None,
-               email: Optional[str] = None):
+    def update(
+        self, label: str, name: Optional[str] = None, email: Optional[str] = None
+    ):
         """更新已有作者的信息（name/email 至少提供一个，未提供的保留原值）"""
         label_lower = label.lower()
         authors = self.m.state_manager.read_authors()
         if label_lower not in authors:
-            self.m._fail(_(K.err.author_not_found, label=label),
-                         hint=_(K.err.use_author_list))
+            self.m._fail(
+                _(K.err.author_not_found, label=label), hint=_(K.err.use_author_list)
+            )
             return
 
         if not name and not email:
@@ -246,8 +310,8 @@ class AuthorCommands:
             return
 
         stored = authors[label_lower]
-        final_name = name or stored.get('name', '')
-        final_email = email or stored.get('email', '')
+        final_name = name or stored.get("name", "")
+        final_email = email or stored.get("email", "")
         self.m.state_manager.write_author(label_lower, final_name, final_email)
 
         not_set = _(K.misc.not_set)
@@ -256,7 +320,7 @@ class AuthorCommands:
         print(f"{_(K.lbl.author_email)} {final_email or not_set}")
         print("\n✅ " + _(K.msg.updated_in_list))
 
-    def list(self, repo_path: Union[str, Path] = '.'):
+    def list(self, repo_path: Union[str, Path] = "."):
         """列出所有已保存的作者"""
         print_section_header(_(K.hdr.saved_authors))
         authors = self.m.state_manager.read_authors()
@@ -267,68 +331,96 @@ class AuthorCommands:
 
         not_set = _(K.misc.not_set)
         repo = Path(repo_path).resolve()
-        in_repo = (repo / '.git').exists()
+        in_repo = (repo / ".git").exists()
 
         # 读取当前生效作者（local 覆盖 global），用于标记"正在使用"及其层级
         eff_name = eff_email = None
         scope = None
         if in_repo:
-            local_name = self.m.author_service.git_get_config(repo, 'local', 'user.name')
-            local_email = self.m.author_service.git_get_config(repo, 'local', 'user.email')
-            global_name = self.m.author_service.git_get_config(repo, 'global', 'user.name')
-            global_email = self.m.author_service.git_get_config(repo, 'global', 'user.email')
+            local_name = self.m.author_service.git_get_config(
+                repo, "local", "user.name"
+            )
+            local_email = self.m.author_service.git_get_config(
+                repo, "local", "user.email"
+            )
+            global_name = self.m.author_service.git_get_config(
+                repo, "global", "user.name"
+            )
+            global_email = self.m.author_service.git_get_config(
+                repo, "global", "user.email"
+            )
 
             if local_name or local_email:
                 eff_name, eff_email = local_name, local_email
-                scope = _(K.misc.scope_repo)    # 仓库级生效
+                scope = _(K.misc.scope_repo)  # 仓库级生效
             elif global_name or global_email:
                 eff_name, eff_email = global_name, global_email
-                scope = _(K.misc.scope_global)        # 全局生效
+                scope = _(K.misc.scope_global)  # 全局生效
         else:
             # 不在 git 仓库内：回退读取全局配置，展示全局生效
-            global_name = self.m.author_service.git_get_config(Path.home(), 'global', 'user.name')
-            global_email = self.m.author_service.git_get_config(Path.home(), 'global', 'user.email')
+            global_name = self.m.author_service.git_get_config(
+                Path.home(), "global", "user.name"
+            )
+            global_email = self.m.author_service.git_get_config(
+                Path.home(), "global", "user.email"
+            )
             if global_name or global_email:
                 eff_name, eff_email = global_name, global_email
                 scope = _(K.misc.scope_global)
 
-        eff_email_lower = (eff_email or '').lower()
-        eff_name_lower = (eff_name or '').lower()
+        eff_email_lower = (eff_email or "").lower()
+        eff_name_lower = (eff_name or "").lower()
 
         rows = []
         for label in sorted(authors):
             info = authors[label]
-            name = info.get('name') or ''
-            email = info.get('email') or ''
+            name = info.get("name") or ""
+            email = info.get("email") or ""
             # 正在使用判断：邮箱精确匹配优先，其次姓名匹配
-            is_active = bool(email and email.lower() == eff_email_lower) \
-                or (not email and name and name.lower() == eff_name_lower)
-            icon = '📍' if is_active else ''
-            label_scope = scope if is_active else ''
-            rows.append([
-                icon,
-                label.upper(),
-                name or not_set,
-                email or not_set,
-                label_scope,
-            ])
+            is_active = bool(email and email.lower() == eff_email_lower) or (
+                not email and name and name.lower() == eff_name_lower
+            )
+            icon = "📍" if is_active else ""
+            label_scope = scope if is_active else ""
+            rows.append(
+                [
+                    icon,
+                    label.upper(),
+                    name or not_set,
+                    email or not_set,
+                    label_scope,
+                ]
+            )
 
-        print_table([_(K.lbl.status), _(K.lbl.label), _(K.lbl.name), _(K.lbl.email),
-                     _(K.lbl.scope)],
-                    rows, truncatable=[2, 3], center_cols=[0])
+        print_table(
+            [
+                _(K.lbl.status),
+                _(K.lbl.label),
+                _(K.lbl.name),
+                _(K.lbl.email),
+                _(K.lbl.scope),
+            ],
+            rows,
+            truncatable=[2, 3],
+            center_cols=[0],
+        )
 
         print("\n💡 " + _(K.misc.usage))
         print("   sshm author use <label> [--global]   # " + _(K.msg.apply_repo_global))
         print("   sshm author remove <label>           # " + _(K.msg.delete_author))
-        print("   sshm author add <label> -n name -e email  # " + _(K.msg.add_update_author))
+        print(
+            "   sshm author add <label> -n name -e email  # "
+            + _(K.msg.add_update_author)
+        )
 
     def remove(self, label: str, skip_confirm: bool = False):
         """从作者列表删除指定标签的作者（不影响已写入的 git config）"""
         label_lower = label.lower()
         authors = self.m.state_manager.read_authors()
         if label_lower not in authors:
-            self.m._fail(_(K.err.author_not_found, label=label),
-                         hint=_(K.err.use_author_list))
+            self.m._fail(
+                _(K.err.author_not_found, label=label), hint=_(K.err.use_author_list)
+            )
             return
 
         not_set = _(K.misc.not_set)

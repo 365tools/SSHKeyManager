@@ -24,7 +24,7 @@ from ....ui.output import confirm, print, section
 
 def _secure_key_perms(path: Path, private: bool) -> None:
     """Unix 下兜底设置密钥文件权限：私钥 600，公钥 644。"""
-    if os.name != 'posix':
+    if os.name != "posix":
         return
     try:
         path.chmod(0o600 if private else 0o644)
@@ -35,9 +35,14 @@ def _secure_key_perms(path: Path, private: bool) -> None:
 class BackupService:
     """备份服务：backup / restore / list。"""
 
-    def __init__(self, ssh_dir: Path, backup_dir: Path,
-                 state_file: Path, config_file: Path,
-                 error_reporter: Callable[[str], None]):
+    def __init__(
+        self,
+        ssh_dir: Path,
+        backup_dir: Path,
+        state_file: Path,
+        config_file: Path,
+        error_reporter: Callable[[str], None],
+    ):
         self.ssh_dir = ssh_dir
         self.backup_dir = backup_dir
         self.state_file = state_file
@@ -47,11 +52,11 @@ class BackupService:
     def create(self, silent: bool = False) -> Path:
         """备份所有密钥"""
         # 毫秒级时间戳：避免同一秒内多次备份合并到同一目录
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S_%f')
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
         backup_path = self.backup_dir / f"backup_{timestamp}"
         backup_path.mkdir(mode=0o700, exist_ok=True)
 
-        key_files = list(self.ssh_dir.glob('id_*'))
+        key_files = list(self.ssh_dir.glob("id_*"))
         backed_up: List[str] = []
 
         for key_file in key_files:
@@ -78,8 +83,11 @@ class BackupService:
         """列出所有备份"""
         section(_(K.hdr.backup_list))
 
-        backups = sorted(self.backup_dir.glob('backup_*'),
-                         key=lambda x: x.stat().st_mtime, reverse=True)
+        backups = sorted(
+            self.backup_dir.glob("backup_*"),
+            key=lambda x: x.stat().st_mtime,
+            reverse=True,
+        )
 
         if not backups:
             print("📭 " + _(K.msg.no_backups))
@@ -87,24 +95,29 @@ class BackupService:
 
         for i, backup in enumerate(backups, 1):
             mtime = datetime.fromtimestamp(backup.stat().st_mtime)
-            files = list(backup.glob('id_*'))
+            files = list(backup.glob("id_*"))
             print(f"\n[{i}] {backup.name}")
             print(f"    {_(K.lbl.time)} {format_timestamp(mtime)}")
             print(f"    {_(K.lbl.files)} {len(files)}")
             print(f"    {_(K.lbl.path)} {backup}")
 
-    def restore(self, backup_name: Optional[str] = None,
-                       key_type: Optional[str] = None,
-                       skip_confirm: bool = False) -> None:
+    def restore(
+        self,
+        backup_name: Optional[str] = None,
+        key_type: Optional[str] = None,
+        skip_confirm: bool = False,
+    ) -> None:
         """从备份恢复密钥"""
         section(_(K.hdr.restore))
 
         if backup_name:
             # 校验备份名，防止路径穿越 / 绝对路径 / 家目录逃逸出备份目录
             candidate = Path(backup_name)
-            if (candidate.is_absolute()
-                    or '..' in candidate.parts
-                    or str(backup_name).startswith('~')):
+            if (
+                candidate.is_absolute()
+                or ".." in candidate.parts
+                or str(backup_name).startswith("~")
+            ):
                 self._error(f"❌ {_(K.err.invalid_backup_name, name=backup_name)}")
                 return
             backup_path = self.backup_dir / backup_name
@@ -113,8 +126,11 @@ class BackupService:
                 print("   " + _(K.err.use_backups_cmd))
                 return
         else:
-            backups = sorted(self.backup_dir.glob('backup_*'),
-                             key=lambda x: x.stat().st_mtime, reverse=True)
+            backups = sorted(
+                self.backup_dir.glob("backup_*"),
+                key=lambda x: x.stat().st_mtime,
+                reverse=True,
+            )
             if not backups:
                 print("📭 " + _(K.err.no_backups_restore))
                 print("   " + _(K.err.use_backup_cmd))
@@ -122,7 +138,7 @@ class BackupService:
             backup_path = backups[0]
             print(f"📦 {_(K.msg.will_use_latest)} {backup_path.name}")
 
-        files = sorted(p for p in backup_path.glob('id_*') if p.is_file())
+        files = sorted(p for p in backup_path.glob("id_*") if p.is_file())
         if key_type:
             files = [f for f in files if f.name.startswith(f"id_{key_type}")]
 
@@ -144,7 +160,7 @@ class BackupService:
                 target = self.ssh_dir / f.name
                 shutil.copy2(f, target)
                 # 恢复私钥时兜底 chmod 600（Unix），公钥 644
-                _secure_key_perms(target, private=not f.name.endswith('.pub'))
+                _secure_key_perms(target, private=not f.name.endswith(".pub"))
                 restored.append(f.name)
             except OSError as e:
                 self._error(f"❌ {_(K.err.restore_failed)} {f.name} ({e})")

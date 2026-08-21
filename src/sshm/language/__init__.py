@@ -23,7 +23,11 @@ from .templates import (
 from .keys import K
 
 __all__ = [
-    'EN', 'ZH',
-    'KEYS', 'LANGUAGES', 'KEY_GROUPS', 'LanguageDict',
-    'K',
+    "EN",
+    "ZH",
+    "KEYS",
+    "LANGUAGES",
+    "KEY_GROUPS",
+    "LanguageDict",
+    "K",
 ]

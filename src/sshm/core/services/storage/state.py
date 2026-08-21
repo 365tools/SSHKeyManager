@@ -14,7 +14,7 @@ class StateManager:
     """密钥状态管理器"""
 
     # 顶层保留字段，不参与 active_keys 映射
-    RESERVED_KEYS = ('authors', 'hosts', 'lang')
+    RESERVED_KEYS = ("authors", "hosts", "lang")
 
     def __init__(self, state_file: Path):
         self.state_file = state_file
@@ -29,14 +29,14 @@ class StateManager:
             self._cache = {}
             return self._cache
         try:
-            data = json.loads(self.state_file.read_text(encoding='utf-8'))
+            data = json.loads(self.state_file.read_text(encoding="utf-8"))
             if isinstance(data, dict):
                 self._cache = data
                 return data
         except (json.JSONDecodeError, IOError):
             # 状态文件损坏：备份原文件，避免后续写入静默覆盖丢失数据
             try:
-                corrupt_backup = self.state_file.with_suffix('.state.corrupt')
+                corrupt_backup = self.state_file.with_suffix(".state.corrupt")
                 self.state_file.rename(corrupt_backup)
             except OSError:
                 pass
@@ -46,9 +46,9 @@ class StateManager:
     def _write_state(self, state: dict):
         """原子写入完整状态文件（临时文件 + os.replace，避免崩溃/断电损坏）"""
         self._cache = state
-        tmp = self.state_file.with_suffix('.state.tmp')
+        tmp = self.state_file.with_suffix(".state.tmp")
         try:
-            tmp.write_text(json.dumps(state, indent=2), encoding='utf-8')
+            tmp.write_text(json.dumps(state, indent=2), encoding="utf-8")
             os.replace(tmp, self.state_file)
         finally:
             try:
@@ -99,12 +99,12 @@ class StateManager:
                 state[key_type] = new_label_lower
                 updated = True
 
-        authors = state.get('authors')
+        authors = state.get("authors")
         if isinstance(authors, dict) and old_label_lower in authors:
             authors[new_label_lower] = authors.pop(old_label_lower)
             updated = True
 
-        hosts = state.get('hosts')
+        hosts = state.get("hosts")
         if isinstance(hosts, dict) and old_label_lower in hosts:
             hosts[new_label_lower] = hosts.pop(old_label_lower)
             updated = True
@@ -119,22 +119,22 @@ class StateManager:
     def read_authors(self) -> Dict[str, Dict[str, str]]:
         """读取作者信息映射 {label: {'name': str, 'email': str}}"""
         state = self._read_state()
-        authors = state.get('authors', {})
+        authors = state.get("authors", {})
         return authors if isinstance(authors, dict) else {}
 
     def write_author(self, label: str, name: str, email: str):
         """写入指定标签的作者信息"""
         state = self._read_state()
-        authors = state.setdefault('authors', {})
+        authors = state.setdefault("authors", {})
         if not isinstance(authors, dict):
-            authors = state['authors'] = {}
-        authors[label.lower()] = {'name': name or '', 'email': email or ''}
+            authors = state["authors"] = {}
+        authors[label.lower()] = {"name": name or "", "email": email or ""}
         self._write_state(state)
 
     def delete_author(self, label: str):
         """删除指定标签的作者信息"""
         state = self._read_state()
-        authors = state.get('authors')
+        authors = state.get("authors")
         if isinstance(authors, dict) and label.lower() in authors:
             del authors[label.lower()]
             self._write_state(state)
@@ -146,22 +146,22 @@ class StateManager:
     def read_hosts(self) -> Dict[str, str]:
         """读取标签到主机名的映射 {label: hostname}"""
         state = self._read_state()
-        hosts = state.get('hosts', {})
+        hosts = state.get("hosts", {})
         return hosts if isinstance(hosts, dict) else {}
 
     def write_host(self, label: str, hostname: str):
         """写入指定标签的主机名映射"""
         state = self._read_state()
-        hosts = state.setdefault('hosts', {})
+        hosts = state.setdefault("hosts", {})
         if not isinstance(hosts, dict):
-            hosts = state['hosts'] = {}
+            hosts = state["hosts"] = {}
         hosts[label.lower()] = hostname
         self._write_state(state)
 
     def remove_host(self, label: str):
         """移除指定标签的主机名映射"""
         state = self._read_state()
-        hosts = state.get('hosts')
+        hosts = state.get("hosts")
         if isinstance(hosts, dict) and label.lower() in hosts:
             del hosts[label.lower()]
             self._write_state(state)
@@ -173,13 +173,13 @@ class StateManager:
     def read_lang(self) -> str:
         """读取保存的输出语言（'en'/'zh'，默认 'en'）"""
         state = self._read_state()
-        lang = state.get('lang')
-        return lang if isinstance(lang, str) else 'en'
+        lang = state.get("lang")
+        return lang if isinstance(lang, str) else "en"
 
     def write_lang(self, lang: str):
         """保存输出语言设置（'en'/'zh'）"""
         state = self._read_state()
-        state['lang'] = lang if lang == 'zh' else 'en'
+        state["lang"] = lang if lang == "zh" else "en"
         self._write_state(state)
 
     # ------------------------------------------------------------------
@@ -189,10 +189,10 @@ class StateManager:
     def read_auto_author(self) -> bool:
         """读取密钥-author 自动联动开关（默认开启）"""
         state = self._read_state()
-        return state.get('auto_author', True)
+        return state.get("auto_author", True)
 
     def write_auto_author(self, enabled: bool):
         """保存密钥-author 自动联动开关"""
         state = self._read_state()
-        state['auto_author'] = bool(enabled)
+        state["auto_author"] = bool(enabled)
         self._write_state(state)

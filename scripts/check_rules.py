@@ -27,18 +27,19 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
-SSHM = ROOT / 'src' / 'sshm'
-CORE = SSHM / 'core'
-COMMANDS = CORE / 'commands'
+SSHM = ROOT / "src" / "sshm"
+CORE = SSHM / "core"
+COMMANDS = CORE / "commands"
 
 
 def _py_files(base: Path) -> list[Path]:
-    return sorted(p for p in base.rglob('*.py'))
+    return sorted(p for p in base.rglob("*.py"))
 
 
 # ---------------------------------------------------------------------------
 # 规则 1: commands/ 禁止直接改 self.m._had_error
 # ---------------------------------------------------------------------------
+
 
 def check_had_error_direct() -> list[str]:
     """检测 commands/ 中直接给 self.m._had_error 赋值（应走 _fail/_mark_error）。
@@ -57,14 +58,15 @@ def check_had_error_direct() -> list[str]:
         return False
 
     for p in _py_files(COMMANDS):
-        tree = ast.parse(p.read_text(encoding='utf-8'))
+        tree = ast.parse(p.read_text(encoding="utf-8"))
         for node in ast.walk(tree):
             if isinstance(node, ast.Assign):
                 for t in node.targets:
-                    if _target_has(t, '_had_error'):
+                    if _target_has(t, "_had_error"):
                         problems.append(
                             f"{p.name}: {node.lineno} - direct self.m._had_error "
-                            f"assignment; use _fail/_mark_error")
+                            f"assignment; use _fail/_mark_error"
+                        )
     return problems
 
 
@@ -72,10 +74,11 @@ def check_had_error_direct() -> list[str]:
 # 规则 2: commands/ 禁止 raise（仅允许 raise ValidationError 校验异常）
 # ---------------------------------------------------------------------------
 
+
 def check_raise() -> list[str]:
     problems = []
     for p in _py_files(COMMANDS):
-        tree = ast.parse(p.read_text(encoding='utf-8'))
+        tree = ast.parse(p.read_text(encoding="utf-8"))
         for node in ast.walk(tree):
             if isinstance(node, ast.Raise) and node.exc is not None:
                 # 提取 raise X(...) 的异常类名
@@ -86,16 +89,18 @@ def check_raise() -> list[str]:
                 elif isinstance(exc, ast.Name):
                     exc_name = exc.id
                 # ValidationError 是合法校验异常（CLI 层统一捕获），其余禁止
-                if exc_name not in ('ValidationError',):
+                if exc_name not in ("ValidationError",):
                     problems.append(
                         f"{p.name}: {node.lineno} - 'raise {exc_name or '?'}' "
-                        f"in command layer; use _fail() or ValidationError")
+                        f"in command layer; use _fail() or ValidationError"
+                    )
     return problems
 
 
 # ---------------------------------------------------------------------------
 # 规则 3: commands/ 输出必须从 ..ui.output 导入
 # ---------------------------------------------------------------------------
+
 
 def check_output_import() -> list[str]:
     """检测 commands/ 是否有 print( 调用但未从 ..ui.output 导入 print。
@@ -104,28 +109,34 @@ def check_output_import() -> list[str]:
     """
     problems = []
     for p in _py_files(COMMANDS):
-        text = p.read_text(encoding='utf-8')
+        text = p.read_text(encoding="utf-8")
         tree = ast.parse(text)
         # 判断模块是否导入了 ui.output 的 print
         imported_print = False
         for node in ast.walk(tree):
             if isinstance(node, ast.ImportFrom):
-                mod = node.module or ''
-                if 'ui.output' in mod:
+                mod = node.module or ""
+                if "ui.output" in mod:
                     for alias in node.names:
-                        if alias.name == 'print':
+                        if alias.name == "print":
                             imported_print = True
             # import ... as print
             if isinstance(node, ast.Import):
                 for alias in node.names:
-                    if alias.asname == 'print':
+                    if alias.asname == "print":
                         imported_print = True
         # 找模块内 print(...) 调用（不含被重绑定的函数定义）
         if not imported_print:
             for node in ast.walk(tree):
-                if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == 'print':
+                if (
+                    isinstance(node, ast.Call)
+                    and isinstance(node.func, ast.Name)
+                    and node.func.id == "print"
+                ):
                     # 排除 print 是函数参数名的情况（粗略）
-                    problems.append(f"{p.name}: {node.lineno} - uses builtin print(); add 'from ..ui.output import print'")
+                    problems.append(
+                        f"{p.name}: {node.lineno} - uses builtin print(); add 'from ..ui.output import print'"
+                    )
     return problems
 
 
@@ -133,20 +144,22 @@ def check_output_import() -> list[str]:
 # 规则 4: commands/ 命令类构造器形参统一为 m
 # ---------------------------------------------------------------------------
 
+
 def check_ctor_param() -> list[str]:
     problems = []
     for p in _py_files(COMMANDS):
-        tree = ast.parse(p.read_text(encoding='utf-8'))
+        tree = ast.parse(p.read_text(encoding="utf-8"))
         for node in ast.walk(tree):
             if isinstance(node, ast.ClassDef):
                 for item in node.body:
-                    if isinstance(item, ast.FunctionDef) and item.name == '__init__':
+                    if isinstance(item, ast.FunctionDef) and item.name == "__init__":
                         args = [a.arg for a in item.args.args]
                         # 形参 [self, X]：X 应 == m
-                        if len(args) >= 2 and args[1] != 'm':
+                        if len(args) >= 2 and args[1] != "m":
                             problems.append(
                                 f"{p.name}: {item.lineno} - {node.name}.__init__ "
-                                f"param '{args[1]}', expected 'm'")
+                                f"param '{args[1]}', expected 'm'"
+                            )
     return problems
 
 
@@ -154,20 +167,25 @@ def check_ctor_param() -> list[str]:
 # 规则 5: 服务层（core/ 非 commands）禁止 import commands/
 # ---------------------------------------------------------------------------
 
+
 def check_service_import_commands() -> list[str]:
     problems = []
     service_files = [p for p in _py_files(CORE) if p.parent != COMMANDS]
     for p in service_files:
-        tree = ast.parse(p.read_text(encoding='utf-8'))
+        tree = ast.parse(p.read_text(encoding="utf-8"))
         for node in ast.walk(tree):
             if isinstance(node, ast.ImportFrom):
-                mod = node.module or ''
-                if 'commands' in mod and 'sshm.core.commands' in mod:
-                    problems.append(f"{p.name}: {node.lineno} - service layer imports '{mod}'")
+                mod = node.module or ""
+                if "commands" in mod and "sshm.core.commands" in mod:
+                    problems.append(
+                        f"{p.name}: {node.lineno} - service layer imports '{mod}'"
+                    )
             if isinstance(node, ast.Import):
                 for alias in node.names:
-                    if 'commands' in alias.name:
-                        problems.append(f"{p.name}: {node.lineno} - service layer imports '{alias.name}'")
+                    if "commands" in alias.name:
+                        problems.append(
+                            f"{p.name}: {node.lineno} - service layer imports '{alias.name}'"
+                        )
     return problems
 
 
@@ -177,22 +195,24 @@ def check_service_import_commands() -> list[str]:
 #     文件名 `cli` 重复了父包 `cli`（应消除为 `templates.py`、`app.py`）。
 # ---------------------------------------------------------------------------
 
+
 def check_filename_pkg_duplicate() -> list[str]:
     problems = []
-    for p in sorted(SSHM.rglob('*.py')):
-        if p.name == '__init__.py' or '__pycache__' in p.parts:
+    for p in sorted(SSHM.rglob("*.py")):
+        if p.name == "__init__.py" or "__pycache__" in p.parts:
             continue
-        parent = p.parent.name          # 直接父目录名，如 'language' / 'cli'
-        filename = p.stem               # 文件名（去 .py），如 'i18n_language' / 'templates'
+        parent = p.parent.name  # 直接父目录名，如 'language' / 'cli'
+        filename = p.stem  # 文件名（去 .py），如 'i18n_language' / 'templates'
         # 分词对比：文件名任一分词 == 父包名（去下划线）
-        parent_clean = parent.replace('_', '').lower()
+        parent_clean = parent.replace("_", "").lower()
         if not parent_clean:
             continue
-        for part in filename.split('_'):
+        for part in filename.split("_"):
             if part.lower() == parent_clean:
                 problems.append(
                     f"{p.relative_to(ROOT)}: filename '{filename}' duplicates "
-                    f"parent package '{parent}'")
+                    f"parent package '{parent}'"
+                )
                 break
     return problems
 
@@ -200,6 +220,7 @@ def check_filename_pkg_duplicate() -> list[str]:
 # ---------------------------------------------------------------------------
 # 主流程
 # ---------------------------------------------------------------------------
+
 
 def main() -> int:
     problems: list[str] = []
@@ -219,10 +240,12 @@ def main() -> int:
 
     print("[OK] All business-layer rules satisfied.")
     print(f"  - commands/: {len(_py_files(COMMANDS))} files checked")
-    print(f"  - core/: {len([p for p in _py_files(CORE) if p.parent != COMMANDS])} service files checked")
+    print(
+        f"  - core/: {len([p for p in _py_files(CORE) if p.parent != COMMANDS])} service files checked"
+    )
     print(f"  - sshm/ pkg naming: {len(_py_files(SSHM))} modules checked")
     return 0
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     sys.exit(main())

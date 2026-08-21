@@ -23,9 +23,14 @@ from ....ui.tip import render_business_error
 class GitRepoService:
     """Git 仓库服务：URL 解析 / 别名生成 / hostname 对齐。"""
 
-    def __init__(self, ssh_dir: Path, config_manager,
-                 state_manager, keystore,
-                 error_reporter: Callable[[str], None]):
+    def __init__(
+        self,
+        ssh_dir: Path,
+        config_manager,
+        state_manager,
+        keystore,
+        error_reporter: Callable[[str], None],
+    ):
         self.ssh_dir = ssh_dir
         self.config_manager = config_manager
         self.state_manager = state_manager
@@ -39,7 +44,7 @@ class GitRepoService:
     def parse_git_url(self, url: str) -> Optional[Tuple[str, str, str]]:
         """解析 Git URL，支持 ssh://、git@、https:// 三种格式"""
         # scp-like 格式: git@github.com:user/repo.git
-        ssh_pattern = r'git@([^:]+):([^/]+)/(.+?)(?:\.git)?$'
+        ssh_pattern = r"git@([^:]+):([^/]+)/(.+?)(?:\.git)?$"
         match = re.match(ssh_pattern, url)
         if match:
             hostname, user, repo = match.groups()
@@ -47,14 +52,14 @@ class GitRepoService:
 
         # 带协议前缀的 SSH 格式: ssh://git@host/user/repo.git
         #  或 ssh://git@host:port/user/repo.git
-        ssh2_pattern = r'ssh://(?:git@)?([^/:]+)(?::\d+)?/([^/]+)/(.+?)(?:\.git)?$'
+        ssh2_pattern = r"ssh://(?:git@)?([^/:]+)(?::\d+)?/([^/]+)/(.+?)(?:\.git)?$"
         match = re.match(ssh2_pattern, url)
         if match:
             hostname, user, repo = match.groups()
             return (self.platform_from_hostname(hostname), user, repo)
 
         # HTTPS 格式: https://host/user/repo.git
-        https_pattern = r'https?://([^/]+)/([^/]+)/(.+?)(?:\.git)?$'
+        https_pattern = r"https?://([^/]+)/([^/]+)/(.+?)(?:\.git)?$"
         match = re.match(https_pattern, url)
         if match:
             hostname, user, repo = match.groups()
@@ -65,10 +70,10 @@ class GitRepoService:
     @staticmethod
     def platform_from_hostname(hostname: str) -> str:
         """从主机名推断平台标识（取首段，去掉可能的端口）"""
-        hostname = hostname.split(':')[0]
-        if '-' in hostname:
-            return hostname.split('-')[0]
-        return hostname.split('.')[0]
+        hostname = hostname.split(":")[0]
+        if "-" in hostname:
+            return hostname.split("-")[0]
+        return hostname.split(".")[0]
 
     # ------------------------------------------------------------------
     # 主机名 / 别名
@@ -82,15 +87,15 @@ class GitRepoService:
             return hosts[label_lower]
 
         hostname_map = {
-            'github': 'github.com',
-            'gitlab': 'gitlab.com',
-            'gitee': 'gitee.com',
-            'bitbucket': 'bitbucket.org',
+            "github": "github.com",
+            "gitlab": "gitlab.com",
+            "gitee": "gitee.com",
+            "bitbucket": "bitbucket.org",
         }
         for key, host in hostname_map.items():
             if key in label_lower:
                 return host
-        return 'github.com'
+        return "github.com"
 
     def get_host_alias(self, label: str) -> str:
         """生成 SSH config 别名（统一小写，避免大小写变体冲突）
@@ -102,10 +107,10 @@ class GitRepoService:
         hostname = self.get_hostname_for_label(label)
         # 移除最后一个 '.' 之后的 TLD 段（如 .com/.org/.net）
         base = hostname
-        if '.' in hostname:
-            base = hostname.rsplit('.', 1)[0]
+        if "." in hostname:
+            base = hostname.rsplit(".", 1)[0]
         # 剩余 '.' 替换为 '-'
-        main_domain = base.replace('.', '-')
+        main_domain = base.replace(".", "-")
         return f"{main_domain}-{label.lower()}"
 
     def resolve_label_from_alias(self, host_alias: str) -> Optional[str]:
@@ -124,13 +129,13 @@ class GitRepoService:
 
     def resolve_repo_hostname(self, url: str) -> Optional[str]:
         """从 Git remote URL 提取真实主机名（别名优先从 SSH config HostName 反查）"""
-        ssh2_match = re.match(r'ssh://(?:git@)?([^/:]+)', url)
+        ssh2_match = re.match(r"ssh://(?:git@)?([^/:]+)", url)
         host = ssh2_match.group(1) if ssh2_match else None
         if not host:
-            ssh_match = re.match(r'git@([^:]+):', url)
+            ssh_match = re.match(r"git@([^:]+):", url)
             host = ssh_match.group(1) if ssh_match else None
         if not host:
-            https_match = re.match(r'https?://([^/]+)/', url)
+            https_match = re.match(r"https?://([^/]+)/", url)
             host = https_match.group(1) if https_match else None
         if not host:
             return None
@@ -147,7 +152,7 @@ class GitRepoService:
         if not config_file.exists():
             return []
         try:
-            lines = config_file.read_text(encoding='utf-8').splitlines()
+            lines = config_file.read_text(encoding="utf-8").splitlines()
         except (OSError, UnicodeDecodeError):
             return []
 
@@ -157,17 +162,19 @@ class GitRepoService:
             if not stripped:
                 continue
             low = stripped.lower()
-            if low.startswith('host ') or low == 'host':
-                host_patterns = ([p.strip() for p in
-                                  stripped.split(' ', 1)[1].split()]
-                                 if ' ' in stripped else [])
+            if low.startswith("host ") or low == "host":
+                host_patterns = (
+                    [p.strip() for p in stripped.split(" ", 1)[1].split()]
+                    if " " in stripped
+                    else []
+                )
                 if host_alias in host_patterns:
                     block.append(stripped)
-                    for nxt in lines[i + 1:]:
+                    for nxt in lines[i + 1 :]:
                         nxt_strip = nxt.strip()
                         if not nxt_strip:
                             break
-                        if not (nxt.startswith(' ') or nxt.startswith('\t')):
+                        if not (nxt.startswith(" ") or nxt.startswith("\t")):
                             break
                         block.append(nxt_strip)
                     return block
@@ -177,9 +184,9 @@ class GitRepoService:
     # hostname 对齐与别名维护
     # ------------------------------------------------------------------
 
-    def align_hostname_with_repo(self, label: str,
-                                 repo_hostname: Optional[str],
-                                 skip_confirm: bool) -> bool:
+    def align_hostname_with_repo(
+        self, label: str, repo_hostname: Optional[str], skip_confirm: bool
+    ) -> bool:
         """确保标签映射到仓库的真实 hostname（适配私有化 Git）"""
         if not repo_hostname:
             return True
@@ -190,17 +197,20 @@ class GitRepoService:
         render_business_error(
             _(K.msg.hostname_differs, host=repo_hostname, label=label, cur=current),
             icon=ICON_WARN,
-            hint="\n".join([
-                _(K.msg.private_server),
-                _(K.msg.need_ssh_config, host=repo_hostname),
-            ]))
+            hint="\n".join(
+                [
+                    _(K.msg.private_server),
+                    _(K.msg.need_ssh_config, host=repo_hostname),
+                ]
+            ),
+        )
 
         if skip_confirm:
             self.state_manager.write_host(label, repo_hostname)
             print("✅ " + _(K.msg.host_updated, label=label, host=repo_hostname))
             return True
 
-        if confirm(_(K.msg.create_matching, host=repo_hostname), default='y'):
+        if confirm(_(K.msg.create_matching, host=repo_hostname), default="y"):
             self.state_manager.write_host(label, repo_hostname)
             print("✅ " + _(K.msg.host_updated, label=label, host=repo_hostname))
             return True
@@ -225,8 +235,9 @@ class GitRepoService:
         self.state_manager.remove_host(label)
         print(_(K.msg.alias_removed, alias=host_alias))
 
-    def rename_ssh_config_alias(self, old_label: str, new_label: str,
-                                new_key_file: Path) -> None:
+    def rename_ssh_config_alias(
+        self, old_label: str, new_label: str, new_key_file: Path
+    ) -> None:
         """重命名 SSH config 别名配置（主机名保持不变，同一把密钥换标签）"""
         hostname = self.get_hostname_for_label(old_label)
         old_alias = self.get_host_alias(old_label)
@@ -238,22 +249,24 @@ class GitRepoService:
             self.state_manager.write_host(new_label, hostname)
             print(_(K.msg.alias_updated, old=old_alias, new=new_alias))
 
-    def detect_repo_key_label(self,
-                              repo_path: Union[str, Path] = '.') -> Optional[str]:
+    def detect_repo_key_label(self, repo_path: Union[str, Path] = ".") -> Optional[str]:
         """检测当前 Git 仓库正在使用的密钥标签（仓库级）"""
         repo = Path(repo_path).resolve()
-        if not (repo / '.git').exists():
+        if not (repo / ".git").exists():
             return None
         try:
             result = subprocess.run(
-                ['git', 'remote', 'get-url', 'origin'],
-                cwd=repo, capture_output=True, text=True, check=True
+                ["git", "remote", "get-url", "origin"],
+                cwd=repo,
+                capture_output=True,
+                text=True,
+                check=True,
             )
             remote_url = result.stdout.strip()
         except (subprocess.CalledProcessError, OSError):
             return None
 
-        match = re.match(r'git@([^:]+):', remote_url)
+        match = re.match(r"git@([^:]+):", remote_url)
         if not match:
             return None
         return self.resolve_label_from_alias(match.group(1))

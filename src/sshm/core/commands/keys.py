@@ -58,10 +58,13 @@ class KeyCommands:
         if not label or not label.strip():
             raise ValidationError(_(K.err.label_empty))
         label = label.strip()
-        if not re.match(r'^[A-Za-z0-9][A-Za-z0-9_-]*$', label):
-            raise ValidationError(_(K.err.label_invalid,
-                label=label,
-            ))
+        if not re.match(r"^[A-Za-z0-9][A-Za-z0-9_-]*$", label):
+            raise ValidationError(
+                _(
+                    K.err.label_invalid,
+                    label=label,
+                )
+            )
         if label.lower() in self.m.RESERVED_LABELS:
             raise ValidationError(_(K.err.label_reserved, label=label))
         return True
@@ -70,9 +73,12 @@ class KeyCommands:
     # 查询
     # ------------------------------------------------------------------
 
-    def list(self, show_content: bool = False,
-             repo_path: Union[str, Path] = '.',
-             current_only: bool = False):
+    def list(
+        self,
+        show_content: bool = False,
+        repo_path: Union[str, Path] = ".",
+        current_only: bool = False,
+    ):
         """列出所有密钥（表格形式）"""
         print_section_header(_(K.hdr.key_list))
         print(f"\n{_(K.lbl.ssh_dir)} {self.m.ssh_dir}\n")
@@ -95,7 +101,7 @@ class KeyCommands:
             label_lower = label.lower()
             if label_lower in active_labels or label_lower == repo_key:
                 priority = 0
-            elif label_lower == 'default':
+            elif label_lower == "default":
                 priority = 1
             else:
                 priority = 2
@@ -107,55 +113,65 @@ class KeyCommands:
         global_scope = _(K.misc.scope_global)
         repo_scope = _(K.misc.scope_repo)
         # 固定 6 列（省略低价值 Public/Size），交给 rich Table 渲染
-        headers = [_(K.lbl.status), _(K.lbl.label), _(K.lbl.file),
-                   _(K.lbl.modified), _(K.lbl.alias), _(K.lbl.scope)]
+        headers = [
+            _(K.lbl.status),
+            _(K.lbl.label),
+            _(K.lbl.file),
+            _(K.lbl.modified),
+            _(K.lbl.alias),
+            _(K.lbl.scope),
+        ]
         rows = []
         pub_map = []
 
         for label in sorted_labels:
             for key in keys_by_label[label]:
-                is_active = active_keys.get(key['type']) == label.lower()
+                is_active = active_keys.get(key["type"]) == label.lower()
                 is_repo = label.lower() == repo_key
 
                 # list -c：仅显示当前仓库正在使用的密钥
                 if current_only and not is_repo:
                     continue
 
-                icon = '📍' if (is_active or is_repo) else ''
+                icon = "📍" if (is_active or is_repo) else ""
                 # 作用域优先级：仓库级 > 全局（仓库级更"当前"）
                 if is_repo:
                     scope = repo_scope
                 elif is_active:
                     scope = global_scope
                 else:
-                    scope = ''
+                    scope = ""
 
                 host_alias = self.m.gitrepo.get_host_alias(label)
                 alias_display = (
                     f"git@{host_alias}:user/repo.git"
                     if self.m.config_manager.has_host(host_alias)
-                    else '-'
+                    else "-"
                 )
 
-                rows.append([
-                    icon,
-                    label.upper(),
-                    key['private'].name,
-                    format_timestamp(key['mtime']),
-                    alias_display,
-                    scope,
-                ])
-
-                if show_content and key['has_pub']:
-                    pub_map.append((
+                rows.append(
+                    [
+                        icon,
                         label.upper(),
-                        key['private'].name,
-                        key['public'].read_text(encoding='utf-8').strip(),
-                    ))
+                        key["private"].name,
+                        format_timestamp(key["mtime"]),
+                        alias_display,
+                        scope,
+                    ]
+                )
+
+                if show_content and key["has_pub"]:
+                    pub_map.append(
+                        (
+                            label.upper(),
+                            key["private"].name,
+                            key["public"].read_text(encoding="utf-8").strip(),
+                        )
+                    )
 
         # list -c 且无匹配时，给出友好提示而非空表格
         if current_only and not rows:
-            if not (Path(repo_path).resolve() / '.git').exists():
+            if not (Path(repo_path).resolve() / ".git").exists():
                 print("⚠️  " + _(K.err.not_git_repo, path=Path(repo_path).resolve()))
             else:
                 print("⚠️  " + _(K.msg.repo_key_missing))
@@ -166,8 +182,13 @@ class KeyCommands:
         # 交给 rich Table 自适应：不手动裁剪列，给关键长列设 min_width 保证可读，
         # 超宽列由 rich 用 ellipsis 截断（File/Alias/Modified 可截断）。
         # 完全交给 rich：File/Alias 列超宽可截断，Label/File/Alias 设最小宽度保可读
-        print_table(headers, rows, truncatable=[2, 4], center_cols=[0],
-                    min_widths={1: 8, 2: 14, 4: 12})
+        print_table(
+            headers,
+            rows,
+            truncatable=[2, 4],
+            center_cols=[0],
+            min_widths={1: 8, 2: 14, 4: 12},
+        )
 
         # 公钥内容单独展示（避免破坏表格对齐）
         if show_content and pub_map:
@@ -178,7 +199,7 @@ class KeyCommands:
 
         render_tip_block([f"💡 {_(K.msg.use_tip)}"])
 
-    def current(self, repo_path: Union[str, Path] = '.'):
+    def current(self, repo_path: Union[str, Path] = "."):
         """展示当前正在生效的密钥（含来源与全局默认详情）。
 
         判定规则（作用域优先级）：仓库级 > 全局默认。
@@ -194,14 +215,18 @@ class KeyCommands:
         print(f"{_(K.lbl.repo_path)} {repo_path}\n")
 
         if repo_key:
-            print(f"📍 {_(K.misc.current_key)}: {repo_key.upper()} "
-                  f"({_(K.misc.scope_repo)})")
+            print(
+                f"📍 {_(K.misc.current_key)}: {repo_key.upper()} "
+                f"({_(K.misc.scope_repo)})"
+            )
         elif active_keys:
             # 取首个全局默认（展示标签，按 key type）
             first_type = next(iter(active_keys))
             label = active_keys[first_type]
-            print(f"📍 {_(K.misc.current_key)}: {label.upper()} "
-                  f"({_(K.misc.scope_global)})")
+            print(
+                f"📍 {_(K.misc.current_key)}: {label.upper()} "
+                f"({_(K.misc.scope_global)})"
+            )
         else:
             print("⚠️  " + _(K.msg.current_key_none))
 
@@ -212,30 +237,44 @@ class KeyCommands:
                 print(f"   {ktype:<10} → {label}")
 
         # 操作提示（统一 tip 段模板）
-        render_tip_block([
-            f"💡 {_(K.msg.current_key_tip)}",
-            "   " + _(K.msg.current_key_tip2),
-        ])
+        render_tip_block(
+            [
+                f"💡 {_(K.msg.current_key_tip)}",
+                "   " + _(K.msg.current_key_tip2),
+            ]
+        )
 
     # ------------------------------------------------------------------
     # 创建 / 删除
     # ------------------------------------------------------------------
 
-    def create(self, label: str, email: str,
-               key_type: str = DEFAULT_KEY_TYPE, host: Optional[str] = None,
-               name: Optional[str] = None):
+    def create(
+        self,
+        label: str,
+        email: str,
+        key_type: str = DEFAULT_KEY_TYPE,
+        host: Optional[str] = None,
+        name: Optional[str] = None,
+    ):
         """创建新密钥"""
         if key_type not in SUPPORTED_KEY_TYPES:
-            raise ValidationError(_(K.err.unsupported_type,
-                type=key_type, supported=', '.join(SUPPORTED_KEY_TYPES),
-            ))
+            raise ValidationError(
+                _(
+                    K.err.unsupported_type,
+                    type=key_type,
+                    supported=", ".join(SUPPORTED_KEY_TYPES),
+                )
+            )
 
         self._validate_label(label)
 
-        if not email or '@' not in email:
-            raise ValidationError(_(K.err.invalid_email,
-                email=email,
-            ))
+        if not email or "@" not in email:
+            raise ValidationError(
+                _(
+                    K.err.invalid_email,
+                    email=email,
+                )
+            )
 
         key_file = private_key_path(self.m.ssh_dir, key_type, label)
         if key_file.exists():
@@ -244,13 +283,7 @@ class KeyCommands:
         print(_(K.msg.creating_key, label=label, key_type=key_type))
         print(f"{_(K.lbl.email_prompt)} {email}")
 
-        cmd = [
-            'ssh-keygen',
-            '-t', key_type,
-            '-C', email,
-            '-f', str(key_file),
-            '-N', ''
-        ]
+        cmd = ["ssh-keygen", "-t", key_type, "-C", email, "-f", str(key_file), "-N", ""]
 
         try:
             subprocess.run(cmd, check=True, capture_output=True, timeout=60)
@@ -265,33 +298,34 @@ class KeyCommands:
             if host:
                 host_alias = self.m.gitrepo.get_host_alias(label)
                 self.m.config_manager.update_host(host_alias, hostname, key_file)
-                print(f"✅ {_(K.msg.ssh_config_updated, alias=host_alias, hostname=hostname)}")
+                print(
+                    f"✅ {_(K.msg.ssh_config_updated, alias=host_alias, hostname=hostname)}"
+                )
 
-            pub_file = Path(str(key_file) + '.pub')
+            pub_file = Path(str(key_file) + ".pub")
             if pub_file.exists():
-                pub_key = pub_file.read_text(encoding='utf-8').strip()
+                pub_key = pub_file.read_text(encoding="utf-8").strip()
                 print(f"\n📋 {_(K.msg.pub_key_content)}\n{pub_key}\n")
                 print("💡 " + _(K.msg.add_to_platform))
 
             # 记录作者信息（供 sshm author 使用）
-            self.m.state_manager.write_author(label, name or '', email)
+            self.m.state_manager.write_author(label, name or "", email)
             if name:
                 print(f"{_(K.msg.author_recorded, name=name, email=email)}")
 
         except subprocess.CalledProcessError as e:
             # 清理可能残留的密钥文件（ssh-keygen 失败时可能已创建部分文件）
-            for p in (key_file, Path(str(key_file) + '.pub')):
+            for p in (key_file, Path(str(key_file) + ".pub")):
                 try:
                     if p.exists():
                         p.unlink()
                 except OSError:
                     pass
-            detail = ((e.stderr or b'').decode('utf-8', 'replace').strip()
-                      or str(e))
+            detail = (e.stderr or b"").decode("utf-8", "replace").strip() or str(e)
             self.m._fail(_(K.err.create_failed, err=detail))
         except subprocess.TimeoutExpired:
             # 生成超时（如熵不足）：清理残留并给出明确提示
-            for p in (key_file, Path(str(key_file) + '.pub')):
+            for p in (key_file, Path(str(key_file) + ".pub")):
                 try:
                     if p.exists():
                         p.unlink()
@@ -305,7 +339,7 @@ class KeyCommands:
         """删除密钥"""
         label_lower = label.lower()
 
-        if label_lower == 'default':
+        if label_lower == "default":
             if key_type:
                 confirm_msg = _(K.err.delete_default, type=key_type)
             else:
@@ -317,15 +351,19 @@ class KeyCommands:
 
         removed_files = []
 
-        if label_lower == 'default':
+        if label_lower == "default":
             if key_type:
-                patterns = [private_key_path(self.m.ssh_dir, key_type),
-                            public_key_path(self.m.ssh_dir, key_type)]
+                patterns = [
+                    private_key_path(self.m.ssh_dir, key_type),
+                    public_key_path(self.m.ssh_dir, key_type),
+                ]
             else:
                 patterns = []
                 for t in SUPPORTED_KEY_TYPES:
-                    patterns += [private_key_path(self.m.ssh_dir, t),
-                                 public_key_path(self.m.ssh_dir, t)]
+                    patterns += [
+                        private_key_path(self.m.ssh_dir, t),
+                        public_key_path(self.m.ssh_dir, t),
+                    ]
 
             for pattern in patterns:
                 file = self.m.ssh_dir / pattern
@@ -339,8 +377,10 @@ class KeyCommands:
         else:
             if key_type:
                 # glob() 需要 str 模式：取文件名（如 id_ed25519.github）作为精确匹配
-                patterns = [private_key_path(self.m.ssh_dir, key_type, label).name,
-                            public_key_path(self.m.ssh_dir, key_type, label).name]
+                patterns = [
+                    private_key_path(self.m.ssh_dir, key_type, label).name,
+                    public_key_path(self.m.ssh_dir, key_type, label).name,
+                ]
             else:
                 patterns = [f"id_*.{label}", f"id_*.{label}.pub"]
 
@@ -367,7 +407,7 @@ class KeyCommands:
             # （不能在删除文件后调用 _detect_key_type_for_label，文件已不存在）
             removed_types = set()
             for name in removed_files:
-                mm = re.match(r'^id_(rsa|ed25519|ecdsa|dsa)(?:\.|$)', name)
+                mm = re.match(r"^id_(rsa|ed25519|ecdsa|dsa)(?:\.|$)", name)
                 if mm:
                     removed_types.add(mm.group(1))
             for kt in removed_types:
@@ -375,7 +415,9 @@ class KeyCommands:
                 if active_keys.get(kt) == label_lower:
                     self.m.state_manager.remove_active_key(kt)
 
-            print(f"💡 {_(K.msg.tip_alias_remote, alias=self.m.gitrepo.get_host_alias(label))}")
+            print(
+                f"💡 {_(K.msg.tip_alias_remote, alias=self.m.gitrepo.get_host_alias(label))}"
+            )
             print("   " + _(K.msg.rerun_other_label))
         else:
             self.m._fail(_(K.err.key_not_found, label=label), icon=ICON_WARN)
@@ -410,14 +452,14 @@ class KeyCommands:
 
         if target_file.exists():
             active_keys = self.m.state_manager.read_active_keys()
-            current_label = active_keys.get(key_type, 'original')
+            current_label = active_keys.get(key_type, "original")
 
-            original_backup = private_key_path(self.m.ssh_dir, key_type, 'original')
+            original_backup = private_key_path(self.m.ssh_dir, key_type, "original")
             if not original_backup.exists():
                 self.m.keystore.copy_key_pair(target_file, original_backup)
                 print(f"💾 {_(K.msg.original_backed_up, name=original_backup.name)}")
 
-            if current_label != 'original':
+            if current_label != "original":
                 backup_file = private_key_path(self.m.ssh_dir, key_type, current_label)
                 if not backup_file.exists():
                     self.m.keystore.copy_key_pair(target_file, backup_file)
@@ -432,10 +474,11 @@ class KeyCommands:
         print(f"{_(K.lbl.file_placeholder)} {target_file.name}")
 
         # 密钥↔作者自动联动：全局切换时自动设置全局 author（若 label 有绑定）
-        self.m.author_service.apply_auto_author(label, repo_path=None, scope='global')
+        self.m.author_service.apply_auto_author(label, repo_path=None, scope="global")
 
-    def label(self, key_type: Optional[str], new_label: str,
-              switch_after: bool = False):
+    def label(
+        self, key_type: Optional[str], new_label: str, switch_after: bool = False
+    ):
         """给默认密钥添加标签（key_type 为空时自动检测默认密钥类型）"""
         self._validate_label(new_label)
 
@@ -476,7 +519,7 @@ class KeyCommands:
         """
         label_lower = new_label.lower()
         active_keys = self.m.state_manager.read_active_keys()
-        source_label = active_keys.get(key_type, '')
+        source_label = active_keys.get(key_type, "")
 
         # 1. 继承 host 映射（来源标签有记录则继承，否则保留新标签自身兜底）
         if source_label:
@@ -491,19 +534,18 @@ class KeyCommands:
         if not author:
             email = self.m.keystore.extract_email_from_pubkey(key_type)
             if email:
-                author = {'name': '', 'email': email}
+                author = {"name": "", "email": email}
         if author:
-            self.m.state_manager.write_author(label_lower,
-                                              author.get('name', '') or '',
-                                              author.get('email', '') or '')
+            self.m.state_manager.write_author(
+                label_lower, author.get("name", "") or "", author.get("email", "") or ""
+            )
 
-    def rename(self, old_label: str, new_label: str,
-               key_type: str = DEFAULT_KEY_TYPE):
+    def rename(self, old_label: str, new_label: str, key_type: str = DEFAULT_KEY_TYPE):
         """重命名密钥标签（处理该标签下的所有密钥类型，避免残留旧文件）"""
         old_label_lower = old_label.lower()
         new_label_lower = new_label.lower()
 
-        if old_label_lower == 'default':
+        if old_label_lower == "default":
             self.m._fail(_(K.err.cannot_rename_default))
             return
 
@@ -519,7 +561,8 @@ class KeyCommands:
             types_to_rename = [key_type]
         else:
             types_to_rename = [
-                t for t in SUPPORTED_KEY_TYPES
+                t
+                for t in SUPPORTED_KEY_TYPES
                 if private_key_path(self.m.ssh_dir, t, old_label).exists()
             ]
 
@@ -532,8 +575,9 @@ class KeyCommands:
         for t in types_to_rename:
             new_file = private_key_path(self.m.ssh_dir, t, new_label)
             if new_file.exists():
-                self.m._fail(_(K.err.target_exists, new_label=new_label, type=t),
-                             icon=ICON_WARN)
+                self.m._fail(
+                    _(K.err.target_exists, new_label=new_label, type=t), icon=ICON_WARN
+                )
                 print(f"   {_(K.lbl.file_placeholder)} {new_file.name}")
                 return
 
@@ -544,9 +588,9 @@ class KeyCommands:
             new_file = private_key_path(self.m.ssh_dir, t, new_label)
 
             old_file.rename(new_file)
-            old_pub = Path(str(old_file) + '.pub')
+            old_pub = Path(str(old_file) + ".pub")
             if old_pub.exists():
-                old_pub.rename(Path(str(new_file) + '.pub'))
+                old_pub.rename(Path(str(new_file) + ".pub"))
             last_new_file = new_file
             renamed_count += 1
 
@@ -555,11 +599,16 @@ class KeyCommands:
 
         self.m.state_manager.update_label(old_label, new_label)
 
-        renamed_msg = _(K.msg.renamed,
-            old=old_label, new=new_label, count=renamed_count,
-            types=', '.join(types_to_rename),
+        renamed_msg = _(
+            K.msg.renamed,
+            old=old_label,
+            new=new_label,
+            count=renamed_count,
+            types=", ".join(types_to_rename),
         )
         print(f"✅ {renamed_msg}")
-        print(f"💡 {_(K.msg.tip_alias, alias=self.m.gitrepo.get_host_alias(old_label))}")
+        print(
+            f"💡 {_(K.msg.tip_alias, alias=self.m.gitrepo.get_host_alias(old_label))}"
+        )
         tip_msg = _(K.msg.rerun_new_label, new_label=new_label)
         print(f"   {tip_msg}")

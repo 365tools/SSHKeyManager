@@ -33,10 +33,18 @@ from rich.console import Console as _RichConsole
 from rich.progress import Progress as _RichProgress
 
 __all__ = [
-    'Output', 'ConsoleOutput', 'NullOutput',
-    'set_output', 'get_output',
-    'print', 'section', 'table', 'separator', 'confirm',
-    'progress', 'status',
+    "Output",
+    "ConsoleOutput",
+    "NullOutput",
+    "set_output",
+    "get_output",
+    "print",
+    "section",
+    "table",
+    "separator",
+    "confirm",
+    "progress",
+    "status",
 ]
 
 
@@ -52,7 +60,7 @@ class Output:
     def table(self, headers, rows, **kwargs) -> None:
         raise NotImplementedError
 
-    def separator(self, char: str = '=', length: int = 80) -> None:
+    def separator(self, char: str = "=", length: int = 80) -> None:
         raise NotImplementedError
 
     def confirm(self, message: str, default: Optional[str] = None) -> bool:
@@ -60,12 +68,12 @@ class Output:
 
 
 # 语义图标常量：输出/命令/服务统一引用，避免各处硬编码 emoji 字符。
-ICON_OK = '✅'
-ICON_ERR = '❌'
-ICON_WARN = '⚠️'
-ICON_TIP = '💡'
-ICON_BULLET = '➖'
-ICON_INFO = 'ℹ️'
+ICON_OK = "✅"
+ICON_ERR = "❌"
+ICON_WARN = "⚠️"
+ICON_TIP = "💡"
+ICON_BULLET = "➖"
+ICON_INFO = "ℹ️"
 
 
 class ConsoleOutput(Output):
@@ -74,23 +82,30 @@ class ConsoleOutput(Output):
     # 状态 emoji 前缀 -> 语义颜色：按消息开头 emoji 自动着色，
     # 无需改动各命令调用点即可获得语义化的终端配色。
     _EMOJI_STYLE = {
-        ICON_OK: 'bold green', '🎉': 'bold green', '✔': 'bold green',
-        ICON_WARN: 'yellow', '❗': 'yellow',
-        ICON_ERR: 'bold red', '✘': 'bold red',
-        ICON_INFO: 'cyan', ICON_TIP: 'cyan', '🔀': 'cyan', '⚙️': 'cyan',
+        ICON_OK: "bold green",
+        "🎉": "bold green",
+        "✔": "bold green",
+        ICON_WARN: "yellow",
+        "❗": "yellow",
+        ICON_ERR: "bold red",
+        "✘": "bold red",
+        ICON_INFO: "cyan",
+        ICON_TIP: "cyan",
+        "🔀": "cyan",
+        "⚙️": "cyan",
     }
     _style_map = {
-        'info': 'cyan',
-        'success': 'bold green',
-        'warn': 'yellow',
-        'error': 'bold red',
-        'dim': 'dim',
+        "info": "cyan",
+        "success": "bold green",
+        "warn": "yellow",
+        "error": "bold red",
+        "dim": "dim",
     }
 
     def print(self, *args, **kwargs) -> None:
         # style 语义参数：映射为 rich 颜色；显式 style 优先级最高，
         # 未指定时按消息开头 emoji 自动识别语义颜色。
-        style: Optional[str] = kwargs.pop('style', None)
+        style: Optional[str] = kwargs.pop("style", None)
         if style is None and args:
             first = str(args[0])
             for emoji, color in self._EMOJI_STYLE.items():
@@ -110,7 +125,7 @@ class ConsoleOutput(Output):
     def table(self, headers, rows, **kwargs) -> None:
         print_table(headers, rows, **kwargs)
 
-    def separator(self, char: str = '=', length: int = 80) -> None:
+    def separator(self, char: str = "=", length: int = 80) -> None:
         print_separator(char, length)
 
     def confirm(self, message: str, default: Optional[str] = None) -> bool:
@@ -129,7 +144,7 @@ class NullOutput(Output):
     def table(self, headers, rows, **kwargs) -> None:
         pass
 
-    def separator(self, char: str = '=', length: int = 80) -> None:
+    def separator(self, char: str = "=", length: int = 80) -> None:
         pass
 
     def confirm(self, message: str, default: Optional[str] = None) -> bool:
@@ -170,7 +185,7 @@ def table(headers, rows, **kwargs) -> None:
     _current.table(headers, rows, **kwargs)
 
 
-def separator(char: str = '=', length: int = 80) -> None:
+def separator(char: str = "=", length: int = 80) -> None:
     _current.separator(char, length)
 
 
@@ -188,8 +203,13 @@ class _NoopProgress:
         self.completed = 0.0
         self.total = total
 
-    def update(self, completed: float = 1, advance: Optional[float] = None,
-               total: Optional[float] = None, **kwargs) -> None:
+    def update(
+        self,
+        completed: float = 1,
+        advance: Optional[float] = None,
+        total: Optional[float] = None,
+        **kwargs,
+    ) -> None:
         if advance is not None:
             self.completed += advance
         else:
@@ -211,13 +231,18 @@ class _RichProgressHandle:
         self._total = total
         self.completed = 0.0
 
-    def update(self, completed: float = 1, advance: Optional[float] = None,
-               total: Optional[float] = None, **kwargs) -> None:
+    def update(
+        self,
+        completed: float = 1,
+        advance: Optional[float] = None,
+        total: Optional[float] = None,
+        **kwargs,
+    ) -> None:
         if advance is not None:
             self.completed += advance
         else:
             self.completed = completed
-        kwargs.setdefault('total', self._total if total is None else total)
+        kwargs.setdefault("total", self._total if total is None else total)
         self._progress.update(self._task_id, completed=self.completed, **kwargs)
 
     def advance(self, amount: float = 1) -> None:
@@ -260,7 +285,7 @@ def status(desc: str = "") -> Iterator:
     """
     console = _RichConsole(force_terminal=False)
     try:
-        with console.status(desc, spinner='dots'):
+        with console.status(desc, spinner="dots"):
             yield
     except Exception:
         # 非 tty / 任何渲染异常都静默降级，绝不阻断业务

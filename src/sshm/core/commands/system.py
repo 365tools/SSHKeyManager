@@ -47,9 +47,10 @@ class SystemCommands:
         Returns:
             实际生效的语言（非法值回退 'en'）
         """
-        lang = lang if lang == 'zh' else 'en'
+        lang = lang if lang == "zh" else "en"
         self.m.state_manager.write_lang(lang)
         from ...i18n import set_lang
+
         set_lang(lang)
         return lang
 
@@ -76,7 +77,9 @@ class SystemCommands:
             return None
 
         print(f"\n🎉 {_(K.upd.new_version, version=update_info['version'])}")
-        print(f"{_(K.upd.release_date)} {update_info.get('published_at') or _(K.msg.unknown)}")
+        print(
+            f"{_(K.upd.release_date)} {update_info.get('published_at') or _(K.msg.unknown)}"
+        )
 
         if update_info.get("body"):
             print(f"\n{_(K.upd.update_notes)}")
@@ -106,4 +109,5 @@ class SystemCommands:
     def add_to_path(self) -> None:
         """把当前可执行文件目录添加到系统 PATH"""
         from ..services.ssh.path import add_to_path
+
         add_to_path()

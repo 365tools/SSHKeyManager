@@ -15,7 +15,7 @@ CLI 层在入口统一捕获 SSHMError 子类，转换为友好提示与退出�
 
 from __future__ import annotations
 
-__all__ = ['SSHMError', 'ValidationError']
+__all__ = ["SSHMError", "ValidationError"]
 
 
 class SSHMError(Exception):

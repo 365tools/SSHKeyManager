@@ -28,7 +28,7 @@ from .registry import GROUP_ORDER, commands_in_group, related_commands
 _CUTOFF = 0.6
 
 # 全局帮助/版本选项：命中时不干预，交由 Click 的 eager callback 处理
-_NON_INTERFERING = ('-h', '--help', '-v', '--version')
+_NON_INTERFERING = ("-h", "--help", "-v", "--version")
 
 
 def _sub_names(group: str) -> List[str]:
@@ -36,8 +36,9 @@ def _sub_names(group: str) -> List[str]:
     return [m.name for m in commands_in_group(group)]
 
 
-def _fuzzy(needle: str, choices: List[str], n: int = 3,
-           cutoff: float = _CUTOFF) -> List[str]:
+def _fuzzy(
+    needle: str, choices: List[str], n: int = 3, cutoff: float = _CUTOFF
+) -> List[str]:
     """返回与 needle 相近的候选（按相似度降序，最多 n 个）。"""
     return difflib.get_close_matches(needle, choices, n=n, cutoff=cutoff)
 
@@ -60,7 +61,7 @@ def suggest(argv: List[str]) -> Optional[List[str]]:
     if any(flag in argv for flag in _NON_INTERFERING):
         return None
 
-    args = [a for a in argv if not a.startswith('-') and a]
+    args = [a for a in argv if not a.startswith("-") and a]
     groups = _known_groups()
     if not args:
         return None
@@ -122,8 +123,8 @@ def render_error(argv: List[str], suggestions: List[str]) -> None:
     from ..ui.output import print as _print
     from ..ui.tip import command_list_lines, render_tip_block
 
-    args = [a for a in argv if not a.startswith('-') and a]
-    first = args[0] if args else ''
+    args = [a for a in argv if not a.startswith("-") and a]
+    first = args[0] if args else ""
 
     # 判定错误场景类型与主消息
     if first in _known_groups() and len(args) >= 2:
@@ -139,10 +140,12 @@ def render_error(argv: List[str], suggestions: List[str]) -> None:
     # 块1：错误消息（作为首行，不带上方分隔线）
     # 命令名/参数可能含方括号（如 [en|zh]），rich 会误判为 markup，需转义
     from rich.markup import escape as _rich_escape
+
     render_tip_block([f"❌ {_rich_escape(msg)}"], top=False)
 
     # 块2：建议 / 提示（建议行统一用 ➖ 前缀，与命令列表一致）
     from ..ui.tip import ITEM_BULLET
+
     if suggestions:
         tip_lines = [f"💡 {_(K.suggest.did_you_mean)}"]
         tip_lines += [f"{ITEM_BULLET} {s}" for s in suggestions]
@@ -152,8 +155,8 @@ def render_error(argv: List[str], suggestions: List[str]) -> None:
 
     # 块3：本组相关命令（组内错误 → 该分组全量命令；顶层未知 → 顶层分组名）
     # 该区域与命令底部"More commands"一致，用 dim 降亮度
-    cmds = (commands_in_group(group) if group else _known_groups())
-    render_tip_block(command_list_lines(group, cmds), style='dim')
+    cmds = commands_in_group(group) if group else _known_groups()
+    render_tip_block(command_list_lines(group, cmds), style="dim")
 
 
 def _command_params_block(exc: Any) -> List[str]:
@@ -174,14 +177,16 @@ def _command_params_block(exc: Any) -> List[str]:
     Returns:
         参数说明行列表；拿不到命令/参数时返回 []。
     """
-    ctx = getattr(exc, 'ctx', None)
+    ctx = getattr(exc, "ctx", None)
     cmd = ctx.command if ctx is not None else None
-    if cmd is None or not getattr(cmd, 'params', None):
+    if cmd is None or not getattr(cmd, "params", None):
         return []
-    group = ctx.parent.info_name if (ctx is not None and ctx.parent is not None) else None
+    group = (
+        ctx.parent.info_name if (ctx is not None and ctx.parent is not None) else None
+    )
     if group:
         base = f"sshm {group} {cmd.name}"
-    elif cmd.name in (None, 'sshm'):
+    elif cmd.name in (None, "sshm"):
         # 顶层命令（应用名即 sshm）：避免拼出 `sshm sshm` 的重复
         base = "sshm"
     else:
@@ -194,26 +199,27 @@ def _command_params_block(exc: Any) -> List[str]:
     # 同时兼容新旧 typer：旧版 TyperArgument 是 click.Argument 子类，新版不是。
     from click.core import Argument as _ClickArgument
     from typer.core import TyperArgument as _TyperArgument
+
     entries = []
     for p in cmd.params:
         # 统一大写：`human_readable_name` 在 Linux/Windows 上大小写可能不同
         # （如 `label` vs `LABEL`），统一转大写以保证跨平台 Usage 一致
-        human = (getattr(p, 'human_readable_name', None) or p.name or '').upper()
-        required = bool(getattr(p, 'required', False))
-        help_txt = getattr(p, 'help', None) or ''
+        human = (getattr(p, "human_readable_name", None) or p.name or "").upper()
+        required = bool(getattr(p, "required", False))
+        help_txt = getattr(p, "help", None) or ""
         is_argument = isinstance(p, _ClickArgument) or isinstance(p, _TyperArgument)
-        opts = getattr(p, 'opts', None) or []
-        flag = '/'.join(opts) if opts else (human or '')
+        opts = getattr(p, "opts", None) or []
+        flag = "/".join(opts) if opts else (human or "")
         # 枚举/选择参数（Click Choice）：直接展示支持值 ed25519|rsa|...，
         # 避免 metavar 组合出 <[en|zh]> / [LANG]: 等怪名（与原生 help 一致）
-        choices = getattr(getattr(p, 'type', None), 'choices', None)
+        choices = getattr(getattr(p, "type", None), "choices", None)
         if choices:
-            value = '|'.join(choices)
+            value = "|".join(choices)
             token = f"{flag} {value}" if not is_argument and opts else value
         elif is_argument:
             # 位置参数：<LABEL>（必填）；可选参数由下方统一包成 [TARGET]
             token = f"<{human}>" if required else human
-        elif getattr(p, 'is_flag', False):
+        elif getattr(p, "is_flag", False):
             # 布尔选项：--global/-g，不带值占位符
             token = flag
         else:
@@ -226,8 +232,8 @@ def _command_params_block(exc: Any) -> List[str]:
     # Usage 完整签名：按实际终端宽度（rich Console）自适应续行，
     # 续行缩进对齐到 "💡 Usage: " 之后（用显示宽度计算，中文/emoji 双宽正确）。
     prefix = f"💡 {_(K.suggest.usage)} {base}"
-    indent = ' ' * get_display_width(prefix)
-    term_width = max(getattr(_console, 'width', None) or 80, 1)
+    indent = " " * get_display_width(prefix)
+    term_width = max(getattr(_console, "width", None) or 80, 1)
     tokens = [t for t, _, _ in entries]
     lines = []
     cur = prefix
@@ -236,7 +242,7 @@ def _command_params_block(exc: Any) -> List[str]:
             lines.append(cur)
             cur = indent + tok
         else:
-            cur += ' ' + tok
+            cur += " " + tok
     lines.append(cur)
 
     # 参数解释行（token 列对齐）
@@ -251,6 +257,7 @@ def _command_params_block(exc: Any) -> List[str]:
     # 方括号（如 [en|zh] / [--type/-t ...]）会被 rich 当作 markup 吞掉，
     # 统一转义，保证命令签名原样显示。
     from rich.markup import escape
+
     return [escape(line) for line in lines]
 
 
@@ -261,11 +268,12 @@ def _infer_group_commands(argv: List[str]) -> List[List[str]]:
     无法推断时返回 []。返回二维列表，逐块交给 render_tip_block。
     """
     from ..ui.tip import related_command_blocks
-    args = [a for a in argv if not a.startswith('-') and a]
+
+    args = [a for a in argv if not a.startswith("-") and a]
     if not args or args[0] not in _known_groups():
         return []
     group = args[0]
-    current = args[1] if len(args) > 1 else ''
+    current = args[1] if len(args) > 1 else ""
     # 用 related_commands 推导：命令若声明了跨组 related（如 key switch → repo use），
     # 缺参/用法错误提示同样能展示该跨组关联命令，与命令正常执行后的 tip 一致。
     cmds = related_commands(group, current) if current else commands_in_group(group)
@@ -307,12 +315,13 @@ def render_usage_error(exc: Any, argv: List[str]) -> None:
     # 错误消息可能含方括号（如 Invalid value for '[en|zh]'），rich 会误判为
     # markup 而吞掉，统一转义保证原样显示。
     from rich.markup import escape as _rich_escape
+
     render_tip_block([f"❌ {_rich_escape(msg)}"], top=False)
 
     # 所有用法错误统一展示：该命令完整参数说明 + 同组相关命令
     # （缺必填参数、非法枚举值、选项缺值等，全部复用 _command_params_block）
-    params = _command_params_block(exc) if getattr(exc, 'ctx', None) else []
+    params = _command_params_block(exc) if getattr(exc, "ctx", None) else []
     if params:
         render_tip_block(params)
     for block in _infer_group_commands(argv):
-        render_tip_block(block, style='dim')
+        render_tip_block(block, style="dim")

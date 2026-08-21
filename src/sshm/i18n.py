@@ -25,21 +25,26 @@ from .language.i18n_zh import ZH
 
 # 重新导出语言字典，便于外部直接访问
 __all__ = [
-    'EN', 'ZH',
-    '_', 'set_lang', 'get_lang', 'resolve_lang', 'load_from_state',
+    "EN",
+    "ZH",
+    "_",
+    "set_lang",
+    "get_lang",
+    "resolve_lang",
+    "load_from_state",
 ]
 
 
 # --------------------------------------------------------------------------
 # 当前语言（运行时可变）
 # --------------------------------------------------------------------------
-_current_lang: str = 'en'
+_current_lang: str = "en"
 
 
 def set_lang(lang: str) -> None:
     """设置当前语言（en/zh），非法值回退 en"""
     global _current_lang
-    _current_lang = lang if lang == 'zh' else 'en'
+    _current_lang = lang if lang == "zh" else "en"
 
 
 def get_lang() -> str:
@@ -51,8 +56,8 @@ def get_lang() -> str:
 # 语言解析
 # --------------------------------------------------------------------------
 
-def resolve_lang(env: Optional[str] = None,
-                 state_lang: Optional[str] = None) -> str:
+
+def resolve_lang(env: Optional[str] = None, state_lang: Optional[str] = None) -> str:
     """解析最终语言: env > state > 'en'
 
     Args:
@@ -61,28 +66,29 @@ def resolve_lang(env: Optional[str] = None,
     """
     if env:
         e = env.strip().lower()
-        if e in ('zh', 'zh-cn', 'zh_cn', 'cn', 'zh-hans', 'zh_hans'):
-            return 'zh'
-        if e in ('en', 'en-us', 'en_us', 'us'):
-            return 'en'
+        if e in ("zh", "zh-cn", "zh_cn", "cn", "zh-hans", "zh_hans"):
+            return "zh"
+        if e in ("en", "en-us", "en_us", "us"):
+            return "en"
     if state_lang:
         s = state_lang.strip().lower()
-        if s in ('zh', 'zh-cn', 'zh_cn', 'cn', 'zh-hans', 'zh_hans'):
-            return 'zh'
-        if s in ('en', 'en-us', 'en_us', 'us'):
-            return 'en'
-    return 'en'
+        if s in ("zh", "zh-cn", "zh_cn", "cn", "zh-hans", "zh_hans"):
+            return "zh"
+        if s in ("en", "en-us", "en_us", "us"):
+            return "en"
+    return "en"
 
 
 def load_from_state(state_lang: Optional[str]) -> None:
     """从状态文件加载语言并应用（环境变量优先）"""
-    env = os.environ.get('SSHM_LANG')
+    env = os.environ.get("SSHM_LANG")
     set_lang(resolve_lang(env, state_lang))
 
 
 # --------------------------------------------------------------------------
 # 翻译函数
 # --------------------------------------------------------------------------
+
 
 def _(text: str, **kwargs) -> str:
     """按当前语言查找稳定 key 对应的文本（支持 {placeholder} 格式化）
@@ -94,7 +100,7 @@ def _(text: str, **kwargs) -> str:
     若当前语言字典中缺失该 key，回退到英文；英文也缺失则返回 key 本身，
     便于发现遗漏的翻译。
     """
-    table = ZH if _current_lang == 'zh' else EN
+    table = ZH if _current_lang == "zh" else EN
     result = table.get(text)
     if result is None:
         result = EN.get(text, text)

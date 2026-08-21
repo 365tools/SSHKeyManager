@@ -23,6 +23,7 @@ from .core.services.net.updater import UpdateManager
 from .core.services.storage.state import StateManager
 from .i18n import load_from_state
 
+
 def _load_lang_before_parse() -> None:
     """在解析参数/显示帮助前应用语言（环境变量优先于状态文件）"""
     try:
@@ -49,11 +50,11 @@ def _should_silent_check() -> bool:
     以及 `-v` / `--help` 等无命令调用均跳过，避免把命令参数里的
     "update" 字样误判（如 `sshm add my-update-key`）。
     """
-    args = [a for a in sys.argv[1:] if not a.startswith('-')]
+    args = [a for a in sys.argv[1:] if not a.startswith("-")]
     if not args:
         return False  # 无子命令（如 -v / --help / 空）
     # 分组后更新命令为 `sshm config update`：跳过静默检查（自身会检查）
-    return not (len(args) >= 2 and args[0] == 'config' and args[1] == 'update')
+    return not (len(args) >= 2 and args[0] == "config" and args[1] == "update")
 
 
 def main() -> None:
@@ -64,6 +65,7 @@ def main() -> None:
     # 检测双击运行（无参数）→ 进入交互菜单
     if len(sys.argv) == 1:
         from .cli.interactive import show_interactive_menu
+
         show_interactive_menu()
         return
 
@@ -88,6 +90,7 @@ def main() -> None:
     except SSHMError as e:
         # 业务错误统一走 rich 输出（与正常命令一致的首行空行 + ❌ 错误行）
         from .ui.output import print as _print
+
         _print()
         _print(f"❌ {e}")
         raise SystemExit(e.exit_code)
@@ -99,6 +102,5 @@ def main() -> None:
         raise SystemExit(e.exit_code)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
-

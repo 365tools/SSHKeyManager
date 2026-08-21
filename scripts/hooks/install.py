@@ -25,20 +25,24 @@ from pathlib import Path
 # 确保控制台使用 UTF-8（Windows 默认 GBK 无法输出 emoji）
 # 用 getattr 访问 reconfigure，规避 typeshed 对 TextIO 未声明该方法导致的
 # basedpyright reportAttributeAccessIssue。
-_stdout_reconfigure = getattr(sys.stdout, 'reconfigure', None)
-_stderr_reconfigure = getattr(sys.stderr, 'reconfigure', None)
-if (sys.stdout.encoding and sys.stdout.encoding.lower() not in ('utf-8', 'utf8')
-        and _stdout_reconfigure and _stderr_reconfigure):
+_stdout_reconfigure = getattr(sys.stdout, "reconfigure", None)
+_stderr_reconfigure = getattr(sys.stderr, "reconfigure", None)
+if (
+    sys.stdout.encoding
+    and sys.stdout.encoding.lower() not in ("utf-8", "utf8")
+    and _stdout_reconfigure
+    and _stderr_reconfigure
+):
     try:
-        _stdout_reconfigure(encoding='utf-8')
-        _stderr_reconfigure(encoding='utf-8')
+        _stdout_reconfigure(encoding="utf-8")
+        _stderr_reconfigure(encoding="utf-8")
     except (AttributeError, ValueError):
         pass
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-HOOKS_SRC = Path(__file__).resolve().parent / 'pre-commit'
-GIT_HOOKS_DIR = PROJECT_ROOT / '.git' / 'hooks'
-TARGET = GIT_HOOKS_DIR / 'pre-commit'
+HOOKS_SRC = Path(__file__).resolve().parent / "pre-commit"
+GIT_HOOKS_DIR = PROJECT_ROOT / ".git" / "hooks"
+TARGET = GIT_HOOKS_DIR / "pre-commit"
 
 
 def install() -> None:
@@ -50,11 +54,11 @@ def install() -> None:
         print("   请确认在 git 仓库内运行本脚本。")
         sys.exit(1)
 
-    content = HOOKS_SRC.read_text(encoding='utf-8')
-    TARGET.write_text(content, encoding='utf-8')
+    content = HOOKS_SRC.read_text(encoding="utf-8")
+    TARGET.write_text(content, encoding="utf-8")
 
     # 设置可执行权限（Unix）；Windows 由 git 识别 shebang 亦可执行
-    if os.name != 'nt':
+    if os.name != "nt":
         TARGET.chmod(TARGET.stat().st_mode | stat.S_IXUSR)
 
     print(f"✅ 已安装 pre-commit 钩子: {TARGET}")
@@ -71,8 +75,8 @@ def remove() -> None:
         print("ℹ️  未找到已安装的 pre-commit 钩子，无需移除。")
 
 
-if __name__ == '__main__':
-    if '--remove' in sys.argv[1:]:
+if __name__ == "__main__":
+    if "--remove" in sys.argv[1:]:
         remove()
     else:
         install()

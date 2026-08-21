@@ -29,15 +29,21 @@ from typing import Any, Iterable, List, Optional
 from .console import print_separator
 from .output import ICON_BULLET, ICON_ERR, print as _print
 
-__all__ = ['render_tip_block', 'render_business_error',
-           'command_list_lines', 'related_command_blocks', 'ITEM_BULLET']
+__all__ = [
+    "render_tip_block",
+    "render_business_error",
+    "command_list_lines",
+    "related_command_blocks",
+    "ITEM_BULLET",
+]
 
 # 命令/建议列表项统一前缀图标（与 💡 标题形成视觉层级，一处定义全局复用）
 ITEM_BULLET = ICON_BULLET
 
 
-def render_tip_block(lines: Iterable[str], *, top: bool = True,
-                     style: Optional[str] = None) -> None:
+def render_tip_block(
+    lines: Iterable[str], *, top: bool = True, style: Optional[str] = None
+) -> None:
     """渲染统一的 tip 段：可选顶部分隔线 + 内容行。
 
     设计：每段默认带一个**顶部分隔线**，不带底部分隔线。这样：
@@ -62,7 +68,7 @@ def render_tip_block(lines: Iterable[str], *, top: bool = True,
     非 tty 下分隔线降级为纯 ASCII 横线（与 ui.console.print_separator 一致）。
     """
     if top:
-        print_separator('─')
+        print_separator("─")
     for line in lines:
         if style:
             _print(line, style=style)
@@ -70,9 +76,9 @@ def render_tip_block(lines: Iterable[str], *, top: bool = True,
             _print(line)
 
 
-def command_list_lines(group: Optional[str],
-                       cmds: Iterable[Any],
-                       title_key: str = 'misc.related_tip') -> List[str]:
+def command_list_lines(
+    group: Optional[str], cmds: Iterable[Any], title_key: str = "misc.related_tip"
+) -> List[str]:
     """统一生成"💡 More commands in this group"命令清单行（唯一格式来源）。
 
     收敛了原先散落在 app._show_tip 与 suggest._group_commands_lines /
@@ -88,6 +94,7 @@ def command_list_lines(group: Optional[str],
     """
     from ..i18n import _
     from ..language import K
+
     lines = [f"💡 {_(title_key)}"]
     for item in cmds:
         if isinstance(item, str):
@@ -101,8 +108,9 @@ def command_list_lines(group: Optional[str],
     return lines
 
 
-def related_command_blocks(group: Optional[str],
-                           cmds: Iterable[Any]) -> List[List[str]]:
+def related_command_blocks(
+    group: Optional[str], cmds: Iterable[Any]
+) -> List[List[str]]:
     """把相关命令分为「本组」与「跨组 related」两块，各自带标题行。
 
     同组命令标题为 misc.related_tip（More commands in this group）；
@@ -111,26 +119,28 @@ def related_command_blocks(group: Optional[str],
     顶层分组名（字符串项）归入本组块。返回可逐块交给 render_tip_block 的二维列表。
     """
     from ..language import K
+
     local, cross = [], []
     for item in cmds:
         if isinstance(item, str):
             local.append(item)
-        elif (item.group or group) != (group or ''):
+        elif (item.group or group) != (group or ""):
             cross.append(item)
         else:
             local.append(item)
     blocks = []
     if local:
-        blocks.append(command_list_lines(group, local,
-                                        title_key=K.misc.related_tip))
+        blocks.append(command_list_lines(group, local, title_key=K.misc.related_tip))
     if cross:
-        blocks.append(command_list_lines(group, cross,
-                                        title_key=K.misc.related_tip_cross))
+        blocks.append(
+            command_list_lines(group, cross, title_key=K.misc.related_tip_cross)
+        )
     return blocks
 
 
-def render_business_error(msg: str, *, icon: str = ICON_ERR,
-                          hint: Optional[str] = None) -> None:
+def render_business_error(
+    msg: str, *, icon: str = ICON_ERR, hint: Optional[str] = None
+) -> None:
     """统一渲染业务错误：顶部空行 + icon 消息 +（可选）💡 建议 tip 段。
 
     这是所有业务错误（_fail / SSHMError 的 CLI 出口）的唯一渲染点，
@@ -145,6 +155,7 @@ def render_business_error(msg: str, *, icon: str = ICON_ERR,
     _print(f"{icon} {msg}")
     if hint:
         # hint 可为多行（\n 分隔），逐行渲染为 💡 tip 段，保留既有缩进/前缀
-        lines = [f"💡 {ln}" if idx == 0 else ln
-                 for idx, ln in enumerate(hint.split('\n'))]
+        lines = [
+            f"💡 {ln}" if idx == 0 else ln for idx, ln in enumerate(hint.split("\n"))
+        ]
         render_tip_block(lines)

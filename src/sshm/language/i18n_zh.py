@@ -30,7 +30,6 @@ ZH: Dict[str, str] = {
     "msg.current_key_none": "尚未配置密钥，可运行 'sshm key create' 创建。",
     "msg.current_key_tip": "使用 'sshm key switch <label>' 切换全局默认密钥",
     "msg.current_key_tip2": "使用 'sshm repo use <label>' 为本仓库绑定密钥",
-
     # ---- 命令描述 (cmd) ----
     "cmd.app_help": "多账号 Git SSH 密钥管理工具",
     "cmd.author_list": "列出所有已保存的作者",
@@ -39,7 +38,6 @@ ZH: Dict[str, str] = {
     "cmd.author_use": "用列表中的作者信息设置仓库/全局",
     "cmd.author_unset": "清除作者配置（回落上层）",
     "cmd.version": "显示版本并退出",
-
     # ---- 分组命令 ----
     "cmd.key_list": "查看 SSH 密钥（全部或当前）",
     "cmd.key_create": "创建新的 SSH 密钥",
@@ -66,7 +64,6 @@ ZH: Dict[str, str] = {
     "cmd.group_author": "管理 git 作者",
     "cmd.group_history": "重写 git 历史",
     "cmd.group_config": "系统配置",
-
     # ---- 选项/参数描述 (opt) ----
     "opt.all": "显示公钥内容",
     "opt.current": "显示当前仓库的密钥配置",
@@ -109,7 +106,6 @@ ZH: Dict[str, str] = {
     "opt.lang_value": "en 或 zh（省略则显示当前语言）",
     "opt.check_only": "仅检查更新，不执行更新",
     "opt.force_check": "强制检查，忽略缓存",
-
     # ---- 章节标题 (hdr) ----
     "hdr.key_list": "sshm - 密钥列表",
     "hdr.public_contents": "公钥内容",
@@ -134,7 +130,6 @@ ZH: Dict[str, str] = {
     "hdr.config_complete": "配置完成！现在可以使用以下命令:",
     "hdr.test_results": "测试结果汇总:",
     "hdr.author_manage": "--- 作者管理 ---",
-
     # ---- 表格/字段标签 (lbl) ----
     "lbl.label": "标签",
     "lbl.file": "文件",
@@ -187,7 +182,6 @@ ZH: Dict[str, str] = {
     "lbl.add_update_author": "--- 添加/更新作者 ---",
     "lbl.use_author_set": "--- 使用作者设置当前仓库 ---",
     "lbl.delete_author": "--- 删除作者 ---",
-
     # ---- 运行时消息 (msg) ----
     "msg.no_keys": "未找到任何密钥文件",
     "msg.add_tip": "使用 'sshm key create <标签> <邮箱>' 创建新密钥",
@@ -311,11 +305,10 @@ ZH: Dict[str, str] = {
     "msg.temp_override": "临时指定",
     "msg.use_all_keys_tip": "使用 'sshm key list' 查看所有可用密钥",
     "msg.fix_author_tip": "若已存在该标签的密钥，邮箱会自动从公钥注释补全",
-    "msg.author_usage": "用法: sshm author add <标签> -n \"姓名\" -e \"邮箱\"",
+    "msg.author_usage": '用法: sshm author add <标签> -n "姓名" -e "邮箱"',
     "msg.lang_zh": "语言已切换为中文",
     "msg.lang_en": "语言已切换为英文",
     "msg.unknown": "未知",
-
     # ---- 交互菜单 (menu) ----
     "menu.welcome": "欢迎使用 sshm！",
     "menu.gui_tip": "提示: 这是一个命令行工具。在 Windows 上推荐使用 sshm_gui.bat 获得更好的体验。",
@@ -368,7 +361,6 @@ ZH: Dict[str, str] = {
     "prompt.apply_global": "应用到全局? [y/N]: ",
     "prompt.enter_delete_author": "请输入要删除的作者标签: ",
     "prompt.enter_test_label": "请输入要测试的标签 (留空测试当前仓库, 'all' 测试所有): ",
-
     # ---- 错误信息 (err) ----
     "err.label_empty": "标签不能为空",
     "err.label_invalid": "标签 '{label}' 不合法：只能包含字母、数字、下划线(_)、连字符(-)，且不能以符号开头",
@@ -425,7 +417,6 @@ ZH: Dict[str, str] = {
     "err.add_failed": "添加失败: {err}",
     "err.no_such_command": "不存在命令 '{cmd}'。",
     "err.no_such_subcommand": "分组 '{group}' 中不存在命令 '{cmd}'。",
-
     # ---- 系统 / PATH (sys) ----
     "sys.current_exe": "当前可执行文件位置: {path}",
     "sys.directory": "目录路径: {dir}",
@@ -444,7 +435,6 @@ ZH: Dict[str, str] = {
     "sys.config_added": "已添加到配置文件！",
     "sys.run_to_apply": "执行以下命令使环境变量生效：",
     "sys.or_restart": "或重启终端",
-
     # ---- 更新模块 (upd) ----
     "upd.checking": "正在检查更新...",
     "upd.up_to_date": "已是最新版本！",
@@ -466,7 +456,6 @@ ZH: Dict[str, str] = {
     "upd.run_manual": "请手动运行: sudo mv {src} {dst}",
     "upd.failed": "更新失败:",
     "upd.available": "有新版本可用: {version} (当前: v{current})",
-
     # ---- 版本信息 (ver) ----
     "ver.version": "版本",
     "ver.platform": "平台",
@@ -481,5 +470,4 @@ ZH: Dict[str, str] = {
     "ver.build_time": "构建时间",
     "ver.label": "项目",
     "ver.value": "值",
-
 }

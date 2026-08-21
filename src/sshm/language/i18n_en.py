@@ -30,7 +30,6 @@ EN: Dict[str, str] = {
     "msg.current_key_none": "No key configured yet. Run 'sshm key create' to add one.",
     "msg.current_key_tip": "use 'sshm key switch <label>' to change the global default key",
     "msg.current_key_tip2": "use 'sshm repo use <label>' to bind a key to this repo",
-
     # ---- 命令描述 (cmd) ----
     "cmd.app_help": "Multi-account Git SSH key management tool",
     "cmd.author_list": "list all saved authors",
@@ -39,7 +38,6 @@ EN: Dict[str, str] = {
     "cmd.author_use": "use author info to set repo/global",
     "cmd.author_unset": "clear author config (fall back to parent)",
     "cmd.version": "show version and exit",
-
     # ---- group commands ----
     "cmd.key_list": "list SSH keys (all or current)",
     "cmd.key_create": "create a new SSH key",
@@ -66,7 +64,6 @@ EN: Dict[str, str] = {
     "cmd.group_author": "manage git authors",
     "cmd.group_history": "rewrite git history",
     "cmd.group_config": "system configuration",
-
     # ---- 选项/参数描述 (opt) ----
     "opt.all": "show public key contents",
     "opt.current": "show current repo key config",
@@ -133,7 +130,6 @@ EN: Dict[str, str] = {
     "hdr.config_complete": "Configuration complete! Now you can use:",
     "hdr.test_results": "Test Results Summary:",
     "hdr.author_manage": "Author management",
-
     # ---- 表格/字段标签 (lbl) ----
     "lbl.label": "Label",
     "lbl.file": "File",
@@ -186,7 +182,6 @@ EN: Dict[str, str] = {
     "lbl.add_update_author": "Add/update author",
     "lbl.use_author_set": "Use author to set current repo",
     "lbl.delete_author": "Delete author",
-
     # ---- 运行时消息 (msg) ----
     "msg.no_keys": "No key files found",
     "msg.add_tip": "use 'sshm key create <label> <email>' to create a new key",
@@ -224,8 +219,8 @@ EN: Dict[str, str] = {
     "msg.renamed": "Renamed: {old} -> {new} ({count} type(s): {types})",
     "msg.need_author": "Need at least a name or email",
     "msg.saved_to_list": "Saved to author list",
-    "msg.use_author_list": "use \'sshm author list' to view all authors",
-    "msg.use_author_apply": "use \'sshm author use <label>' to apply to the current repo",
+    "msg.use_author_list": "use 'sshm author list' to view all authors",
+    "msg.use_author_apply": "use 'sshm author use <label>' to apply to the current repo",
     "msg.apply_repo_global": "Apply to current repo/global",
     "msg.delete_author": "Delete author",
     "msg.add_update_author": "Add/update author",
@@ -237,8 +232,8 @@ EN: Dict[str, str] = {
     "msg.not_rolled_back": "Note: already-applied git config will NOT be rolled back",
     "msg.current_effective": "Current effective: repo config overrides global",
     "msg.author_list_tip": "use 'sshm author list' to view saved authors",
-    "msg.quick_set": "use \'sshm author use <label>' to quickly set the current repo author",
-    "msg.clear_repo_config": "use \'sshm author unset' to clear repo-level config",
+    "msg.quick_set": "use 'sshm author use <label>' to quickly set the current repo author",
+    "msg.clear_repo_config": "use 'sshm author unset' to clear repo-level config",
     "msg.no_new_value": "(no new value, keeping current)",
     "msg.current_scope_author": "Current {scope} author configured:",
     "msg.set_scope": "Set ({scope}):",
@@ -284,12 +279,12 @@ EN: Dict[str, str] = {
     "msg.create_matching": "Create matching SSH config for '{host}' and use it?",
     "msg.skipped_no_mapping": "Skipped. The key may not work for this repo without a matching host mapping.",
     "msg.repo_key_missing": "No key is configured for the current repo",
-    "msg.configure_repo_tip": "use \'sshm repo use <label>' to configure a key for this repo",
+    "msg.configure_repo_tip": "use 'sshm repo use <label>' to configure a key for this repo",
     "msg.or_list_all": "Or run 'sshm key list' to view all keys",
     "msg.current_alias_unconfigured": "using a standard SSH URL or unconfigured alias",
-    "msg.use_to_configure": "use \'sshm repo use <label>' to configure a key",
+    "msg.use_to_configure": "use 'sshm repo use <label>' to configure a key",
     "msg.https_url_tip": "using an HTTPS URL",
-    "msg.use_to_ssh": "use \'sshm repo use <label>' to convert to SSH and configure a key",
+    "msg.use_to_ssh": "use 'sshm repo use <label>' to convert to SSH and configure a key",
     "msg.failed_parse_url": "Failed to parse remote URL",
     "msg.no_origin_configured": "No 'origin' remote configured",
     "msg.no_alias_configured": "no alias configured, run 'sshm repo use <label>' first",
@@ -299,22 +294,21 @@ EN: Dict[str, str] = {
     "msg.testing": "Testing connection...",
     "msg.testing_host": "Testing {host}...",
     "msg.check_config_tip": "check that your key config is correct",
-    "msg.use_info": "use \'sshm repo info' to view config details",
+    "msg.use_info": "use 'sshm repo info' to view config details",
     "msg.not_ssh_url": "Current URL is not an SSH URL, cannot test connection",
-    "msg.use_to_convert": "use \'sshm repo use <label>' to convert to SSH URL",
+    "msg.use_to_convert": "use 'sshm repo use <label>' to convert to SSH URL",
     "msg.auth_success": "Authenticated successfully! (Hi {user}!)",
     "msg.connected": "Connected successfully!",
     "msg.not_usable_author": "Label '{label}' has no usable author info",
     "msg.available_remedies": "Available remedies:",
     "msg.recreate_key": "recreate key and record author",
     "msg.temp_override": "temporary override",
-    "msg.use_all_keys_tip": "use \'sshm key list' to view all available keys",
+    "msg.use_all_keys_tip": "use 'sshm key list' to view all available keys",
     "msg.fix_author_tip": "if a key with this label exists, email is auto-filled from the public key comment",
-    "msg.author_usage": "Usage: sshm author add <label> -n \"name\" -e \"email\"",
+    "msg.author_usage": 'Usage: sshm author add <label> -n "name" -e "email"',
     "msg.lang_zh": "Language set to Chinese",
     "msg.lang_en": "Language set to English",
     "msg.unknown": "Unknown",
-
     # ---- 交互菜单 (menu) ----
     "menu.welcome": "Welcome to sshm!",
     "menu.gui_tip": "This is a command-line tool. On Windows, using sshm_gui.bat is recommended for a better experience.",
@@ -367,12 +361,11 @@ EN: Dict[str, str] = {
     "prompt.apply_global": "Apply to global? [y/N]: ",
     "prompt.enter_delete_author": "Enter the author label to delete: ",
     "prompt.enter_test_label": "Enter label to test (leave empty for current repo, 'all' for all): ",
-
     # ---- 错误信息 (err) ----
     "err.label_empty": "Label cannot be empty",
     "err.label_invalid": "Invalid label '{label}': only letters, digits, underscore(_) and hyphen(-) are allowed, and it cannot start with a symbol",
     "err.label_reserved": "Label '{label}' is a reserved name and cannot be used",
-    "err.label_reserved_switch": "Label \"{label}\" is a reserved name and cannot be switched to",
+    "err.label_reserved_switch": 'Label "{label}" is a reserved name and cannot be switched to',
     "err.key_exists": "Key already exists: {name}",
     "err.create_failed": "Create failed: {err}",
     "err.keygen_timeout": "Key generation timed out (possibly low system entropy), aborted",
@@ -424,7 +417,6 @@ EN: Dict[str, str] = {
     "err.add_failed": "Failed to add: {err}",
     "err.no_such_command": "No such command '{cmd}'.",
     "err.no_such_subcommand": "No such command '{cmd}' in group '{group}'.",
-
     # ---- 系统 / PATH (sys) ----
     "sys.current_exe": "Current executable: {path}",
     "sys.directory": "Directory: {dir}",
@@ -443,7 +435,6 @@ EN: Dict[str, str] = {
     "sys.config_added": "Added to config file!",
     "sys.run_to_apply": "Run the following to apply:",
     "sys.or_restart": "or restart your terminal",
-
     # ---- 更新模块 (upd) ----
     "upd.checking": "Checking for updates...",
     "upd.up_to_date": "You are up to date!",
@@ -465,7 +456,6 @@ EN: Dict[str, str] = {
     "upd.run_manual": "Please run manually: sudo mv {src} {dst}",
     "upd.failed": "Update failed:",
     "upd.available": "A new version is available: {version} (current: v{current})",
-
     # ---- 版本信息 (ver) ----
     "ver.version": "Version",
     "ver.platform": "Platform",
@@ -480,5 +470,4 @@ EN: Dict[str, str] = {
     "ver.build_time": "Build Time",
     "ver.label": "Item",
     "ver.value": "Value",
-
 }

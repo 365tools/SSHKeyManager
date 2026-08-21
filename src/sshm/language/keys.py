@@ -18,17 +18,16 @@ from .templates import KEYS
 
 def _build_ns(mapping: dict) -> SimpleNamespace:
     """递归构建嵌套 SimpleNamespace：叶子值为完整 key 字符串。"""
-    return SimpleNamespace(**{
-        k: (_build_ns(v) if isinstance(v, dict) else v)
-        for k, v in mapping.items()
-    })
+    return SimpleNamespace(
+        **{k: (_build_ns(v) if isinstance(v, dict) else v) for k, v in mapping.items()}
+    )
 
 
 def _group_keys() -> dict:
     """按点号前缀把 KEYS 分组：'cmd.list' -> {'cmd': {'list': 'cmd.list'}}"""
     groups: dict = {}
     for key in KEYS:
-        group, _, rest = key.partition('.')
+        group, _, rest = key.partition(".")
         groups.setdefault(group, {})[rest] = key
     return groups
 
@@ -36,4 +35,4 @@ def _group_keys() -> dict:
 # 示例：K.cmd.list == 'cmd.list'；K.opt.path_with_c == 'opt.path_with_c'
 K = _build_ns(_group_keys())
 
-__all__ = ['K']
+__all__ = ["K"]

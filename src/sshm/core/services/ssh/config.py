@@ -12,7 +12,7 @@ from typing import Optional
 
 class SSHConfigManager:
     """SSH config 文件管理器"""
-    
+
     def __init__(self, config_file: Path):
         self.config_file = config_file
 
@@ -24,7 +24,7 @@ class SSHConfigManager:
         """
         tmp = path.with_name(f"{path.name}.{os.getpid()}.tmp")
         try:
-            tmp.write_text(content, encoding='utf-8')
+            tmp.write_text(content, encoding="utf-8")
             os.replace(tmp, path)
         finally:
             try:
@@ -32,45 +32,50 @@ class SSHConfigManager:
                     tmp.unlink()
             except OSError:
                 pass
-    
+
     def update_host(self, label: str, host: str, key_file: Path):
         """更新或添加 Host 配置（忽略大小写，把同名块的所有大小写变体合并为单块）"""
         config_block = self._generate_config_block(label, host, key_file)
-        
+
         if not self.config_file.exists():
             self._atomic_write(self.config_file, config_block)
             return
-        
-        content = self.config_file.read_text(encoding='utf-8')
-        
+
+        content = self.config_file.read_text(encoding="utf-8")
+
         # 查找所有同名（忽略大小写）的配置块，合并为单个新块
-        pattern = rf'^# {re.escape(label)} - Auto-generated.*?(?=^#|\Z)'
+        pattern = rf"^# {re.escape(label)} - Auto-generated.*?(?=^#|\Z)"
         flags = re.MULTILINE | re.DOTALL | re.IGNORECASE
         matches = list(re.finditer(pattern, content, flags))
         if matches:
             insert_pos = matches[0].start()
             for m in reversed(matches):
-                content = content[:m.start()] + content[m.end():]
-            content = (content[:insert_pos] + config_block.rstrip()
-                       + '\n\n' + content[insert_pos:])
+                content = content[: m.start()] + content[m.end() :]
+            content = (
+                content[:insert_pos]
+                + config_block.rstrip()
+                + "\n\n"
+                + content[insert_pos:]
+            )
         else:
-            content += '\n' + config_block
-        
+            content += "\n" + config_block
+
         # 规整连续空行
-        content = re.sub(r'\n{3,}', '\n\n', content)
+        content = re.sub(r"\n{3,}", "\n\n", content)
         self._atomic_write(self.config_file, content)
-    
+
     def remove_host(self, label: str):
         """从 SSH config 中删除指定标签的配置（忽略大小写）"""
         if not self.config_file.exists():
             return
-        
-        content = self.config_file.read_text(encoding='utf-8')
-        pattern = rf'^# {re.escape(label)} - Auto-generated.*?(?=^#|\Z)'
-        content = re.sub(pattern, '', content,
-                         flags=re.MULTILINE | re.DOTALL | re.IGNORECASE)
+
+        content = self.config_file.read_text(encoding="utf-8")
+        pattern = rf"^# {re.escape(label)} - Auto-generated.*?(?=^#|\Z)"
+        content = re.sub(
+            pattern, "", content, flags=re.MULTILINE | re.DOTALL | re.IGNORECASE
+        )
         # 规整连续空行
-        content = re.sub(r'\n{3,}', '\n\n', content)
+        content = re.sub(r"\n{3,}", "\n\n", content)
         self._atomic_write(self.config_file, content)
 
     def has_host(self, label: str) -> bool:
@@ -78,10 +83,9 @@ class SSHConfigManager:
         if not self.config_file.exists():
             return False
         try:
-            content = self.config_file.read_text(encoding='utf-8')
-            pattern = rf'^Host {re.escape(label)}\s*$'
-            return re.search(pattern, content,
-                             re.MULTILINE | re.IGNORECASE) is not None
+            content = self.config_file.read_text(encoding="utf-8")
+            pattern = rf"^Host {re.escape(label)}\s*$"
+            return re.search(pattern, content, re.MULTILINE | re.IGNORECASE) is not None
         except OSError:
             return False
 
@@ -94,7 +98,7 @@ class SSHConfigManager:
         if not self.config_file.exists():
             return None
         try:
-            content = self.config_file.read_text(encoding='utf-8')
+            content = self.config_file.read_text(encoding="utf-8")
         except OSError:
             return None
 
@@ -103,7 +107,7 @@ class SSHConfigManager:
         in_block = False
         for line in lines:
             stripped = line.strip()
-            if stripped.lower().startswith('host '):
+            if stripped.lower().startswith("host "):
                 # 是新的 Host 块开头
                 parts = stripped[5:].strip().split()
                 if not in_block:
@@ -114,7 +118,7 @@ class SSHConfigManager:
                 else:
                     # 上一个块已结束，没找到 HostName
                     return None
-            if in_block and stripped.lower().startswith('hostname'):
+            if in_block and stripped.lower().startswith("hostname"):
                 hostname_val = stripped[8:].strip()
                 return hostname_val if hostname_val else None
         return None
@@ -125,8 +129,8 @@ class SSHConfigManager:
         # 转换为 POSIX 路径格式（SSH config 标准）。
         # 注意：仅靠 Path.as_posix() 在 Linux 上不会把 Windows 反斜杠转成斜杠
         # （Linux 下反斜杠是普通字符），故统一用 replace 强制转换，跨平台一致。
-        key_file_str = str(key_file).replace('\\', '/')
-        
+        key_file_str = str(key_file).replace("\\", "/")
+
         return f"""# {label} - Auto-generated by sshm
 Host {label}
   HostName {host}

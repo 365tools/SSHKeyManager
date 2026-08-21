@@ -27,13 +27,17 @@ from typing import Callable, Dict, List, Optional
 # 确保控制台使用 UTF-8（Windows 默认 GBK 无法输出 emoji）
 # 用 getattr 访问 reconfigure，规避 typeshed 对 TextIO 未声明该方法导致的
 # basedpyright reportAttributeAccessIssue。
-_stdout_reconfigure = getattr(sys.stdout, 'reconfigure', None)
-_stderr_reconfigure = getattr(sys.stderr, 'reconfigure', None)
-if (sys.stdout.encoding and sys.stdout.encoding.lower() not in ('utf-8', 'utf8')
-        and _stdout_reconfigure and _stderr_reconfigure):
+_stdout_reconfigure = getattr(sys.stdout, "reconfigure", None)
+_stderr_reconfigure = getattr(sys.stderr, "reconfigure", None)
+if (
+    sys.stdout.encoding
+    and sys.stdout.encoding.lower() not in ("utf-8", "utf8")
+    and _stdout_reconfigure
+    and _stderr_reconfigure
+):
     try:
-        _stdout_reconfigure(encoding='utf-8')
-        _stderr_reconfigure(encoding='utf-8')
+        _stdout_reconfigure(encoding="utf-8")
+        _stderr_reconfigure(encoding="utf-8")
     except (AttributeError, ValueError):
         pass
 
@@ -56,8 +60,12 @@ def _run(*args: str) -> tuple[bool, str]:
     """运行子命令并捕获输出。返回 (是否成功, 结果摘要)。"""
     try:
         result = subprocess.run(
-            args, capture_output=True, text=True,
-            encoding='utf-8', errors='replace', cwd=PROJECT_ROOT,
+            args,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+            cwd=PROJECT_ROOT,
         )
         if result.returncode == 0:
             return True, _tail(result.stdout, result.stderr)
@@ -68,18 +76,23 @@ def _run(*args: str) -> tuple[bool, str]:
 
 def _tail(*outputs: str, lines: int = 8) -> str:
     """合并并截取输出末尾若干行（避免刷屏）"""
-    merged = '\n'.join(s for s in outputs if s).strip()
+    merged = "\n".join(s for s in outputs if s).strip()
     if not merged:
-        return '(无输出)'
+        return "(无输出)"
     parts = merged.splitlines()
-    return '\n'.join(parts[-lines:]) if len(parts) > lines else merged
+    return "\n".join(parts[-lines:]) if len(parts) > lines else merged
 
 
 def check_compile() -> tuple[bool, str]:
     """语法编译检查：确保所有 src 文件可被 py_compile 编译（秒级）。"""
     ok, detail = _run(
-        sys.executable, '-m', 'compileall', '-q', '-f', '-q',
-        str(PROJECT_ROOT / 'src'),
+        sys.executable,
+        "-m",
+        "compileall",
+        "-q",
+        "-f",
+        "-q",
+        str(PROJECT_ROOT / "src"),
     )
     return ok, detail
 
@@ -87,7 +100,11 @@ def check_compile() -> tuple[bool, str]:
 def check_i18n() -> tuple[bool, str]:
     """i18n 一致性检查：只跑 test_i18n.py（key 模版/EN/ZH 同步、占位符一致）。"""
     ok, detail = _run(
-        sys.executable, '-m', 'pytest', '-q', 'tests/test_i18n.py',
+        sys.executable,
+        "-m",
+        "pytest",
+        "-q",
+        "tests/test_i18n.py",
     )
     return ok, detail
 
@@ -99,7 +116,7 @@ _TEST_JOBS_DEFAULT = 3
 
 def _test_jobs() -> int:
     try:
-        return int(os.environ.get('SSHM_TEST_JOBS', str(_TEST_JOBS_DEFAULT)))
+        return int(os.environ.get("SSHM_TEST_JOBS", str(_TEST_JOBS_DEFAULT)))
     except ValueError:
         return _TEST_JOBS_DEFAULT
 
@@ -111,10 +128,10 @@ def check_pytest() -> tuple[bool, str]:
     SSHM_TEST_JOBS=0 时自动回退串行，保证结果确定可复现。
     """
     jobs = _test_jobs()
-    base = [sys.executable, '-m', 'pytest', '-q']
+    base = [sys.executable, "-m", "pytest", "-q"]
     # 尝试并行；若 xdist 不可用会报错，回退串行
     if jobs != 0:
-        ok, detail = _run(*base, '-n', str(jobs))
+        ok, detail = _run(*base, "-n", str(jobs))
         if ok:
             return ok, f"[{jobs} worker] {detail}"
         # 并行失败（多半是 xdist 未安装），回退串行
@@ -125,35 +142,37 @@ def check_pytest() -> tuple[bool, str]:
 def check_pyright() -> tuple[bool, str]:
     """类型检查：basedpyright 0 error / 0 warning / 0 note。"""
     # 显式指定解释器：避免 basedpyright 自动探测到空/损坏的 .venv 而解析不到依赖
-    ok, detail = _run(sys.executable, '-m', 'basedpyright',
-                      '--pythonpath', sys.executable)
+    ok, detail = _run(
+        sys.executable, "-m", "basedpyright", "--pythonpath", sys.executable
+    )
     return ok, detail
 
 
 def check_consistency() -> tuple[bool, str]:
     """三位一体一致性：CLI命令=注册表=manager方法 命名对齐。"""
-    return _run(sys.executable, str(PROJECT_ROOT / 'scripts' / 'check_consistency.py'))
+    return _run(sys.executable, str(PROJECT_ROOT / "scripts" / "check_consistency.py"))
 
 
 def check_rules() -> tuple[bool, str]:
     """业务层统一规则：架构规范检测。"""
-    return _run(sys.executable, str(PROJECT_ROOT / 'scripts' / 'check_rules.py'))
+    return _run(sys.executable, str(PROJECT_ROOT / "scripts" / "check_rules.py"))
 
 
 def check_deadcode() -> tuple[bool, str]:
     """死代码/冗余检测（含 basedpyright unused + i18n 占位符）。"""
-    return _run(sys.executable, str(PROJECT_ROOT / 'scripts' / 'check_deadcode.py'))
+    return _run(sys.executable, str(PROJECT_ROOT / "scripts" / "check_deadcode.py"))
 
 
 def check_cli() -> tuple[bool, str]:
     """CLI 输出标准化检查（自动导出所有指令+场景+执行+校验）。"""
-    return _run(sys.executable, str(PROJECT_ROOT / 'scripts' / 'cli_snapshot.py'),
-                '--check')
+    return _run(
+        sys.executable, str(PROJECT_ROOT / "scripts" / "cli_snapshot.py"), "--check"
+    )
 
 
 def check_rich_output() -> tuple[bool, str]:
     """输出统一性检查：确保输出走 rich（不允许散落的内置 print）。"""
-    return _run(sys.executable, str(PROJECT_ROOT / 'scripts' / 'check_rich_output.py'))
+    return _run(sys.executable, str(PROJECT_ROOT / "scripts" / "check_rich_output.py"))
 
 
 # ---------------------------------------------------------------------------
@@ -161,28 +180,28 @@ def check_rich_output() -> tuple[bool, str]:
 # ---------------------------------------------------------------------------
 # 元素: (name, is_fast, func)
 CHECKS: List[tuple[str, bool, Callable[[], tuple[bool, str]]]] = [
-    ('compile',      True, check_compile),       # 语法编译（快速）
-    ('i18n',         True, check_i18n),          # 多语言 key 一致性（快速）
-    ('consistency',  False, check_consistency),  # 三位一体一致性
-    ('rules',        False, check_rules),        # 业务层统一规则
-    ('deadcode',     False, check_deadcode),     # 死代码/冗余
-    ('cli',          False, check_cli),          # CLI 输出标准化
-    ('rich_output',  False, check_rich_output),  # 输出统一性（走 rich，无内置 print）
-    ('pytest',       False, check_pytest),       # 完整测试
-    ('pyright',      False, check_pyright),      # 类型检查
+    ("compile", True, check_compile),  # 语法编译（快速）
+    ("i18n", True, check_i18n),  # 多语言 key 一致性（快速）
+    ("consistency", False, check_consistency),  # 三位一体一致性
+    ("rules", False, check_rules),  # 业务层统一规则
+    ("deadcode", False, check_deadcode),  # 死代码/冗余
+    ("cli", False, check_cli),  # CLI 输出标准化
+    ("rich_output", False, check_rich_output),  # 输出统一性（走 rich，无内置 print）
+    ("pytest", False, check_pytest),  # 完整测试
+    ("pyright", False, check_pyright),  # 类型检查
 ]
 
 # 各检查对应的人类可读说明
 CHECKS_HELP: Dict[str, str] = {
-    'compile': '语法编译检查（所有 src 文件可编译）',
-    'i18n':    'i18n key 模版 / EN / ZH 一致性（含占位符）',
-    'consistency': '三位一体一致性（CLI命令=注册表=manager方法）',
-    'rules':    '业务层统一规则检测',
-    'deadcode': '死代码/冗余检测（含 basedpyright unused）',
-    'cli':      'CLI 输出标准化检查（导出指令+场景+执行+校验）',
-    'rich_output': '输出统一性检查（输出必须走 rich，不允许散落的内置 print）',
-    'pytest':  '完整单元测试套件',
-    'pyright': 'basedpyright 类型检查（0 error 0 warning）',
+    "compile": "语法编译检查（所有 src 文件可编译）",
+    "i18n": "i18n key 模版 / EN / ZH 一致性（含占位符）",
+    "consistency": "三位一体一致性（CLI命令=注册表=manager方法）",
+    "rules": "业务层统一规则检测",
+    "deadcode": "死代码/冗余检测（含 basedpyright unused）",
+    "cli": "CLI 输出标准化检查（导出指令+场景+执行+校验）",
+    "rich_output": "输出统一性检查（输出必须走 rich，不允许散落的内置 print）",
+    "pytest": "完整单元测试套件",
+    "pyright": "basedpyright 类型检查（0 error 0 warning）",
 }
 
 
@@ -190,8 +209,8 @@ CHECKS_HELP: Dict[str, str] = {
 # 调度逻辑
 # ---------------------------------------------------------------------------
 
-def run_checks(fast: bool = False,
-               skip: Optional[List[str]] = None) -> int:
+
+def run_checks(fast: bool = False, skip: Optional[List[str]] = None) -> int:
     """运行选定的检查并汇总结果。
 
     Args:
@@ -204,9 +223,9 @@ def run_checks(fast: bool = False,
     skip = skip or []
     results: List[tuple[str, bool, str]] = []
 
-    print('=' * 60)
-    print('🔍 sshm 提交前检查')
-    print('=' * 60)
+    print("=" * 60)
+    print("🔍 sshm 提交前检查")
+    print("=" * 60)
 
     for name, is_fast, func in CHECKS:
         if fast and not is_fast:
@@ -217,13 +236,13 @@ def run_checks(fast: bool = False,
             continue
         print(f"  ⏳ [{name}] {CHECKS_HELP.get(name, '')}...", flush=True)
         ok, detail = func()
-        mark = '✅' if ok else '❌'
+        mark = "✅" if ok else "❌"
         print(f"  {mark} [{name}]")
         if not ok:
             print(f"     └─ {detail}")
         results.append((name, ok, detail))
 
-    print('-' * 60)
+    print("-" * 60)
     failed = [n for n, ok, _ in results if not ok]
     if failed:
         print(f"❌ 检查未通过: {', '.join(failed)}")
@@ -239,16 +258,16 @@ def _parse_args(argv: List[str]) -> tuple[bool, List[str]]:
     i = 0
     while i < len(argv):
         arg = argv[i]
-        if arg == '--fast':
+        if arg == "--fast":
             fast = True
-        elif arg == '--list':
-            print('可用检查:')
+        elif arg == "--list":
+            print("可用检查:")
             for name, is_fast, _ in CHECKS:
-                tag = '[fast]' if is_fast else '[full]'
+                tag = "[fast]" if is_fast else "[full]"
                 print(f"  {tag} {name:<10} {CHECKS_HELP.get(name, '')}")
             sys.exit(0)
-        elif arg == '--skip' and i + 1 < len(argv):
-            skip.extend(argv[i + 1].split(','))
+        elif arg == "--skip" and i + 1 < len(argv):
+            skip.extend(argv[i + 1].split(","))
             i += 1
         else:
             print(f"未知参数: {arg}", file=sys.stderr)
@@ -258,6 +277,6 @@ def _parse_args(argv: List[str]) -> tuple[bool, List[str]]:
     return fast, skip
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     fast, skip = _parse_args(sys.argv[1:])
     sys.exit(run_checks(fast=fast, skip=skip))

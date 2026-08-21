@@ -38,11 +38,12 @@ def setup_windows_console() -> None:
     通过 `reconfigure` 原地修改现有流对象（而非替换），避免破坏 pytest
     捕获等场景；流对象不支持 reconfigure 时自动跳过。必须在任何输出之前完成。
     """
-    if sys.platform != 'win32':
+    if sys.platform != "win32":
         return
 
     try:
         import ctypes
+
         kernel32 = ctypes.windll.kernel32
         # 设置控制台代码页为 UTF-8 (65001)
         kernel32.SetConsoleOutputCP(65001)
@@ -51,29 +52,29 @@ def setup_windows_console() -> None:
         pass  # 静默失败（如无 ctypes / 控制台句柄异常）
 
     for stream in (sys.stdout, sys.stderr):
-        reconfigure = getattr(stream, 'reconfigure', None)
+        reconfigure = getattr(stream, "reconfigure", None)
         if reconfigure is None:
             continue
         try:
-            if getattr(stream, 'isatty', lambda: False)():
-                reconfigure(encoding='utf-8', errors='replace')
+            if getattr(stream, "isatty", lambda: False)():
+                reconfigure(encoding="utf-8", errors="replace")
             else:
-                reconfigure(errors='replace')
+                reconfigure(errors="replace")
         except Exception:
             pass  # 静默失败（如流不支持该操作）
 
 
 def format_timestamp(dt: datetime) -> str:
     """格式化时间戳"""
-    return dt.strftime('%Y-%m-%d %H:%M:%S')
+    return dt.strftime("%Y-%m-%d %H:%M:%S")
 
 
 def format_size(size_bytes: int) -> str:
     """格式化文件大小为人类可读形式"""
     size = float(size_bytes)
-    for unit in ('B', 'KB', 'MB', 'GB', 'TB'):
-        if size < 1024 or unit == 'TB':
-            return f"{int(size)} B" if unit == 'B' else f"{size:.1f} {unit}"
+    for unit in ("B", "KB", "MB", "GB", "TB"):
+        if size < 1024 or unit == "TB":
+            return f"{int(size)} B" if unit == "B" else f"{size:.1f} {unit}"
         size /= 1024.0
     return f"{size_bytes} B"
 
@@ -102,31 +103,34 @@ def _char_width(ch: str) -> int:
     except Exception:
         pass
     import unicodedata
+
     code = ord(ch)
     # 零宽字符：变体选择符（emoji 后续 FE0F/FE0E）、零宽连接符等
-    if code in (0x200B, 0x200C, 0x200D, 0x2060) \
-            or 0xFE00 <= code <= 0xFE0F:
+    if code in (0x200B, 0x200C, 0x200D, 0x2060) or 0xFE00 <= code <= 0xFE0F:
         return 0
     # 常见 emoji/符号区域（多数终端按双宽渲染）
-    if 0x2600 <= code <= 0x27FF or 0x2B00 <= code <= 0x2BFF \
-            or 0x1F000 <= code <= 0x1FAFF:
+    if (
+        0x2600 <= code <= 0x27FF
+        or 0x2B00 <= code <= 0x2BFF
+        or 0x1F000 <= code <= 0x1FAFF
+    ):
         return 2
-    if unicodedata.east_asian_width(ch) in ('W', 'F', 'A'):
+    if unicodedata.east_asian_width(ch) in ("W", "F", "A"):
         return 2
     return 1
 
 
-def pad_cell(text: Optional[str], width: int, align: str = 'left') -> str:
+def pad_cell(text: Optional[str], width: int, align: str = "left") -> str:
     """按显示宽度对齐单元格文本，超宽时截断并追加省略号。
 
     text 为 None 时按空串处理（适配解包自 Unknown 元组的调用点）。
     """
-    text = text or ''
+    text = text or ""
     text_width = get_display_width(text)
     if text_width > width:
-        result = ''
+        result = ""
         result_width = 0
-        ellipsis_width = _char_width('…')
+        ellipsis_width = _char_width("…")
         for ch in text:
             ch_width = _char_width(ch)
             if result_width + ch_width > width - ellipsis_width:
@@ -134,23 +138,25 @@ def pad_cell(text: Optional[str], width: int, align: str = 'left') -> str:
             result += ch
             result_width += ch_width
         if result_width + ellipsis_width <= width:
-            result += '…'
+            result += "…"
         return result
 
     padding = width - text_width
-    if align == 'right':
-        return ' ' * padding + text
-    if align == 'center':
+    if align == "right":
+        return " " * padding + text
+    if align == "center":
         left = padding // 2
-        return ' ' * left + text + ' ' * (padding - left)
-    return text + ' ' * padding
+        return " " * left + text + " " * (padding - left)
+    return text + " " * padding
 
 
-def print_table(headers: list,
-                rows: list,
-                truncatable: Optional[Iterable[int]] = None,
-                center_cols: Optional[Iterable[int]] = None,
-                min_widths: Optional[dict] = None) -> None:
+def print_table(
+    headers: list,
+    rows: list,
+    truncatable: Optional[Iterable[int]] = None,
+    center_cols: Optional[Iterable[int]] = None,
+    min_widths: Optional[dict] = None,
+) -> None:
     """以表格形式打印数据，完全基于 rich Table 原生能力。
 
     Args:
@@ -171,14 +177,13 @@ def print_table(headers: list,
 
     # 交给 rich Table 自适应：不设置固定 width，列级 overflow 处理超宽单元格，
     # 关键列用 min_width 保证可读性（rich 在窄终端压缩其他列，不删列、不截表头）。
-    table = Table(show_header=True, header_style="bold", pad_edge=False,
-                  box=None)
+    table = Table(show_header=True, header_style="bold", pad_edge=False, box=None)
 
     for i, h in enumerate(headers):
         table.add_column(
             h,
-            justify='center' if i in center_cols else 'left',
-            overflow='ellipsis' if i in truncatable else 'crop',
+            justify="center" if i in center_cols else "left",
+            overflow="ellipsis" if i in truncatable else "crop",
             min_width=min_widths.get(i),
         )
     for row in rows:
@@ -194,31 +199,31 @@ def prompt_confirm(message: str, default: Optional[str] = None) -> bool:
         message: 提示文本
         default: 回车时的默认值，'y' 默认确认，'n' 默认拒绝，None 时必须输入
     """
-    if default == 'y':
+    if default == "y":
         rich_default = True
-    elif default == 'n':
+    elif default == "n":
         rich_default = False
     else:
         rich_default = None
     return bool(RichConfirm.ask(message, default=rich_default))
 
 
-def print_separator(char: str = '=', length: int = 80) -> None:
+def print_separator(char: str = "=", length: int = 80) -> None:
     """打印分隔线。
 
     真实终端用 rich Rule（彩色横线）；非 tty（管道/重定向/GBK 控制台）用
     纯 ASCII 字符，避免 Unicode 横线被替换为乱码。
     """
-    if getattr(_console, 'is_terminal', False):
-        _console.print(Rule(style='cyan'))
+    if getattr(_console, "is_terminal", False):
+        _console.print(Rule(style="cyan"))
     else:
         print(char * length)
 
 
 def print_section_header(title: str) -> None:
     """打印章节标题（基于 rich Rule + 粗体标题）。"""
-    if getattr(_console, 'is_terminal', False):
-        _console.print(Rule(f"[bold]{title}[/bold]", style='cyan'))
+    if getattr(_console, "is_terminal", False):
+        _console.print(Rule(f"[bold]{title}[/bold]", style="cyan"))
     else:
         _console.print(title)
 
@@ -227,4 +232,5 @@ def wait_for_key() -> None:
     """等待用户按键（基于 click.pause）"""
     import click
     from ..i18n import _
+
     click.pause(f"\n{_(K.menu.press_any)}")

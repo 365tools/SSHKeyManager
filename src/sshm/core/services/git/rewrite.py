@@ -8,6 +8,7 @@
 
 适用于 sshm 打包分发（无 Python 环境），无需额外安装任何工具。
 """
+
 from __future__ import annotations
 
 import os
@@ -21,21 +22,24 @@ from typing import Optional, Tuple
 #   committer Bob <bob@y.com> 1786862590 +0800
 # 解析：前缀(author|committer) + 姓名(可能含空格，到 < 为止) + <邮箱> + 时间戳 + 时区
 _PERSON_LINE = re.compile(
-    r'^(?P<kind>author|committer) '
-    r'(?P<name>(?:[^<]|\\.)+) '
-    r'<(?P<email>[^>]*)>'
-    r'(?P<rest>[ \t].*)$'
+    r"^(?P<kind>author|committer) "
+    r"(?P<name>(?:[^<]|\\.)+) "
+    r"<(?P<email>[^>]*)>"
+    r"(?P<rest>[ \t].*)$"
 )
 
 
 class RewriteConfig:
     """一次历史重写的匹配/替换规则。所有字段均可选。"""
 
-    def __init__(self, old_name: Optional[str] = None,
-                 new_name: Optional[str] = None,
-                 old_email: Optional[str] = None,
-                 new_email: Optional[str] = None,
-                 match_all: bool = False):
+    def __init__(
+        self,
+        old_name: Optional[str] = None,
+        new_name: Optional[str] = None,
+        old_email: Optional[str] = None,
+        new_email: Optional[str] = None,
+        match_all: bool = False,
+    ):
         self.old_name = old_name
         self.new_name = new_name
         self.old_email = old_email
@@ -52,13 +56,16 @@ class RewriteConfig:
 # 等不影响仓库定位，一并清除也无妨），保证操作始终作用于目标仓库。
 def _clean_git_env() -> dict:
     """返回移除了全部 GIT_* 污染变量后的环境副本（保留其它变量）。"""
-    return {k: v for k, v in os.environ.items()
-            if not k.startswith('GIT_')}
+    return {k: v for k, v in os.environ.items() if not k.startswith("GIT_")}
 
 
-def _run_git(repo: Path, args: list, input_text: Optional[str] = None,
-             capture: bool = True, binary_input: bool = False
-             ) -> subprocess.CompletedProcess:
+def _run_git(
+    repo: Path,
+    args: list,
+    input_text: Optional[str] = None,
+    capture: bool = True,
+    binary_input: bool = False,
+) -> subprocess.CompletedProcess:
     """在指定仓库执行 git 命令。
 
     - input_text：可选的 stdin 文本输入
@@ -66,12 +73,12 @@ def _run_git(repo: Path, args: list, input_text: Optional[str] = None,
       避免 Windows 下 text mode 把 \\n 转成 \\r\\n 污染 fast-import 流
     - 统一使用干净 env，屏蔽外部 GIT_DIR 等环境变量干扰
     """
-    cmd = ['git', '-C', str(repo)] + args
+    cmd = ["git", "-C", str(repo)] + args
     env = _clean_git_env()
     if binary_input and input_text is not None:
         return subprocess.run(
             cmd,
-            input=input_text.encode('utf-8'),
+            input=input_text.encode("utf-8"),
             capture_output=capture,
             env=env,
         )
@@ -80,8 +87,8 @@ def _run_git(repo: Path, args: list, input_text: Optional[str] = None,
         input=input_text,
         capture_output=capture,
         text=True,
-        encoding='utf-8',
-        errors='replace',
+        encoding="utf-8",
+        errors="replace",
         env=env,
     )
 
@@ -99,8 +106,8 @@ def _count_matches(stream: str, cfg: RewriteConfig) -> int:
         if cfg.match_all:
             count += 1
             continue
-        name = m.group('name')
-        email = m.group('email')
+        name = m.group("name")
+        email = m.group("email")
         if cfg.old_name and name == cfg.old_name:
             count += 1
         elif cfg.old_email and email == cfg.old_email:
@@ -114,13 +121,13 @@ def _rewrite_stream(stream: str, cfg: RewriteConfig) -> Tuple[str, int]:
     out: list[str] = []
     replaced = 0
     for line in lines:
-        stripped = line.rstrip('\r\n')
+        stripped = line.rstrip("\r\n")
         m = _PERSON_LINE.match(stripped)
         if not m:
             out.append(line)
             continue
-        name = m.group('name')
-        email = m.group('email')
+        name = m.group("name")
+        email = m.group("email")
         new_name = name
         new_email = email
         hit = False
@@ -137,14 +144,14 @@ def _rewrite_stream(stream: str, cfg: RewriteConfig) -> Tuple[str, int]:
             hit = True
         if hit:
             replaced += 1
-            rest = m.group('rest')
+            rest = m.group("rest")
             # 统一输出 LF（\n），避免 Windows CRLF 混入 fast-import 流
             out.append(f"{m.group('kind')} {new_name} <{new_email}>{rest}\n")
         else:
             # 保留原始行，但确保以 LF 结尾
-            line = line.rstrip('\r\n') + '\n'
+            line = line.rstrip("\r\n") + "\n"
             out.append(line)
-    return ''.join(out), replaced
+    return "".join(out), replaced
 
 
 def _active_refs(repo: Path) -> list:
@@ -154,11 +161,12 @@ def _active_refs(repo: Path) -> list:
     不属于真实历史。若 fast-export / git log --all 误包含它，会导致：
     重写后旧作者仍能通过 --all 查到、matched 计数反复命中备份旧历史。
     """
-    refs = _run_git(repo, ['for-each-ref', '--format=%(refname)'])
+    refs = _run_git(repo, ["for-each-ref", "--format=%(refname)"])
     if refs.returncode != 0:
         return []
-    return [r for r in refs.stdout.splitlines()
-            if r and not r.startswith('refs/original/')]
+    return [
+        r for r in refs.stdout.splitlines() if r and not r.startswith("refs/original/")
+    ]
 
 
 def _backup_refs(repo: Path) -> None:
@@ -170,13 +178,13 @@ def _backup_refs(repo: Path) -> None:
       refs/remotes/origin/x  -> refs/original/refs/remotes/origin/x
     """
     for ref in _active_refs(repo):
-        if ref.startswith('refs/heads/'):
-            target = 'refs/original/' + ref[len('refs/heads/'):]
-        elif ref.startswith('refs/tags/'):
-            target = 'refs/original/tags/' + ref[len('refs/tags/'):]
+        if ref.startswith("refs/heads/"):
+            target = "refs/original/" + ref[len("refs/heads/") :]
+        elif ref.startswith("refs/tags/"):
+            target = "refs/original/tags/" + ref[len("refs/tags/") :]
         else:
-            target = 'refs/original/' + ref
-        _run_git(repo, ['update-ref', target, ref])
+            target = "refs/original/" + ref
+        _run_git(repo, ["update-ref", target, ref])
 
 
 def _update_current_branch(repo: Path) -> None:
@@ -188,35 +196,35 @@ def _update_current_branch(repo: Path) -> None:
     branch = _current_branch_name(repo)
     if not branch:
         # 无法确定当前分支，尝试 main/master 兜底
-        for cand in ('main', 'master'):
-            if (repo / '.git').exists():
-                chk = _run_git(repo, ['rev-parse', '--verify', f'refs/heads/{cand}'])
+        for cand in ("main", "master"):
+            if (repo / ".git").exists():
+                chk = _run_git(repo, ["rev-parse", "--verify", f"refs/heads/{cand}"])
                 if chk.returncode == 0:
                     branch = cand
                     break
     if branch:
-        _run_git(repo, ['checkout', '-f', branch])
+        _run_git(repo, ["checkout", "-f", branch])
 
 
 def _current_branch_name(repo: Path) -> str:
     """返回 HEAD 当前所在分支名；若 detached 返回空字符串。"""
     # 先尝试 symbolic-ref（正常挂载时可用）
-    sym = _run_git(repo, ['symbolic-ref', '--quiet', 'HEAD'])
+    sym = _run_git(repo, ["symbolic-ref", "--quiet", "HEAD"])
     if sym.returncode == 0:
         ref = sym.stdout.strip()
-        if ref.startswith('refs/heads/'):
-            return ref[len('refs/heads/'):]
-        return ''
+        if ref.startswith("refs/heads/"):
+            return ref[len("refs/heads/") :]
+        return ""
     # detached：尝试解析 HEAD 指向的 commit 属于哪个分支
-    name = _run_git(repo, ['name-rev', '--name-only', 'HEAD'])
+    name = _run_git(repo, ["name-rev", "--name-only", "HEAD"])
     if name.returncode == 0:
         n = name.stdout.strip()
         # 格式如 "main"、"main~1"、"tags/v0.0.1^0"
-        if '~' in n or '^' in n:
-            n = n.split('~')[0].split('^')[0]
-        if n and not n.startswith('tags/'):
+        if "~" in n or "^" in n:
+            n = n.split("~")[0].split("^")[0]
+        if n and not n.startswith("tags/"):
             return n
-    return ''
+    return ""
 
 
 def rewrite_history(repo_path: Path, cfg: RewriteConfig) -> dict:
@@ -229,9 +237,9 @@ def rewrite_history(repo_path: Path, cfg: RewriteConfig) -> dict:
     if cfg.match_all:
         # 全量刷新：无需 old 条件，但必须指定 new_name 或 new_email
         if not cfg.new_name and not cfg.new_email:
-            raise ValueError('全量刷新模式需要提供 new_name 或 new_email')
+            raise ValueError("全量刷新模式需要提供 new_name 或 new_email")
     elif not cfg.old_name and not cfg.old_email:
-        raise ValueError('old_name 和 old_email 至少需要一个')
+        raise ValueError("old_name 和 old_email 至少需要一个")
 
     repo = Path(repo_path)
 
@@ -241,16 +249,16 @@ def rewrite_history(repo_path: Path, cfg: RewriteConfig) -> dict:
     #    且 matched 计数会反复命中已重写过的旧提交。
     active = _active_refs(repo)
     if not active:
-        return {'matched_commits': 0, 'rewritten': 0}
-    export = _run_git(repo, ['fast-export'] + active)
+        return {"matched_commits": 0, "rewritten": 0}
+    export = _run_git(repo, ["fast-export"] + active)
     if export.returncode != 0:
         raise RuntimeError(f"git fast-export failed: {export.stderr.strip()}")
     # 归一化换行：Windows 下 git 可能输出 CRLF，统一为 LF 避免污染 fast-import 流
-    original = (export.stdout or '').replace('\r\n', '\n').replace('\r', '\n')
+    original = (export.stdout or "").replace("\r\n", "\n").replace("\r", "\n")
 
     matched = _count_matches(original, cfg)
     if matched == 0:
-        return {'matched_commits': 0, 'rewritten': 0}
+        return {"matched_commits": 0, "rewritten": 0}
 
     # 2. 备份原 refs
     _backup_refs(repo)
@@ -259,15 +267,19 @@ def rewrite_history(repo_path: Path, cfg: RewriteConfig) -> dict:
     new_stream, replaced = _rewrite_stream(original, cfg)
 
     # 4. 导入重写后的流（二进制 stdin，避免 Windows 换行污染）
-    imp = _run_git(repo, ['fast-import', '--quiet', '--force'],
-                   input_text=new_stream, binary_input=True)
+    imp = _run_git(
+        repo,
+        ["fast-import", "--quiet", "--force"],
+        input_text=new_stream,
+        binary_input=True,
+    )
     if imp.returncode != 0:
         raise RuntimeError(f"git fast-import failed: {imp.stderr.strip()}")
 
     # 5. 更新当前分支指向
     _update_current_branch(repo)
 
-    return {'matched_commits': matched, 'rewritten': replaced}
+    return {"matched_commits": matched, "rewritten": replaced}
 
 
 def get_authors_in_repo(repo_path: Path) -> list:
@@ -277,7 +289,7 @@ def get_authors_in_repo(repo_path: Path) -> list:
     active = _active_refs(repo)
     if not active:
         return []
-    log = _run_git(repo, ['log'] + active + ['--format=%an <%ae>'])
+    log = _run_git(repo, ["log"] + active + ["--format=%an <%ae>"])
     if log.returncode != 0:
         return []
     seen = {}

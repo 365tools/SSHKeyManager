@@ -12,7 +12,7 @@ from sshm.i18n import EN, ZH
 from sshm.language import KEYS, LANGUAGES, KEY_GROUPS, LanguageDict
 
 # 提取字符串中的 {placeholder} 占位符
-_PLACEHOLDER_RE = re.compile(r'\{(\w+)\}')
+_PLACEHOLDER_RE = re.compile(r"\{(\w+)\}")
 
 
 def _placeholders(text: str) -> frozenset:
@@ -31,17 +31,18 @@ def _assert_valid_key_set(d: LanguageDict, name: str) -> None:
 # 1. key 集合一致性
 # --------------------------------------------------------------------------
 
+
 def test_keys_template_matches_both_languages():
     """KEYS 模版与 EN/ZH 字典 key 集合完全一致（三方同步）"""
     assert set(EN) == set(ZH) == set(KEYS)
 
 
 def test_en_no_missing_or_extra():
-    _assert_valid_key_set(EN, 'EN')
+    _assert_valid_key_set(EN, "EN")
 
 
 def test_zh_no_missing_or_extra():
-    _assert_valid_key_set(ZH, 'ZH')
+    _assert_valid_key_set(ZH, "ZH")
 
 
 def test_keys_are_unique():
@@ -53,6 +54,7 @@ def test_keys_are_unique():
 # 2. 翻译非空
 # --------------------------------------------------------------------------
 
+
 def test_no_empty_translations():
     """每个 key 的 EN/ZH 翻译均非空（防占位但忘填文本）"""
     for k in KEYS:
@@ -63,6 +65,7 @@ def test_no_empty_translations():
 # --------------------------------------------------------------------------
 # 3. 占位符一致性（格式化安全）
 # --------------------------------------------------------------------------
+
 
 def test_placeholder_sets_match_en_zh():
     """同一 key 的 EN 与 ZH 占位符集合必须一致，否则 format 会 KeyError"""
@@ -79,14 +82,13 @@ def test_placeholder_keys_valid():
     for k in KEYS:
         for text in (EN[k], ZH[k]):
             for ph in _placeholders(text):
-                assert ph.isidentifier(), (
-                    f"key '{k}' 含非法占位符 '{{{ph}}}'"
-                )
+                assert ph.isidentifier(), f"key '{k}' 含非法占位符 '{{{ph}}}'"
 
 
 # --------------------------------------------------------------------------
 # 4. key 命名约定
 # --------------------------------------------------------------------------
+
 
 def test_key_prefix_in_known_groups():
     """每个 key 必须属于 KEY_GROUPS 定义的分组前缀之一"""
@@ -100,7 +102,7 @@ def test_key_prefix_in_known_groups():
 def test_key_groups_cover_all():
     """KEY_GROUPS 前缀覆盖全部 key（无漏网分组）"""
     for k in KEYS:
-        prefix = k.split('.')[0] + '.'
+        prefix = k.split(".")[0] + "."
         assert prefix in KEY_GROUPS, f"分组 '{prefix}' 未在 KEY_GROUPS 中登记"
 
 
@@ -108,9 +110,11 @@ def test_key_groups_cover_all():
 # 5. 翻译函数可用性
 # --------------------------------------------------------------------------
 
+
 def test_lookup_returns_text_for_all_keys():
     """默认语言下，每个 key 都能查到非空文本（不落回 key 本身）"""
     from sshm.i18n import _
+
     for k in KEYS:
         text = _(k)
         assert text != k, f"key '{k}' 未找到翻译，落回 key 本身"
@@ -118,14 +122,14 @@ def test_lookup_returns_text_for_all_keys():
 
 def test_supported_languages():
     """支持语言集合符合预期"""
-    assert set(LANGUAGES) == {'en', 'zh'}
+    assert set(LANGUAGES) == {"en", "zh"}
 
 
 # --------------------------------------------------------------------------
 # 6. 代码实际使用的 key 必须已在 KEYS 模版中
 # --------------------------------------------------------------------------
 
-_SRC_ROOT = Path(__file__).resolve().parent.parent / 'src'
+_SRC_ROOT = Path(__file__).resolve().parent.parent / "src"
 # 兼容两种写法：_(cmd.list) 字面量 与 _(K.cmd.list) 常量（点号前缀分组）
 _STR_RE = re.compile(r"_\(\s*['\"]([^'\"]+)['\"]")
 _K_RE = re.compile(r"_\(\s*K\.(\w+)\.(\w+)")
@@ -134,10 +138,10 @@ _K_RE = re.compile(r"_\(\s*K\.(\w+)\.(\w+)")
 def _used_keys_from_source() -> frozenset:
     """扫描 src/sshm 下所有 `_('...')` / `_(K.group.rest)` 调用，提取用到的翻译 key。"""
     keys = set()
-    for path in _SRC_ROOT.rglob('*.py'):
-        if '__pycache__' in path.parts:
+    for path in _SRC_ROOT.rglob("*.py"):
+        if "__pycache__" in path.parts:
             continue
-        text = path.read_text(encoding='utf-8')
+        text = path.read_text(encoding="utf-8")
         keys.update(_STR_RE.findall(text))
         # K.cmd.list -> 'cmd.list'
         keys.update(f"{g}.{r}" for g, r in _K_RE.findall(text))
@@ -156,6 +160,7 @@ def _walk_k(ns, collected: set):
 def test_k_constants_cover_all_keys():
     """嵌套 K 命名空间覆盖 KEYS 模版全部 key，且无多余（防手写漏同步）"""
     from sshm.language import K
+
     collected: set = set()
     _walk_k(K, collected)
     assert collected == set(KEYS), (

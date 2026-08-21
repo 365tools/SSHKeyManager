@@ -10,4 +10,4 @@ from .services.ssh.config import SSHConfigManager
 from .services.storage.state import StateManager
 from .manager import SSHKeyManager
 
-__all__ = ['SSHConfigManager', 'StateManager', 'SSHKeyManager']
+__all__ = ["SSHConfigManager", "StateManager", "SSHKeyManager"]

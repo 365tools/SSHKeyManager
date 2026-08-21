@@ -24,9 +24,10 @@ from ..language import K
 @dataclass(frozen=True)
 class CommandMeta:
     """单条命令的注册元数据。"""
-    name: str            # 命令名（如 'list'）
-    help_key: str        # i18n help key（如 'cmd.key_list'）
-    group: str           # 所属分组名（如 'key'）
+
+    name: str  # 命令名（如 'list'）
+    help_key: str  # i18n help key（如 'cmd.key_list'）
+    group: str  # 所属分组名（如 'key'）
     # 手动补充的"相关命令"（用于跨分组关联，如 switch 后提示 use）；为空时
     # 自动取同分组其余命令。字段为命令名，支持显式顺序。
     related: tuple = field(default_factory=tuple)
@@ -82,13 +83,13 @@ GROUP_ORDER: List[str] = ["key", "repo", "backup", "author", "history", "config"
 # 便捷查询
 # ---------------------------------------------------------------------------
 
+
 def commands_in_group(group: str) -> List[CommandMeta]:
     """返回某分组的命令清单（无则空列表）。"""
     return list(GROUPS.get(group, []))
 
 
-def related_commands(group: str, current: str,
-                     extra: tuple = ()) -> List[CommandMeta]:
+def related_commands(group: str, current: str, extra: tuple = ()) -> List[CommandMeta]:
     """返回某命令的"相关指令"（用于 tip）。
 
     - related 命令名作为**追加的跨组关联**（可跨分组，如 `key switch` 追加 `repo use`），
@@ -109,6 +110,5 @@ def related_commands(group: str, current: str,
                         break
             break
     related_names = {m.name for m in related_ordered}
-    rest = [m for m in group_cmds
-            if m.name != current and m.name not in related_names]
+    rest = [m for m in group_cmds if m.name != current and m.name not in related_names]
     return related_ordered + rest + list(extra)

@@ -19,6 +19,9 @@ from .repo import RepoCommands
 from .system import SystemCommands
 
 __all__ = [
-    'AuthorCommands', 'HistoryCommands', 'KeyCommands', 'RepoCommands',
-    'SystemCommands',
+    "AuthorCommands",
+    "HistoryCommands",
+    "KeyCommands",
+    "RepoCommands",
+    "SystemCommands",
 ]

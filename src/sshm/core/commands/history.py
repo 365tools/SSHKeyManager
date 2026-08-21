@@ -42,16 +42,19 @@ class HistoryCommands:
         """
         if not value:
             return None, None
-        if ':' in value:
-            old, _, new = value.partition(':')
+        if ":" in value:
+            old, _, new = value.partition(":")
             return (old or None), (new or None)
         return None, value
 
-    def rewrite(self, repo_path: Union[str, Path] = '.',
-                name: Optional[str] = None,
-                email: Optional[str] = None,
-                author: Optional[str] = None,
-                skip_confirm: bool = False):
+    def rewrite(
+        self,
+        repo_path: Union[str, Path] = ".",
+        name: Optional[str] = None,
+        email: Optional[str] = None,
+        author: Optional[str] = None,
+        skip_confirm: bool = False,
+    ):
         """重写 Git 历史中的作者/邮箱。
 
         三种互斥模式：
@@ -59,10 +62,14 @@ class HistoryCommands:
         2. --name NEW / --email NEW   全量刷新该字段：所有 name/email 统一为新值
         3. --name OLD:NEW / --email OLD:NEW   精细替换：OLD -> NEW
         """
-        from ..services.git.rewrite import RewriteConfig, get_authors_in_repo, rewrite_history
+        from ..services.git.rewrite import (
+            RewriteConfig,
+            get_authors_in_repo,
+            rewrite_history,
+        )
 
         repo_path = Path(repo_path).resolve()
-        if not (repo_path / '.git').exists():
+        if not (repo_path / ".git").exists():
             self.m._fail(_(K.err.not_git_repo, path=repo_path))
             return
 
@@ -70,10 +77,10 @@ class HistoryCommands:
         old_email, new_email = self._split_pair(email)
 
         # 模式判定
-        precise = bool(old_name or old_email)          # 精细替换（OLD:NEW）
-        full_name = bool(new_name and not old_name)    # --name 单值全量
+        precise = bool(old_name or old_email)  # 精细替换（OLD:NEW）
+        full_name = bool(new_name and not old_name)  # --name 单值全量
         full_email = bool(new_email and not old_email)  # --email 单值全量
-        full_author = bool(author)                      # --author <label> 全量
+        full_author = bool(author)  # --author <label> 全量
 
         # 互斥校验：精细替换不能与任何全量刷新混用
         if precise and (full_author or full_name or full_email):
@@ -88,12 +95,14 @@ class HistoryCommands:
             # 从作者列表读取 label 对应的 name/email
             stored = self.m.state_manager.read_authors().get(author.lower())
             if not stored:
-                self.m._fail(_(K.err.author_not_found, label=author),
-                             hint=_(K.err.use_author_list))
+                self.m._fail(
+                    _(K.err.author_not_found, label=author),
+                    hint=_(K.err.use_author_list),
+                )
                 return
             match_all = True
-            new_name = stored.get('name') or None
-            new_email = stored.get('email') or None
+            new_name = stored.get("name") or None
+            new_email = stored.get("email") or None
             if not new_name and not new_email:
                 self.m._fail(_(K.err.author_empty, label=author))
                 return
@@ -119,9 +128,13 @@ class HistoryCommands:
             print(f"   - {a}")
 
         # 构造规则并预估受影响提交
-        cfg = RewriteConfig(old_name=old_name, new_name=new_name,
-                            old_email=old_email, new_email=new_email,
-                            match_all=match_all)
+        cfg = RewriteConfig(
+            old_name=old_name,
+            new_name=new_name,
+            old_email=old_email,
+            new_email=new_email,
+            match_all=match_all,
+        )
         if match_all:
             # 只展示实际被刷新的字段（--author 全量刷两者；单值只刷其一）
             parts = []
@@ -133,9 +146,13 @@ class HistoryCommands:
         else:
             match_desc = []
             if old_name:
-                match_desc.append(f"{_(K.misc.name)} '{old_name}' -> '{new_name or old_name}'")
+                match_desc.append(
+                    f"{_(K.misc.name)} '{old_name}' -> '{new_name or old_name}'"
+                )
             if old_email:
-                match_desc.append(f"{_(K.misc.email)} '{old_email}' -> '{new_email or old_email}'")
+                match_desc.append(
+                    f"{_(K.misc.email)} '{old_email}' -> '{new_email or old_email}'"
+                )
         print(f"\n⚙️ {_(K.lbl.rules)} {', '.join(match_desc)}")
 
         # 用 dry-run 预估（fast-export 到临时流，不导入）。
@@ -143,12 +160,16 @@ class HistoryCommands:
         # 反复命中已重写过的旧历史。
         try:
             from ..services.git.rewrite import _active_refs, _count_matches
+
             active = _active_refs(repo_path)
             export = subprocess.run(
-                ['git', '-C', str(repo_path), 'fast-export'] + active,
-                capture_output=True, text=True, encoding='utf-8',
-                errors='replace')
-            matched = _count_matches(export.stdout or '', cfg)
+                ["git", "-C", str(repo_path), "fast-export"] + active,
+                capture_output=True,
+                text=True,
+                encoding="utf-8",
+                errors="replace",
+            )
+            matched = _count_matches(export.stdout or "", cfg)
         except Exception:
             matched = 0
         if matched == 0:

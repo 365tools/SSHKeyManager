@@ -30,6 +30,7 @@ from .registry import GROUP_ORDER, related_commands
 
 class KeyType(str, Enum):
     """SSH 密钥类型（与 constants.SUPPORTED_KEY_TYPES 保持一致）。"""
+
     ed25519 = "ed25519"
     rsa = "rsa"
     ecdsa = "ecdsa"
@@ -38,17 +39,21 @@ class KeyType(str, Enum):
 
 class Lang(str, Enum):
     """输出语言（与 language.LANGUAGES 保持一致）。"""
+
     en = "en"
     zh = "zh"
 
 
 # 防御性校验：枚举成员与单一来源常量一致，避免未来 drift
-assert {m.value for m in KeyType} == set(SUPPORTED_KEY_TYPES), "KeyType 与 SUPPORTED_KEY_TYPES 不一致"
+assert {m.value for m in KeyType} == set(SUPPORTED_KEY_TYPES), (
+    "KeyType 与 SUPPORTED_KEY_TYPES 不一致"
+)
 assert {m.value for m in Lang} == set(LANGUAGES), "Lang 与 LANGUAGES 不一致"
 
 
 class OnOff(str, Enum):
     """开关参数（on/off）。"""
+
     on = "on"
     off = "off"
 
@@ -72,6 +77,7 @@ app = typer.Typer(
 # 通用辅助
 # ===========================================================================
 
+
 def _manager() -> SSHKeyManager:
     return SSHKeyManager()
 
@@ -82,7 +88,7 @@ def _fail_exit(manager: SSHKeyManager) -> None:
     用 SystemExit 而非 typer.Exit：在 `app(standalone_mode=False)` 下 typer.Exit 会被
     Click 内部吞掉导致错误场景退出码仍为 0，SystemExit 能正确传播并置退出码 1。
     """
-    if getattr(manager, '_had_error', False):
+    if getattr(manager, "_had_error", False):
         raise SystemExit(1)
 
 
@@ -95,11 +101,12 @@ def _show_tip(group: str, current: str, extra: tuple = ()) -> None:
         extra: 可选，额外追加的跨分组相关命令
     """
     from ..ui.tip import related_command_blocks, render_tip_block
+
     cmds = related_commands(group, current, extra)
     if not cmds:
         return
     for block in related_command_blocks(group, cmds):
-        render_tip_block(block, style='dim')
+        render_tip_block(block, style="dim")
 
 
 def _print_version_rows(rows) -> None:
@@ -111,12 +118,13 @@ def _print_version_rows(rows) -> None:
     """
     from ..ui.output import print as _print
     from ..ui.console import get_display_width, pad_cell
+
     label_hdr = _(K.ver.label)
     labels = [label_hdr] + [r[1] for r in rows]
     label_w = max(get_display_width(l) for l in labels)
-    lead = ' ' * 2          # 行首缩进
-    emoji_cell = ' ' * 4    # emoji(双宽) + 2 空格的固定位
-    gap = ' ' * 2           # 标签列与值列之间
+    lead = " " * 2  # 行首缩进
+    emoji_cell = " " * 4  # emoji(双宽) + 2 空格的固定位
+    gap = " " * 2  # 标签列与值列之间
     _print(f"{lead}{emoji_cell}{pad_cell(label_hdr, label_w)}{gap}{_(K.ver.value)}")
     for emoji, label, value in rows:
         _print(f"{lead}{emoji}  {pad_cell(label, label_w)}{gap}{value}")
@@ -124,23 +132,24 @@ def _print_version_rows(rows) -> None:
 
 def _version_callback(value: bool) -> None:
     if value:
-        frozen = getattr(sys, 'frozen', False)
+        frozen = getattr(sys, "frozen", False)
         mode = _(K.ver.mode_packaged) if frozen else _(K.ver.mode_source)
         system = platform.system()
         arch = platform.machine()
         python_ver = platform.python_version()
         from ..constants import VERSION
+
         rows = [
-            ['📦', _(K.ver.version), f"v{VERSION}"],
-            ['🖥️', _(K.ver.platform), f"{system} {arch}"],
-            ['🐍', _(K.ver.python), python_ver],
-            ['⚙️', _(K.ver.mode), mode],
+            ["📦", _(K.ver.version), f"v{VERSION}"],
+            ["🖥️", _(K.ver.platform), f"{system} {arch}"],
+            ["🐍", _(K.ver.python), python_ver],
+            ["⚙️", _(K.ver.mode), mode],
         ]
         if frozen:
-            rows.append(['🏷️', _(K.ver.build), _build_source()])
+            rows.append(["🏷️", _(K.ver.build), _build_source()])
             btime = _build_time()
             if btime:
-                rows.append(['🕐', _(K.ver.build_time), btime])
+                rows.append(["🕐", _(K.ver.build_time), btime])
         _print_version_rows(rows)
         raise typer.Exit()
 
@@ -148,9 +157,9 @@ def _version_callback(value: bool) -> None:
 def _build_source() -> str:
     """判断当前 exe 是本地编译版还是线上（发布）版。"""
     exe_dir = Path(sys.executable).parent
-    if (exe_dir / '.source_local').exists():
+    if (exe_dir / ".source_local").exists():
         return _(K.ver.build_local)
-    if (exe_dir / '.source_release').exists():
+    if (exe_dir / ".source_release").exists():
         return _(K.ver.build_release)
     return _(K.ver.build_unknown)
 
@@ -160,10 +169,11 @@ def _build_time() -> str:
     try:
         import datetime
         import os as _os
+
         ts = datetime.datetime.fromtimestamp(_os.path.getmtime(sys.executable))
-        return ts.strftime('%Y-%m-%d %H:%M:%S')
+        return ts.strftime("%Y-%m-%d %H:%M:%S")
     except Exception:
-        return ''
+        return ""
 
 
 # ===========================================================================
@@ -171,7 +181,9 @@ def _build_time() -> str:
 # ===========================================================================
 
 key_app = typer.Typer(
-    name="key", help=_(K.cmd.group_key), rich_markup_mode="rich",
+    name="key",
+    help=_(K.cmd.group_key),
+    rich_markup_mode="rich",
 )
 
 
@@ -203,8 +215,7 @@ def key_list(
 def key_create(
     label: str = typer.Argument(..., help=_(K.opt.label)),
     email: str = typer.Argument(..., help=_(K.opt.email)),
-    type: KeyType = typer.Option(
-        KeyType.ed25519, "--type", "-t", help=_(K.opt.type)),
+    type: KeyType = typer.Option(KeyType.ed25519, "--type", "-t", help=_(K.opt.type)),
     host: str = typer.Option(None, "--host", "-H", help=_(K.opt.host)),
     name: str = typer.Option(None, "--name", "-n", help=_(K.opt.name)),
 ):
@@ -218,7 +229,8 @@ def key_create(
 def key_remove(
     label: str = typer.Argument(..., help=_(K.opt.label)),
     type: Optional[KeyType] = typer.Option(
-        None, "--type", "-t", help=_(K.opt.type_all)),
+        None, "--type", "-t", help=_(K.opt.type_all)
+    ),
 ):
     manager = _manager()
     manager.key.remove(label, type.value if type else None)
@@ -230,8 +242,7 @@ def key_remove(
 def key_rename(
     old_label: str = typer.Argument(..., help=_(K.opt.old_label)),
     new_label: str = typer.Argument(..., help=_(K.opt.new_label_name)),
-    type: KeyType = typer.Option(
-        KeyType.ed25519, "--type", "-t", help=_(K.opt.type)),
+    type: KeyType = typer.Option(KeyType.ed25519, "--type", "-t", help=_(K.opt.type)),
 ):
     manager = _manager()
     manager.key.rename(old_label, new_label, type.value)
@@ -243,7 +254,8 @@ def key_rename(
 def key_label(
     label: str = typer.Argument(..., help=_(K.opt.new_label)),
     type: Optional[KeyType] = typer.Option(
-        None, "--type", "-t", help=_(K.opt.type_auto)),
+        None, "--type", "-t", help=_(K.opt.type_auto)
+    ),
     switch: bool = typer.Option(False, "--switch", "-s", help=_(K.opt.switch_after)),
 ):
     manager = _manager()
@@ -256,7 +268,8 @@ def key_label(
 def key_switch(
     label: str = typer.Argument(..., help=_(K.opt.label)),
     type: Optional[KeyType] = typer.Option(
-        None, "--type", "-t", help=_(K.opt.type_auto)),
+        None, "--type", "-t", help=_(K.opt.type_auto)
+    ),
 ):
     manager = _manager()
     manager.key.switch(label, type.value if type else None)
@@ -279,7 +292,9 @@ def key_current(
 # ===========================================================================
 
 repo_app = typer.Typer(
-    name="repo", help=_(K.cmd.group_repo), rich_markup_mode="rich",
+    name="repo",
+    help=_(K.cmd.group_repo),
+    rich_markup_mode="rich",
 )
 
 
@@ -299,7 +314,7 @@ def repo_default(
 def repo_use(
     label: str = typer.Argument(..., help=_(K.opt.label)),
     path: Path = typer.Option(Path("."), "--path", "-p", help=_(K.opt.path)),
-    global_: bool = typer.Option(False, "--global", "-g", help=_('opt.global')),
+    global_: bool = typer.Option(False, "--global", "-g", help=_("opt.global")),
     yes: bool = typer.Option(False, "--yes", "-y", help=_(K.opt.yes)),
     author: bool = typer.Option(False, "--author", "-a", help=_(K.opt.author_same)),
 ):
@@ -308,8 +323,7 @@ def repo_use(
         manager.key.switch(label)
         if author:
             print()
-            manager.author.use(
-                label, path, scope="global", skip_confirm=yes)
+            manager.author.use(label, path, scope="global", skip_confirm=yes)
     else:
         manager.repo.use(label, path, yes)
         if author:
@@ -359,7 +373,9 @@ def repo_test(
 # ===========================================================================
 
 backup_app = typer.Typer(
-    name="backup", help=_(K.cmd.group_backup), rich_markup_mode="rich",
+    name="backup",
+    help=_(K.cmd.group_backup),
+    rich_markup_mode="rich",
 )
 
 
@@ -395,7 +411,8 @@ def backup_list() -> None:
 def backup_restore(
     backup: str = typer.Argument(None, help=_(K.opt.backup_name)),
     type: Optional[KeyType] = typer.Option(
-        None, "--type", "-t", help=_(K.opt.type_only)),
+        None, "--type", "-t", help=_(K.opt.type_only)
+    ),
     yes: bool = typer.Option(False, "--yes", "-y", help=_(K.opt.yes_prompts)),
 ):
     manager = _manager()
@@ -409,7 +426,9 @@ def backup_restore(
 # ===========================================================================
 
 author_app = typer.Typer(
-    name="author", help=_(K.cmd.group_author), rich_markup_mode="rich",
+    name="author",
+    help=_(K.cmd.group_author),
+    rich_markup_mode="rich",
 )
 
 
@@ -449,8 +468,7 @@ def author_add(
 def author_update(
     label: str = typer.Argument(..., help=_(K.opt.author_label)),
     name: str = typer.Option(None, "--name", "-n", help=_(K.opt.author_name)),
-    email: str = typer.Option(
-        None, "--email", "-e", help=_(K.opt.author_email_update)),
+    email: str = typer.Option(None, "--email", "-e", help=_(K.opt.author_email_update)),
 ):
     # 至少提供 --name 或 --email 之一：纯参数校验，前置以渲染统一 tip 模板 + 非零退出
     if not name and not email:
@@ -505,7 +523,9 @@ def author_unset(
 # ===========================================================================
 
 history_app = typer.Typer(
-    name="history", help=_(K.cmd.group_history), rich_markup_mode="rich",
+    name="history",
+    help=_(K.cmd.group_history),
+    rich_markup_mode="rich",
 )
 
 
@@ -514,6 +534,7 @@ def history_default(ctx: typer.Context) -> None:
     """无子命令时显示帮助（退出码 0，区别于 no_args_is_help 的 exit 2）。"""
     if ctx.invoked_subcommand is None:
         import click
+
         click.echo(ctx.get_help())
         raise typer.Exit(0)
 
@@ -531,10 +552,11 @@ def history_rewrite(
     def _split_pair(v: Optional[str]):
         if not v:
             return None, None
-        if ':' in v:
-            p = v.split(':', 1)
+        if ":" in v:
+            p = v.split(":", 1)
             return p[0], p[1]
         return None, v
+
     old_name, new_name = _split_pair(name)
     old_email, new_email = _split_pair(email)
     precise = bool(old_name or old_email)
@@ -562,7 +584,9 @@ def history_rewrite(
 # ===========================================================================
 
 config_app = typer.Typer(
-    name="config", help=_(K.cmd.group_config), rich_markup_mode="rich",
+    name="config",
+    help=_(K.cmd.group_config),
+    rich_markup_mode="rich",
 )
 
 
@@ -580,8 +604,7 @@ def config_default(
 
 @config_app.command("auto-author", help=_(K.cmd.config_auto_author))
 def config_auto_author(
-    on: Optional[OnOff] = typer.Argument(
-        None, help=_(K.opt.on_off), metavar="on|off"),
+    on: Optional[OnOff] = typer.Argument(None, help=_(K.opt.on_off), metavar="on|off"),
 ):
     manager = _manager()
     if on is None:
@@ -595,7 +618,8 @@ def config_auto_author(
 @config_app.command("language", help=_(K.cmd.config_language))
 def config_lang(
     lang: Optional[Lang] = typer.Argument(
-        None, help=_(K.opt.lang_value), metavar="en|zh"),
+        None, help=_(K.opt.lang_value), metavar="en|zh"
+    ),
 ):
     manager = _manager()
     if lang is None:
@@ -634,8 +658,12 @@ def config_update(
 
 for _grp in GROUP_ORDER:
     _target = {
-        "key": key_app, "repo": repo_app, "backup": backup_app,
-        "author": author_app, "history": history_app, "config": config_app,
+        "key": key_app,
+        "repo": repo_app,
+        "backup": backup_app,
+        "author": author_app,
+        "history": history_app,
+        "config": config_app,
     }[_grp]
     app.add_typer(_target)
 
@@ -644,7 +672,9 @@ for _grp in GROUP_ORDER:
 def main_callback(
     ctx: typer.Context,
     version: bool = typer.Option(
-        False, "--version", "-v",
+        False,
+        "--version",
+        "-v",
         help=_(K.cmd.version),
         callback=_version_callback,
         is_eager=True,

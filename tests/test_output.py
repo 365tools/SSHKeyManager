@@ -17,7 +17,7 @@ def test_null_output_silences_core(capsys):
     try:
         set_output(NullOutput())
         _manager().key.list()
-        assert capsys.readouterr().out == ''
+        assert capsys.readouterr().out == ""
     finally:
         set_output(old)
 
@@ -28,10 +28,10 @@ def test_console_output_restored_after_set(capsys):
     try:
         set_output(NullOutput())
         _manager().key.list()
-        assert capsys.readouterr().out == ''
+        assert capsys.readouterr().out == ""
     finally:
         set_output(old)
 
     # 恢复默认后应正常输出
     _manager().key.list()
-    assert capsys.readouterr().out != ''
+    assert capsys.readouterr().out != ""

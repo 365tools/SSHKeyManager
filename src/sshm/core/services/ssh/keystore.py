@@ -32,8 +32,8 @@ class KeyStore:
         keys_by_label: Dict[str, List[Dict]] = {}
         key_pattern = get_key_pattern()
 
-        for file in self.ssh_dir.glob('id_*'):
-            if not file.is_file() or file.name.endswith('.pub'):
+        for file in self.ssh_dir.glob("id_*"):
+            if not file.is_file() or file.name.endswith(".pub"):
                 continue
 
             match = key_pattern.match(file.name)
@@ -41,19 +41,19 @@ class KeyStore:
                 continue
 
             key_type = match.group(1)
-            label = match.group(2)[1:] if match.group(2) else 'default'
+            label = match.group(2)[1:] if match.group(2) else "default"
             # 跳过 use -g 切换的系统备份文件（id_*.original），不视为用户标签
-            if label.lower() == 'original':
+            if label.lower() == "original":
                 continue
 
             pub_file = self.ssh_dir / f"{file.name}.pub"
             key_info = {
-                'type': key_type,
-                'private': file,
-                'public': pub_file,
-                'has_pub': pub_file.exists(),
-                'size': file.stat().st_size,
-                'mtime': datetime.fromtimestamp(file.stat().st_mtime),
+                "type": key_type,
+                "private": file,
+                "public": pub_file,
+                "has_pub": pub_file.exists(),
+                "size": file.stat().st_size,
+                "mtime": datetime.fromtimestamp(file.stat().st_mtime),
             }
 
             if label not in keys_by_label:
@@ -84,23 +84,24 @@ class KeyStore:
         """
         shutil.copy2(source, target)
         self._secure_perms(target, private=True)
-        pub_source = Path(str(source) + '.pub')
+        pub_source = Path(str(source) + ".pub")
         if pub_source.exists():
-            shutil.copy2(pub_source, Path(str(target) + '.pub'))
-            self._secure_perms(Path(str(target) + '.pub'), private=False)
+            shutil.copy2(pub_source, Path(str(target) + ".pub"))
+            self._secure_perms(Path(str(target) + ".pub"), private=False)
 
     @staticmethod
     def _secure_perms(path: Path, private: bool) -> None:
         """Unix 下兜底设置密钥文件权限：私钥 600，公钥 644。"""
-        if os.name != 'posix':
+        if os.name != "posix":
             return
         try:
             path.chmod(0o600 if private else 0o644)
         except OSError:
             pass  # 平台/只读异常时忽略，不影响主流程
 
-    def extract_email_from_pubkey(self, key_type: str,
-                                  label: Optional[str] = None) -> Optional[str]:
+    def extract_email_from_pubkey(
+        self, key_type: str, label: Optional[str] = None
+    ) -> Optional[str]:
         """从公钥注释提取邮箱（ssh-keygen -C email 写入）
 
         label 为 None 时读取默认密钥（id_{type}.pub），否则读取带标签的公钥。
@@ -109,10 +110,10 @@ class KeyStore:
         if not pub_file.exists():
             return None
         try:
-            parts = pub_file.read_text(encoding='utf-8').strip().split()
+            parts = pub_file.read_text(encoding="utf-8").strip().split()
             if len(parts) >= 3:
                 comment = parts[-1]
-                if re.match(r'^[^@\s]+@[^@\s]+$', comment):
+                if re.match(r"^[^@\s]+@[^@\s]+$", comment):
                     return comment
         except (OSError, UnicodeDecodeError):
             pass

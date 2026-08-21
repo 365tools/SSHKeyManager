@@ -22,11 +22,11 @@ from .ui.console import setup_windows_console
 
 __version__ = VERSION
 __all__ = [
-    'VERSION',
-    'SSHKeyManager',
-    'SSHConfigManager',
-    'StateManager',
-    'setup_windows_console'
+    "VERSION",
+    "SSHKeyManager",
+    "SSHConfigManager",
+    "StateManager",
+    "setup_windows_console",
 ]
 
 # 自动初始化 Windows 控制台

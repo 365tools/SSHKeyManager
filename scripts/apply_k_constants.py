@@ -12,6 +12,7 @@
     python scripts/apply_k_constants.py            # 实际替换
     python scripts/apply_k_constants.py --dry-run  # 只预览改动
 """
+
 from __future__ import annotations
 
 import keyword
@@ -20,31 +21,33 @@ import sys
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-SRC = PROJECT_ROOT / 'src'
+SRC = PROJECT_ROOT / "src"
 sys.path.insert(0, str(SRC))
-sys.path.insert(0, str(SRC / 'sshm'))
+sys.path.insert(0, str(SRC / "sshm"))
 
 from sshm.language.templates import KEYS  # noqa: E402
 
 # 匹配 `_('key')` / _("key")，key 含点号、rest 为标识符
 _CALL_RE = re.compile(r"\b_\s*\(\s*['\"]([a-z][a-z0-9_]*\.[a-zA-Z_][a-zA-Z0-9_]*)['\"]")
 # i18n 导入行：from <dots>i18n import _...
-_I18N_IMPORT_RE = re.compile(r'^(from (\.*)i18n import .*)$', re.M)
+_I18N_IMPORT_RE = re.compile(r"^(from (\.*)i18n import .*)$", re.M)
 # 已有 K 导入
-_K_IMPORT_RE = re.compile(r'^\s*from \.*language import .*\bK\b|^\s*import .*\bK\b', re.M)
+_K_IMPORT_RE = re.compile(
+    r"^\s*from \.*language import .*\bK\b|^\s*import .*\bK\b", re.M
+)
 
 
 def _k_expr(key: str) -> str:
-    group, _, rest = key.partition('.')
+    group, _, rest = key.partition(".")
     return f"K.{group}.{rest}"
 
 
 def main() -> int:
-    dry = '--dry-run' in sys.argv
+    dry = "--dry-run" in sys.argv
     missing: list[tuple[str, str]] = []
     total = 0
-    for py in sorted(SRC.rglob('*.py')):
-        text = py.read_text(encoding='utf-8')
+    for py in sorted(SRC.rglob("*.py")):
+        text = py.read_text(encoding="utf-8")
         orig = text
         used_keys: set[str] = set()
 
@@ -55,7 +58,7 @@ def main() -> int:
                 return m.group(0)
             # rest 为 Python 关键字（如 opt.global / sys.continue）无法用 K.attr 访问，
             # 保持字面量形式（门禁允许两种形式）。
-            if keyword.iskeyword(key.partition('.')[2]):
+            if keyword.iskeyword(key.partition(".")[2]):
                 return m.group(0)
             used_keys.add(key)
             # 注意：只替换 `_(` 到 key 结尾引号的部分，不补右括号——
@@ -70,19 +73,22 @@ def main() -> int:
         if used_keys and not _K_IMPORT_RE.search(text):
             i18n_m = _I18N_IMPORT_RE.search(text)
             # 仅当 i18n 导入是单行（不以 '(' 结尾）时才自动插入 K 导入
-            if i18n_m and not i18n_m.group(0).rstrip().endswith('('):
+            if i18n_m and not i18n_m.group(0).rstrip().endswith("("):
                 line = i18n_m.group(1)
-                dots = re.match(r'from (\.*)i18n', line).group(1)
+                dots = re.match(r"from (\.*)i18n", line).group(1)
                 k_import = f"from {dots}language import K"
                 # 插到 i18n 导入行之后
-                text = text[:i18n_m.end()] + '\n' + k_import + text[i18n_m.end():]
+                text = text[: i18n_m.end()] + "\n" + k_import + text[i18n_m.end() :]
 
         if text == orig:
             continue
         total += len(used_keys)
-        print(('DRY' if dry else 'MOD') + f" {py.relative_to(SRC)}  ({len(used_keys)} keys)")
+        print(
+            ("DRY" if dry else "MOD")
+            + f" {py.relative_to(SRC)}  ({len(used_keys)} keys)"
+        )
         if not dry:
-            py.write_text(text, encoding='utf-8')
+            py.write_text(text, encoding="utf-8")
 
     print(f"\n共替换 {total} 个 key；未登记在 KEYS 的（保持字面量）: {len(missing)}")
     for path, key in missing[:20]:
@@ -90,5 +96,5 @@ def main() -> int:
     return 0 if not missing else 1
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     raise SystemExit(main())
