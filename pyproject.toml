@@ -33,10 +33,14 @@ sshm = "sshm.__main__:main"
 [tool.setuptools]
 package-dir = { "" = "src" }
 
-# 版本号动态化：从 sshm.__version__ 读取（该值由 CHANGELOG 自动解析），
-# 打包/安装时无需手动维护版本号
+# 版本号从独立版本文件读取：构建期只读文件、不 import 整个包，
+# 避免 `pip install .` 时因运行时依赖(rich 等)未装而构建失败
+# （`attr = "sshm.__version__"` 会 import 包并触发第三方依赖，CI 上必崩）。
 [tool.setuptools.dynamic]
-version = { attr = "sshm.__version__" }
+version = { file = "src/sshm/_version.txt" }
+
+[tool.setuptools.package-data]
+sshm = ["_version.txt"]
 
 [tool.setuptools.packages.find]
 where = ["src"]

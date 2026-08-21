@@ -46,6 +46,7 @@
 - **业务错误全局统一渲染**：收敛此前"各处自行拼 `❌` 并裸 print"的 DIY 散落——新增统一渲染 `ui.tip.render_business_error(msg, *, icon, hint)`（空行 + ❌/⚠️ + 分隔线 + 💡 建议）；`manager._fail` 改为调用它并支持 `icon`/`hint`，新增不置退出码的 `manager._warn` 供软告警；commands 层 55+ 处 `_fail` 调用点去掉 `❌`/`⚠️`/`\n` 前缀，带建议行的场景并入 `hint`；services 辅助函数（updater/path/gitrepo）的错误统一走 `render_business_error`。视图内联提示与交互流程警告保留原样（属展示/交互内容，非错误机制）。新增命令报错只需 `self.m._fail(_('err.xxx'))` 或 `raise ValidationError(...)`，无需定制化格式
 - **相关命令跨组关联（声明式）**：`related_commands` 支持跨分组 related——`key switch` 声明关联 `repo use`（为仓库配置密钥），缺参/用法错误与正常 tip 共用同一推导逻辑，不再出现 `sshm key use` 的错组拼接；`command_list_lines` 用命令自身分组渲染
 - **相关命令分块展示**：tip 的"相关命令"拆分为「本组命令」与「跨组 related 命令」两块，各自带独立标题（`More commands in this group` / `More related commands`，新增 `misc.related_tip_cross`），跨组关联一目了然；无跨组关联的命令只显示本组块
+- **版本机制修复（CI 构建）**：动态版本由 `attr = "sshm.__version__"`（构建期 import 整个包触发 `rich` 未装而崩溃）改为 `version = { file = "src/sshm/_version.txt" }`（构建只读文件、不 import 包）；新增 `src/sshm/_version.txt` 作为版本单一来源，`constants.VERSION` 优先级改为 `_version.txt` > CHANGELOG > 元数据；`sshm.spec` 与 `pyproject` package-data 打入 `_version.txt`，CI 打包改用 `sshm.spec` 保证 exe 版本正确（不再回落 0.0.0）
 
 ---
 

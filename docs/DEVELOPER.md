@@ -223,7 +223,13 @@ python scripts/check_all.py
 python scripts/build_local.py
 ```
 
-等价命令：
+推荐使用仓库内 `sshm.spec`（已配置 `_version.txt` + `CHANGELOG.md` 的 datas 与瘦身 excludes，与 CI 完全一致，exe 版本才能正确解析）：
+
+```bash
+pyinstaller sshm.spec
+```
+
+等价命令行（**不推荐**：不含版本文件 datas，exe 版本会回落 `0.0.0`）：
 
 ```bash
 pyinstaller --onefile --name sshm --console --paths src src/run_sshm.py
@@ -266,5 +272,5 @@ git push origin v0.0.3
 4. **清理缓存**：修改源码后务必删除 `build/` 目录再重建，否则 PyInstaller 可能复用旧分析结果：
    ```bash
    rm -rf build dist
-   pyinstaller --onefile --name sshm --paths src src/run_sshm.py
+   pyinstaller sshm.spec
    ```

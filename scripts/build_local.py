@@ -77,8 +77,8 @@ def build() -> None:
         print("ℹ️ 未找到 UPX（跳过可选的 exe/DLL 压缩）")
 
     # 复用仓库内的 sshm.spec 打包（而非命令行参数）。
-    # spec 内已配置：打入 CHANGELOG.md（VERSION 解析第一来源）+ copy_metadata，
-    # 保证本地产物与 CI 线上产物版本解析行为完全一致，且不会覆盖根目录 spec。
+    # spec 内已配置：打入 _version.txt（VERSION 第一来源）+ CHANGELOG.md（回退）
+    # + copy_metadata，保证本地产物与 CI 线上产物版本解析行为完全一致。
     spec_file = Path("sshm.spec")
     if not spec_file.exists():
         print("❌ 未找到打包配置: sshm.spec")

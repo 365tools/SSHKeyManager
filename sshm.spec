@@ -2,9 +2,9 @@
 
 from PyInstaller.utils.hooks import copy_metadata
 
-# 打包 sshm 自身分发元数据（供 constants.VERSION 的 importlib.metadata 回退）
-# 与 CHANGELOG.md（版本自动解析的第一来源）。两者皆缺失时版本会静默回落
-# 0.0.0，导致每次运行都误报“有新版本”。包未安装时 copy_metadata 容错跳过。
+# 打包版本文件（constants.VERSION 的第一来源）与 CHANGELOG.md（回退来源）、
+# 以及 sshm 自身分发元数据（importlib.metadata 回退）。三者皆缺失时版本会
+# 静默回落 0.0.0，导致每次运行都误报“有新版本”。包未安装时 copy_metadata 容错跳过。
 try:
     _SSHM_METADATA = copy_metadata('sshm')
 except Exception:
@@ -26,7 +26,8 @@ a = Analysis(
     ['src/run_sshm.py'],
     pathex=['src'],
     binaries=[],
-    datas=[('docs/CHANGELOG.md', '.')] + _SSHM_METADATA,
+    datas=[('src/sshm/_version.txt', 'sshm'),
+           ('docs/CHANGELOG.md', '.')] + _SSHM_METADATA,
     hiddenimports=[],
     hookspath=[],
     hooksconfig={},
