@@ -13,6 +13,10 @@ DEFAULT_KEY_TYPE = 'ed25519'
 STATE_FILE_NAME = '.sshm_state'
 BACKUP_DIR_NAME = 'key_backups'
 
+# 默认 SSH 目录与 SSH config 文件名（跨模块唯一来源，避免各处硬编码）
+DEFAULT_SSH_DIR = Path.home() / '.ssh'
+SSH_CONFIG_NAME = 'config'
+
 # 源码/打包时 CHANGELOG.md 的可能位置
 _CHANGELOG_CANDIDATES = [
     Path(__file__).resolve().parent.parent.parent / 'docs' / 'CHANGELOG.md',  # 源码: src/sshm -> 项目/docs

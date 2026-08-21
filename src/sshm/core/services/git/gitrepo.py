@@ -15,7 +15,8 @@ from pathlib import Path
 from typing import Callable, List, Optional, Tuple, Union
 
 from ....i18n import _
-from ....ui.output import confirm, print
+from ....language import K
+from ....ui.output import ICON_WARN, confirm, print
 from ....ui.tip import render_business_error
 
 
@@ -187,23 +188,23 @@ class GitRepoService:
             return True
 
         render_business_error(
-            _("msg.hostname_differs", host=repo_hostname, label=label, cur=current),
-            icon='⚠️',
+            _(K.msg.hostname_differs, host=repo_hostname, label=label, cur=current),
+            icon=ICON_WARN,
             hint="\n".join([
-                _("msg.private_server"),
-                _("msg.need_ssh_config", host=repo_hostname),
+                _(K.msg.private_server),
+                _(K.msg.need_ssh_config, host=repo_hostname),
             ]))
 
         if skip_confirm:
             self.state_manager.write_host(label, repo_hostname)
-            print("✅ " + _("msg.host_updated", label=label, host=repo_hostname))
+            print("✅ " + _(K.msg.host_updated, label=label, host=repo_hostname))
             return True
 
-        if confirm(_("msg.create_matching", host=repo_hostname), default='y'):
+        if confirm(_(K.msg.create_matching, host=repo_hostname), default='y'):
             self.state_manager.write_host(label, repo_hostname)
-            print("✅ " + _("msg.host_updated", label=label, host=repo_hostname))
+            print("✅ " + _(K.msg.host_updated, label=label, host=repo_hostname))
             return True
-        self._error("⚠️  " + _("msg.skipped_no_mapping"))
+        self._error("⚠️  " + _(K.msg.skipped_no_mapping))
         return False
 
     def update_ssh_config_alias(self, label: str, key_file: Path) -> None:
@@ -213,8 +214,8 @@ class GitRepoService:
 
         self.config_manager.update_host(host_alias, hostname, key_file.resolve())
         self.state_manager.write_host(label, hostname)
-        print(_("msg.ssh_config_alias", alias=host_alias, hostname=hostname))
-        print(_("msg.alias_usage", alias=host_alias))
+        print(_(K.msg.ssh_config_alias, alias=host_alias, hostname=hostname))
+        print(_(K.msg.alias_usage, alias=host_alias))
 
     def remove_ssh_config_alias(self, label: str) -> None:
         """删除 SSH config 别名配置"""
@@ -222,7 +223,7 @@ class GitRepoService:
 
         self.config_manager.remove_host(host_alias)
         self.state_manager.remove_host(label)
-        print(_("msg.alias_removed", alias=host_alias))
+        print(_(K.msg.alias_removed, alias=host_alias))
 
     def rename_ssh_config_alias(self, old_label: str, new_label: str,
                                 new_key_file: Path) -> None:
@@ -235,7 +236,7 @@ class GitRepoService:
             self.config_manager.remove_host(old_alias)
             self.config_manager.update_host(new_alias, hostname, new_key_file.resolve())
             self.state_manager.write_host(new_label, hostname)
-            print(_("msg.alias_updated", old=old_alias, new=new_alias))
+            print(_(K.msg.alias_updated, old=old_alias, new=new_alias))
 
     def detect_repo_key_label(self,
                               repo_path: Union[str, Path] = '.') -> Optional[str]:

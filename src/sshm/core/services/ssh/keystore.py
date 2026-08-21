@@ -14,7 +14,7 @@ from pathlib import Path
 from typing import Dict, List, Optional
 
 from ....constants import SUPPORTED_KEY_TYPES
-from ....ui.console import get_key_pattern
+from .keypaths import get_key_pattern, private_key_path, public_key_path
 
 
 class KeyStore:
@@ -65,16 +65,14 @@ class KeyStore:
     def detect_key_type_for_label(self, label: str) -> Optional[str]:
         """检测指定标签的密钥类型"""
         for key_type in SUPPORTED_KEY_TYPES:
-            key_file = self.ssh_dir / f"id_{key_type}.{label}"
-            if key_file.exists():
+            if private_key_path(self.ssh_dir, key_type, label).exists():
                 return key_type
         return None
 
     def detect_default_key_type(self) -> Optional[str]:
         """检测默认密钥类型"""
         for key_type in SUPPORTED_KEY_TYPES:
-            key_file = self.ssh_dir / f"id_{key_type}"
-            if key_file.exists():
+            if private_key_path(self.ssh_dir, key_type).exists():
                 return key_type
         return None
 
@@ -107,10 +105,7 @@ class KeyStore:
 
         label 为 None 时读取默认密钥（id_{type}.pub），否则读取带标签的公钥。
         """
-        if label:
-            pub_file = self.ssh_dir / f"id_{key_type}.{label}.pub"
-        else:
-            pub_file = self.ssh_dir / f"id_{key_type}.pub"
+        pub_file = public_key_path(self.ssh_dir, key_type, label)
         if not pub_file.exists():
             return None
         try:

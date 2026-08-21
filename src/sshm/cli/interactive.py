@@ -11,6 +11,7 @@ from ..constants import VERSION, DEFAULT_KEY_TYPE
 from ..core import SSHKeyManager
 from ..core.services.net.updater import UpdateManager
 from ..i18n import _
+from ..language import K
 from ..ui.console import print_separator, print_section_header, wait_for_key
 from ..ui.output import print
 
@@ -27,7 +28,7 @@ def _ask_required(prompt: str) -> str:
         value = str(RichPrompt.ask(prompt, default="", show_default=False)).strip()
         if value:
             return value
-        print("⚠️  " + _("menu.empty_field"))
+        print("⚠️  " + _(K.menu.empty_field))
 
 
 def _ask(prompt: str) -> str:
@@ -42,37 +43,37 @@ def _ask_confirm(prompt: str) -> bool:
 
 def show_interactive_menu() -> None:
     """显示交互式菜单（双击运行时）"""
-    print_section_header(_("hdr.interactive"))
-    print("\n" + _("menu.welcome") + "\n")
-    print(f"{_('lbl.current_version')} v{VERSION}")
-    print("\n" + _("menu.gui_tip"))
-    print("  " + _("menu.all_ops"))
+    print_section_header(_(K.hdr.interactive))
+    print("\n" + _(K.menu.welcome) + "\n")
+    print(f"{_(K.lbl.current_version)} v{VERSION}")
+    print("\n" + _(K.menu.gui_tip))
+    print("  " + _(K.menu.all_ops))
     print_separator()
 
     manager = SSHKeyManager()
 
     while True:
-        print("\n" + _("menu.choose"))
-        print("  [01] " + _("menu.view_all"))
-        print("  [02] " + _("menu.create_new"))
-        print("  [03] " + _("menu.delete_key"))
-        print("  [04] " + _("menu.backup_all"))
-        print("  [05] " + _("menu.view_backups"))
-        print("  [06] " + _("menu.restore"))
-        print("  [07] " + _("menu.save_label"))
-        print("  [08] " + _("menu.rename"))
-        print("  [09] " + _("menu.configure"))
-        print("  [10] " + _("menu.clone"))
-        print("  [11] " + _("menu.author"))
-        print("  [12] " + _("menu.info"))
-        print("  [13] " + _("menu.test"))
-        print("  [14] " + _("menu.update"))
-        print("  [15] " + _("menu.add_path"))
-        print("  [16] " + _("menu.help"))
-        print("  [Q]  " + _("menu.exit"))
+        print("\n" + _(K.menu.choose))
+        print("  [01] " + _(K.menu.view_all))
+        print("  [02] " + _(K.menu.create_new))
+        print("  [03] " + _(K.menu.delete_key))
+        print("  [04] " + _(K.menu.backup_all))
+        print("  [05] " + _(K.menu.view_backups))
+        print("  [06] " + _(K.menu.restore))
+        print("  [07] " + _(K.menu.save_label))
+        print("  [08] " + _(K.menu.rename))
+        print("  [09] " + _(K.menu.configure))
+        print("  [10] " + _(K.menu.clone))
+        print("  [11] " + _(K.menu.author))
+        print("  [12] " + _(K.menu.info))
+        print("  [13] " + _(K.menu.test))
+        print("  [14] " + _(K.menu.update))
+        print("  [15] " + _(K.menu.add_path))
+        print("  [16] " + _(K.menu.help))
+        print("  [Q]  " + _(K.menu.exit))
 
         # 读取输入
-        choice = _ask(_("menu.enter_option")).upper()
+        choice = _ask(_(K.menu.enter_option)).upper()
 
         print()
 
@@ -82,21 +83,21 @@ def show_interactive_menu() -> None:
                 manager.key.list(show_content=False)
 
             elif choice in ['2', '02']:
-                print(_("lbl.create_new_key"))
-                label = get_input(_("prompt.enter_label"))
-                email = get_input(_("prompt.enter_email"))
-                host = _ask(_("prompt.enter_host"))
-                ktype = _ask(_("prompt.enter_type", default=DEFAULT_KEY_TYPE))
+                print(_(K.lbl.create_new_key))
+                label = get_input(_(K.prompt.enter_label))
+                email = get_input(_(K.prompt.enter_email))
+                host = _ask(_(K.prompt.enter_host))
+                ktype = _ask(_(K.prompt.enter_type, default=DEFAULT_KEY_TYPE))
                 if not ktype:
                     ktype = DEFAULT_KEY_TYPE
 
                 manager.key.create(label, email, ktype, host if host else None)
 
             elif choice in ['3', '03']:
-                print(_("lbl.delete_key"))
+                print(_(K.lbl.delete_key))
                 manager.key.list(show_content=False)
                 print()
-                label = get_input(_("prompt.enter_delete_label"))
+                label = get_input(_(K.prompt.enter_delete_label))
                 manager.key.remove(label)
 
             elif choice in ['4', '04']:
@@ -106,86 +107,86 @@ def show_interactive_menu() -> None:
                 manager.backup.list()
 
             elif choice in ['6', '06']:
-                print(_("hdr.restore"))
+                print(_(K.hdr.restore))
                 manager.backup.restore()
 
             elif choice in ['7', '07']:
-                print(_("lbl.save_as_label"))
-                label = get_input(_("prompt.enter_new_label"))
-                switch = _ask_confirm(_("prompt.switch_after"))
+                print(_(K.lbl.save_as_label))
+                label = get_input(_(K.prompt.enter_new_label))
+                switch = _ask_confirm(_(K.prompt.switch_after))
                 manager.key.label(None, label, switch)
 
             elif choice in ['8', '08']:
-                print(_("lbl.rename_label"))
+                print(_(K.lbl.rename_label))
                 manager.key.list(show_content=False)
                 print()
-                old_label = get_input(_("prompt.enter_old_label"))
-                new_label = get_input(_("prompt.enter_new_label"))
+                old_label = get_input(_(K.prompt.enter_old_label))
+                new_label = get_input(_(K.prompt.enter_new_label))
                 manager.key.rename(old_label, new_label)
 
             elif choice in ['9', '09']:
-                print(_("lbl.configure_repo_key"))
+                print(_(K.lbl.configure_repo_key))
                 manager.key.list(show_content=False)
                 print()
-                label = get_input(_("prompt.enter_use_label"))
+                label = get_input(_(K.prompt.enter_use_label))
                 manager.repo.use(label, '.', False)
 
             elif choice == '10':
-                print(_("lbl.clone_repo"))
+                print(_(K.lbl.clone_repo))
                 manager.key.list(show_content=False)
                 print()
-                label = get_input(_("prompt.enter_clone_label"))
-                url = get_input(_("prompt.enter_clone_url"))
+                label = get_input(_(K.prompt.enter_clone_label))
+                url = get_input(_(K.prompt.enter_clone_url))
                 manager.repo.clone(label, url, None, False)
 
             elif choice == '11':
                 while True:
-                    print(_("hdr.author_manage"))
-                    print("\n" + _("menu.choose"))
-                    print("  [1] " + _("menu.view_repo_author"))
-                    print("  [2] " + _("menu.view_saved_list"))
-                    print("  [3] " + _("menu.add_update_author"))
-                    print("  [4] " + _("menu.use_author_set"))
-                    print("  [5] " + _("menu.delete_author"))
-                    print("  [0] " + _("menu.back_main"))
-                    sub_choice = _ask(_("menu.enter_option"))
+                    print(_(K.hdr.author_manage))
+                    print("\n" + _(K.menu.choose))
+                    print("  [1] " + _(K.menu.view_repo_author))
+                    print("  [2] " + _(K.menu.view_saved_list))
+                    print("  [3] " + _(K.menu.add_update_author))
+                    print("  [4] " + _(K.menu.use_author_set))
+                    print("  [5] " + _(K.menu.delete_author))
+                    print("  [0] " + _(K.menu.back_main))
+                    sub_choice = _ask(_(K.menu.enter_option))
                     if sub_choice == '1':
                         manager.author.show('.')
                     elif sub_choice == '2':
                         manager.author.list()
                     elif sub_choice == '3':
-                        print(_("lbl.add_update_author"))
-                        label = get_input(_("prompt.enter_author_label"))
-                        name = _ask(_("prompt.enter_author_name"))
-                        email = _ask(_("prompt.enter_author_email"))
+                        print(_(K.lbl.add_update_author))
+                        label = get_input(_(K.prompt.enter_author_label))
+                        name = _ask(_(K.prompt.enter_author_name))
+                        email = _ask(_(K.prompt.enter_author_email))
                         manager.author.add(label, name or None, email or None)
                     elif sub_choice == '4':
-                        print(_("lbl.use_author_set"))
+                        print(_(K.lbl.use_author_set))
                         manager.author.list()
                         print()
-                        label = get_input(_("prompt.enter_author_label"))
-                        scope = 'global' if _ask_confirm(_("prompt.apply_global")) \
+                        label = get_input(_(K.prompt.enter_author_label))
+                        scope = 'global' if _ask_confirm(_(K.prompt.apply_global)) \
                             else 'local'
                         manager.author.use(label, '.', scope=scope,
                                                 skip_confirm=False)
                     elif sub_choice == '5':
-                        print(_("lbl.delete_author"))
+                        print(_(K.lbl.delete_author))
                         manager.author.list()
                         print()
-                        label = get_input(_("prompt.enter_delete_author"))
+                        label = get_input(_(K.prompt.enter_delete_author))
                         manager.author.remove(label)
                     elif sub_choice == '0':
                         break
                     else:
-                        print("⚠️  " + _("menu.invalid"))
+                        print("⚠️  " + _(K.menu.invalid))
                     print()
 
             elif choice == '12':
                 manager.repo.info('.')
 
             elif choice == '13':
-                print(_("lbl.test_connection"))
-                label = _ask(_("prompt.enter_test_label"))
+                print(_(K.lbl.test_connection))
+                label = _ask(_(K.prompt.enter_test_label))
                 if not label:
                     manager.repo.test(None, False, '.')
                 elif label.lower() == 'all':
@@ -197,11 +198,11 @@ def show_interactive_menu() -> None:
                 updater = UpdateManager()
                 info = updater.check_update()
                 if info:
-                    print(f"\n🎉 {_('upd.new_version', version=info['version'])}")
-                    print(f"{_('upd.release_date')} {info.get('published_at', 'Unknown')}")
-                    print(f"\n{_('upd.update_notes')}\n{info.get('body', '')}")
+                    print(f"\n🎉 {_(K.upd.new_version, version=info['version'])}")
+                    print(f"{_(K.upd.release_date)} {info.get('published_at', 'Unknown')}")
+                    print(f"\n{_(K.upd.update_notes)}\n{info.get('body', '')}")
                 else:
-                    print("\n✅ " + _("upd.up_to_date"))
+                    print("\n✅ " + _(K.upd.up_to_date))
 
             elif choice == '15':
                 manager.config.add_to_path()
@@ -210,17 +211,17 @@ def show_interactive_menu() -> None:
                 show_help()
 
             elif choice == 'Q':
-                print(_("menu.goodbye") + " 👋")
+                print(_(K.menu.goodbye) + " 👋")
                 break
             else:
-                print("⚠️  " + _("menu.invalid"))
+                print("⚠️  " + _(K.menu.invalid))
 
         except KeyboardInterrupt:
             # 用户在输入时按 Ctrl+C：友好退出而非 traceback
-            print(f"\n👋 {_('menu.goodbye')}")
+            print(f"\n👋 {_(K.menu.goodbye)}")
             break
         except Exception as e:
-            print(f"\n❌ {_('menu.operation_failed')} {e}")
+            print(f"\n❌ {_(K.menu.operation_failed)} {e}")
 
         if choice != 'Q':
             wait_for_key()

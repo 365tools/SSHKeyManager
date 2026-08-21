@@ -15,8 +15,9 @@ from datetime import datetime
 from pathlib import Path
 from typing import Callable, List, Optional
 
-from ....constants import STATE_FILE_NAME
+from ....constants import SSH_CONFIG_NAME, STATE_FILE_NAME
 from ....i18n import _
+from ....language import K
 from ....ui.console import format_timestamp
 from ....ui.output import confirm, print, section
 
@@ -64,39 +65,39 @@ class BackupService:
 
         # 一并备份 SSH config（仅存档；恢复时不会自动覆盖当前 config）
         if self.config_file.exists():
-            shutil.copy2(self.config_file, backup_path / 'config')
-            backed_up.append('config')
+            shutil.copy2(self.config_file, backup_path / SSH_CONFIG_NAME)
+            backed_up.append(SSH_CONFIG_NAME)
 
         if not silent:
-            print(f"✅ {_('msg.backup_complete')} {backup_path}")
-            print("📦 " + _("msg.files_backed_up", count=len(backed_up)))
+            print(f"✅ {_(K.msg.backup_complete)} {backup_path}")
+            print("📦 " + _(K.msg.files_backed_up, count=len(backed_up)))
 
         return backup_path
 
     def list(self) -> None:
         """列出所有备份"""
-        section(_("hdr.backup_list"))
+        section(_(K.hdr.backup_list))
 
         backups = sorted(self.backup_dir.glob('backup_*'),
                          key=lambda x: x.stat().st_mtime, reverse=True)
 
         if not backups:
-            print("📭 " + _("msg.no_backups"))
+            print("📭 " + _(K.msg.no_backups))
             return
 
         for i, backup in enumerate(backups, 1):
             mtime = datetime.fromtimestamp(backup.stat().st_mtime)
             files = list(backup.glob('id_*'))
             print(f"\n[{i}] {backup.name}")
-            print(f"    {_('lbl.time')} {format_timestamp(mtime)}")
-            print(f"    {_('lbl.files')} {len(files)}")
-            print(f"    {_('lbl.path')} {backup}")
+            print(f"    {_(K.lbl.time)} {format_timestamp(mtime)}")
+            print(f"    {_(K.lbl.files)} {len(files)}")
+            print(f"    {_(K.lbl.path)} {backup}")
 
     def restore(self, backup_name: Optional[str] = None,
                        key_type: Optional[str] = None,
                        skip_confirm: bool = False) -> None:
         """从备份恢复密钥"""
-        section(_("hdr.restore"))
+        section(_(K.hdr.restore))
 
         if backup_name:
             # 校验备份名，防止路径穿越 / 绝对路径 / 家目录逃逸出备份目录
@@ -104,37 +105,37 @@ class BackupService:
             if (candidate.is_absolute()
                     or '..' in candidate.parts
                     or str(backup_name).startswith('~')):
-                self._error(f"❌ {_('err.invalid_backup_name', name=backup_name)}")
+                self._error(f"❌ {_(K.err.invalid_backup_name, name=backup_name)}")
                 return
             backup_path = self.backup_dir / backup_name
             if not backup_path.exists():
-                self._error(f"❌ {_('err.backup_not_found')} {backup_path}")
-                print("   " + _("err.use_backups_cmd"))
+                self._error(f"❌ {_(K.err.backup_not_found)} {backup_path}")
+                print("   " + _(K.err.use_backups_cmd))
                 return
         else:
             backups = sorted(self.backup_dir.glob('backup_*'),
                              key=lambda x: x.stat().st_mtime, reverse=True)
             if not backups:
-                print("📭 " + _("err.no_backups_restore"))
-                print("   " + _("err.use_backup_cmd"))
+                print("📭 " + _(K.err.no_backups_restore))
+                print("   " + _(K.err.use_backup_cmd))
                 return
             backup_path = backups[0]
-            print(f"📦 {_('msg.will_use_latest')} {backup_path.name}")
+            print(f"📦 {_(K.msg.will_use_latest)} {backup_path.name}")
 
         files = sorted(p for p in backup_path.glob('id_*') if p.is_file())
         if key_type:
             files = [f for f in files if f.name.startswith(f"id_{key_type}")]
 
         if not files:
-            self._error("❌ " + _("err.no_recoverable"))
+            self._error("❌ " + _(K.err.no_recoverable))
             return
 
-        print("\n📂 " + _("msg.will_restore_count", count=len(files)))
+        print("\n📂 " + _(K.msg.will_restore_count, count=len(files)))
         for f in files:
             print(f"   - {f.name}")
 
-        if not skip_confirm and not confirm("\n" + _("msg.restore_prompt")):
-            self._error("❌ " + _("misc.operation_cancelled"))
+        if not skip_confirm and not confirm("\n" + _(K.msg.restore_prompt)):
+            self._error("❌ " + _(K.misc.operation_cancelled))
             return
 
         restored = []
@@ -146,7 +147,7 @@ class BackupService:
                 _secure_key_perms(target, private=not f.name.endswith('.pub'))
                 restored.append(f.name)
             except OSError as e:
-                self._error(f"❌ {_('err.restore_failed')} {f.name} ({e})")
+                self._error(f"❌ {_(K.err.restore_failed)} {f.name} ({e})")
         # 恢复状态文件（包含 active_keys / authors / hosts 映射）
         state_backup = backup_path / STATE_FILE_NAME
         if state_backup.exists():
@@ -154,13 +155,13 @@ class BackupService:
             restored.append(STATE_FILE_NAME)
 
         if restored:
-            print(f"\n✅ {_('msg.restored_count', count=len(restored))}")
+            print(f"\n✅ {_(K.msg.restored_count, count=len(restored))}")
             for name in restored:
                 print(f"   - {name}")
-            print("\n💡 " + _("msg.restore_tip"))
+            print("\n💡 " + _(K.msg.restore_tip))
 
         # 备份中的 config 仅供存档，不自动覆盖当前配置，提示手动重建别名
-        config_backup = backup_path / 'config'
+        config_backup = backup_path / SSH_CONFIG_NAME
         if config_backup.exists():
-            print("\nℹ️  " + _("msg.backup_has_config"))
-            print("   " + _("msg.regenerate_alias"))
+            print("\nℹ️  " + _(K.msg.backup_has_config))
+            print("   " + _(K.msg.regenerate_alias))

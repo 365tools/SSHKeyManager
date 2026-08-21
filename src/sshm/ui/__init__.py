@@ -11,7 +11,6 @@
 
 from .console import (
     setup_windows_console,
-    get_key_pattern,
     format_timestamp,
     format_size,
     get_display_width,
@@ -26,7 +25,6 @@ from .output import ConsoleOutput, NullOutput, Output
 
 __all__ = [
     'setup_windows_console',
-    'get_key_pattern',
     'format_timestamp',
     'format_size',
     'get_display_width',

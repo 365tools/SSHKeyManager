@@ -19,6 +19,7 @@ import subprocess
 from typing import Optional, Tuple
 
 from ....i18n import _
+from ....language import K
 
 # 成功关键词：优先精确匹配，避免误报（不采用过宽的 'hi '）
 _SSH_SUCCESS_MARKERS = (
@@ -75,28 +76,28 @@ class SSHTester:
 
             # 1) 失败关键词优先（失败通常比成功更明确）
             if any(m in low for m in _SSH_FAILURE_MARKERS):
-                return (False, _("err.connection_failed",
+                return (False, _(K.err.connection_failed,
                                  detail=output.strip()[:100]))
 
             # 2) 成功关键词 / 欢迎语
             if any(m in low for m in _SSH_SUCCESS_MARKERS):
                 user = self._extract_user(output)
                 if user:
-                    return (True, _("msg.auth_success", user=user))
-                return (True, _("msg.connected"))
+                    return (True, _(K.msg.auth_success, user=user))
+                return (True, _(K.msg.connected))
 
             # 3) 未知平台文案：以退出码兜底
             if result.returncode == 0:
-                return (True, _("msg.connected"))
-            return (False, _("err.connection_failed",
+                return (True, _(K.msg.connected))
+            return (False, _(K.err.connection_failed,
                              detail=output.strip()[:100]))
 
         except subprocess.TimeoutExpired:
-            return (False, _("err.connection_timeout"))
+            return (False, _(K.err.connection_timeout))
         except FileNotFoundError:
-            return (False, _("err.ssh_not_found"))
+            return (False, _(K.err.ssh_not_found))
         except Exception as e:
-            return (False, f"{_('misc.error')}: {str(e)}")
+            return (False, f"{_(K.misc.error)}: {str(e)}")
 
     def _extract_user(self, output: str) -> Optional[str]:
         """从输出中提取认证用户名（"Hi <user>!" / "Welcome to ..., <user>"）"""

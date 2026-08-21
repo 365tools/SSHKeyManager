@@ -59,16 +59,25 @@ class Output:
         raise NotImplementedError
 
 
+# 语义图标常量：输出/命令/服务统一引用，避免各处硬编码 emoji 字符。
+ICON_OK = '✅'
+ICON_ERR = '❌'
+ICON_WARN = '⚠️'
+ICON_TIP = '💡'
+ICON_BULLET = '➖'
+ICON_INFO = 'ℹ️'
+
+
 class ConsoleOutput(Output):
     """默认控制台输出：基于 rich 渲染，非 tty 自动降级为纯文本。"""
 
     # 状态 emoji 前缀 -> 语义颜色：按消息开头 emoji 自动着色，
     # 无需改动各命令调用点即可获得语义化的终端配色。
     _EMOJI_STYLE = {
-        '✅': 'bold green', '🎉': 'bold green', '✔': 'bold green',
-        '⚠️': 'yellow', '❗': 'yellow',
-        '❌': 'bold red', '✘': 'bold red',
-        'ℹ️': 'cyan', '💡': 'cyan', '🔀': 'cyan', '⚙️': 'cyan',
+        ICON_OK: 'bold green', '🎉': 'bold green', '✔': 'bold green',
+        ICON_WARN: 'yellow', '❗': 'yellow',
+        ICON_ERR: 'bold red', '✘': 'bold red',
+        ICON_INFO: 'cyan', ICON_TIP: 'cyan', '🔀': 'cyan', '⚙️': 'cyan',
     }
     _style_map = {
         'info': 'cyan',

@@ -17,9 +17,12 @@ from typing import TYPE_CHECKING, Optional, Union
 
 from ...constants import DEFAULT_KEY_TYPE, SUPPORTED_KEY_TYPES
 from ...i18n import _
+from ...language import K
+from ..services.ssh.keypaths import private_key_path, public_key_path
 from ...ui.console import format_size, format_timestamp
 from ..errors import ValidationError
 from ...ui.output import (
+    ICON_WARN,
     print,
     section as print_section_header,
     separator as print_separator,
@@ -53,15 +56,14 @@ class KeyCommands:
         - 不允许保留名称 default / original
         """
         if not label or not label.strip():
-            raise ValidationError(_("err.label_empty"))
+            raise ValidationError(_(K.err.label_empty))
         label = label.strip()
         if not re.match(r'^[A-Za-z0-9][A-Za-z0-9_-]*$', label):
-            raise ValidationError(_(
-                "err.label_invalid",
+            raise ValidationError(_(K.err.label_invalid,
                 label=label,
             ))
         if label.lower() in self.m.RESERVED_LABELS:
-            raise ValidationError(_("err.label_reserved", label=label))
+            raise ValidationError(_(K.err.label_reserved, label=label))
         return True
 
     # ------------------------------------------------------------------
@@ -72,15 +74,15 @@ class KeyCommands:
              repo_path: Union[str, Path] = '.',
              current_only: bool = False):
         """列出所有密钥（表格形式）"""
-        print_section_header(_("hdr.key_list"))
-        print(f"\n{_('lbl.ssh_dir')} {self.m.ssh_dir}\n")
+        print_section_header(_(K.hdr.key_list))
+        print(f"\n{_(K.lbl.ssh_dir)} {self.m.ssh_dir}\n")
 
         keys_by_label = self.m.keystore.scan_all_keys()
         active_keys = self.m.state_manager.read_active_keys()
 
         if not keys_by_label:
-            print("⚠️  " + _("msg.no_keys"))
-            print("\n💡 " + _("msg.add_tip"))
+            print("⚠️  " + _(K.msg.no_keys))
+            print("\n💡 " + _(K.msg.add_tip))
             return
 
         # 指定仓库正在使用的密钥（仓库级，通过 remote URL 反解）
@@ -102,11 +104,11 @@ class KeyCommands:
         sorted_labels = sorted(keys_by_label.keys(), key=sort_key)
 
         # 收集表格数据（首列 Status 用 📍 标记正在使用；Scope 区分仓库级/全局）
-        global_scope = _('misc.scope_global')
-        repo_scope = _('misc.scope_repo')
+        global_scope = _(K.misc.scope_global)
+        repo_scope = _(K.misc.scope_repo)
         # 固定 6 列（省略低价值 Public/Size），交给 rich Table 渲染
-        headers = [_('lbl.status'), _('lbl.label'), _('lbl.file'),
-                   _('lbl.modified'), _('lbl.alias'), _('lbl.scope')]
+        headers = [_(K.lbl.status), _(K.lbl.label), _(K.lbl.file),
+                   _(K.lbl.modified), _(K.lbl.alias), _(K.lbl.scope)]
         rows = []
         pub_map = []
 
@@ -154,11 +156,11 @@ class KeyCommands:
         # list -c 且无匹配时，给出友好提示而非空表格
         if current_only and not rows:
             if not (Path(repo_path).resolve() / '.git').exists():
-                print("⚠️  " + _("err.not_git_repo", path=Path(repo_path).resolve()))
+                print("⚠️  " + _(K.err.not_git_repo, path=Path(repo_path).resolve()))
             else:
-                print("⚠️  " + _("msg.repo_key_missing"))
-            print("   " + _("msg.configure_repo_tip"))
-            print("   " + _("msg.or_list_all"))
+                print("⚠️  " + _(K.msg.repo_key_missing))
+            print("   " + _(K.msg.configure_repo_tip))
+            print("   " + _(K.msg.or_list_all))
             return
 
         # 交给 rich Table 自适应：不手动裁剪列，给关键长列设 min_width 保证可读，
@@ -169,12 +171,12 @@ class KeyCommands:
 
         # 公钥内容单独展示（避免破坏表格对齐）
         if show_content and pub_map:
-            print_section_header("📋 " + _("hdr.public_contents"))
+            print_section_header("📋 " + _(K.hdr.public_contents))
             for label, file_name, content in pub_map:
                 print(f"\n[{label}] {file_name}.pub")
                 print(f"  {content}\n")
 
-        render_tip_block([f"💡 {_('msg.use_tip')}"])
+        render_tip_block([f"💡 {_(K.msg.use_tip)}"])
 
     def current(self, repo_path: Union[str, Path] = '.'):
         """展示当前正在生效的密钥（含来源与全局默认详情）。
@@ -188,31 +190,31 @@ class KeyCommands:
         active_keys = self.m.state_manager.read_active_keys()
         repo_key = self.m.gitrepo.detect_repo_key_label(repo_path)
 
-        print_section_header(_("hdr.current_key"))
-        print(f"{_('lbl.repo_path')} {repo_path}\n")
+        print_section_header(_(K.hdr.current_key))
+        print(f"{_(K.lbl.repo_path)} {repo_path}\n")
 
         if repo_key:
-            print(f"📍 {_('misc.current_key')}: {repo_key.upper()} "
-                  f"({_('misc.scope_repo')})")
+            print(f"📍 {_(K.misc.current_key)}: {repo_key.upper()} "
+                  f"({_(K.misc.scope_repo)})")
         elif active_keys:
             # 取首个全局默认（展示标签，按 key type）
             first_type = next(iter(active_keys))
             label = active_keys[first_type]
-            print(f"📍 {_('misc.current_key')}: {label.upper()} "
-                  f"({_('misc.scope_global')})")
+            print(f"📍 {_(K.misc.current_key)}: {label.upper()} "
+                  f"({_(K.misc.scope_global)})")
         else:
-            print("⚠️  " + _("msg.current_key_none"))
+            print("⚠️  " + _(K.msg.current_key_none))
 
         # 全局默认密钥详情（若存在）
         if active_keys:
-            print(f"\n{_('lbl.global_default_keys')}")
+            print(f"\n{_(K.lbl.global_default_keys)}")
             for ktype, label in sorted(active_keys.items()):
                 print(f"   {ktype:<10} → {label}")
 
         # 操作提示（统一 tip 段模板）
         render_tip_block([
-            f"💡 {_('msg.current_key_tip')}",
-            "   " + _("msg.current_key_tip2"),
+            f"💡 {_(K.msg.current_key_tip)}",
+            "   " + _(K.msg.current_key_tip2),
         ])
 
     # ------------------------------------------------------------------
@@ -224,25 +226,23 @@ class KeyCommands:
                name: Optional[str] = None):
         """创建新密钥"""
         if key_type not in SUPPORTED_KEY_TYPES:
-            raise ValidationError(_(
-                "err.unsupported_type",
+            raise ValidationError(_(K.err.unsupported_type,
                 type=key_type, supported=', '.join(SUPPORTED_KEY_TYPES),
             ))
 
         self._validate_label(label)
 
         if not email or '@' not in email:
-            raise ValidationError(_(
-                "err.invalid_email",
+            raise ValidationError(_(K.err.invalid_email,
                 email=email,
             ))
 
-        key_file = self.m.ssh_dir / f"id_{key_type}.{label}"
+        key_file = private_key_path(self.m.ssh_dir, key_type, label)
         if key_file.exists():
-            raise ValidationError(_("err.key_exists", name=key_file.name))
+            raise ValidationError(_(K.err.key_exists, name=key_file.name))
 
-        print(_("msg.creating_key", label=label, key_type=key_type))
-        print(f"{_('lbl.email_prompt')} {email}")
+        print(_(K.msg.creating_key, label=label, key_type=key_type))
+        print(f"{_(K.lbl.email_prompt)} {email}")
 
         cmd = [
             'ssh-keygen',
@@ -254,7 +254,7 @@ class KeyCommands:
 
         try:
             subprocess.run(cmd, check=True, capture_output=True, timeout=60)
-            print(f"✅ {_('msg.key_created', name=key_file.name)}")
+            print(f"✅ {_(K.msg.key_created, name=key_file.name)}")
 
             if host:
                 hostname = host
@@ -265,18 +265,18 @@ class KeyCommands:
             if host:
                 host_alias = self.m.gitrepo.get_host_alias(label)
                 self.m.config_manager.update_host(host_alias, hostname, key_file)
-                print(f"✅ {_('msg.ssh_config_updated', alias=host_alias, hostname=hostname)}")
+                print(f"✅ {_(K.msg.ssh_config_updated, alias=host_alias, hostname=hostname)}")
 
             pub_file = Path(str(key_file) + '.pub')
             if pub_file.exists():
                 pub_key = pub_file.read_text(encoding='utf-8').strip()
-                print(f"\n📋 {_('msg.pub_key_content')}\n{pub_key}\n")
-                print("💡 " + _("msg.add_to_platform"))
+                print(f"\n📋 {_(K.msg.pub_key_content)}\n{pub_key}\n")
+                print("💡 " + _(K.msg.add_to_platform))
 
             # 记录作者信息（供 sshm author 使用）
             self.m.state_manager.write_author(label, name or '', email)
             if name:
-                print(f"{_('msg.author_recorded', name=name, email=email)}")
+                print(f"{_(K.msg.author_recorded, name=name, email=email)}")
 
         except subprocess.CalledProcessError as e:
             # 清理可能残留的密钥文件（ssh-keygen 失败时可能已创建部分文件）
@@ -288,7 +288,7 @@ class KeyCommands:
                     pass
             detail = ((e.stderr or b'').decode('utf-8', 'replace').strip()
                       or str(e))
-            self.m._fail(_('err.create_failed', err=detail))
+            self.m._fail(_(K.err.create_failed, err=detail))
         except subprocess.TimeoutExpired:
             # 生成超时（如熵不足）：清理残留并给出明确提示
             for p in (key_file, Path(str(key_file) + '.pub')):
@@ -297,9 +297,9 @@ class KeyCommands:
                         p.unlink()
                 except OSError:
                     pass
-            self.m._fail(_("err.keygen_timeout"))
+            self.m._fail(_(K.err.keygen_timeout))
         except Exception as e:
-            self.m._fail(f"{_('misc.error')}: {e}")
+            self.m._fail(f"{_(K.misc.error)}: {e}")
 
     def remove(self, label: str, key_type: Optional[str] = None):
         """删除密钥"""
@@ -307,37 +307,40 @@ class KeyCommands:
 
         if label_lower == 'default':
             if key_type:
-                confirm_msg = _("err.delete_default", type=key_type)
+                confirm_msg = _(K.err.delete_default, type=key_type)
             else:
-                confirm_msg = _("err.delete_all_default")
+                confirm_msg = _(K.err.delete_all_default)
 
             if not prompt_confirm("⚠️  " + confirm_msg):
-                self.m._fail(_("misc.operation_cancelled"))
+                self.m._fail(_(K.misc.operation_cancelled))
                 return
 
         removed_files = []
 
         if label_lower == 'default':
             if key_type:
-                patterns = [f"id_{key_type}", f"id_{key_type}.pub"]
+                patterns = [private_key_path(self.m.ssh_dir, key_type),
+                            public_key_path(self.m.ssh_dir, key_type)]
             else:
-                patterns = ["id_ed25519", "id_ed25519.pub",
-                          "id_rsa", "id_rsa.pub",
-                          "id_ecdsa", "id_ecdsa.pub",
-                          "id_dsa", "id_dsa.pub"]
+                patterns = []
+                for t in SUPPORTED_KEY_TYPES:
+                    patterns += [private_key_path(self.m.ssh_dir, t),
+                                 public_key_path(self.m.ssh_dir, t)]
 
             for pattern in patterns:
                 file = self.m.ssh_dir / pattern
                 if file.exists() and file.is_file():
                     if not removed_files:
                         backup_path = self.m.backup.create(silent=True)
-                        print(f"💾 {_('msg.auto_backed_up', path=backup_path)}")
+                        print(f"💾 {_(K.msg.auto_backed_up, path=backup_path)}")
 
                     file.unlink()
                     removed_files.append(file.name)
         else:
             if key_type:
-                patterns = [f"id_{key_type}.{label}", f"id_{key_type}.{label}.pub"]
+                # glob() 需要 str 模式：取文件名（如 id_ed25519.github）作为精确匹配
+                patterns = [private_key_path(self.m.ssh_dir, key_type, label).name,
+                            public_key_path(self.m.ssh_dir, key_type, label).name]
             else:
                 patterns = [f"id_*.{label}", f"id_*.{label}.pub"]
 
@@ -346,13 +349,13 @@ class KeyCommands:
                     if file.is_file():
                         if not removed_files:
                             backup_path = self.m.backup.create(silent=True)
-                            print(f"💾 {_('msg.auto_backed_up', path=backup_path)}")
+                            print(f"💾 {_(K.msg.auto_backed_up, path=backup_path)}")
 
                         file.unlink()
                         removed_files.append(file.name)
 
         if removed_files:
-            print(f"✅ {_('msg.deleted_count', count=len(removed_files))}")
+            print(f"✅ {_(K.msg.deleted_count, count=len(removed_files))}")
             for f in removed_files:
                 print(f"   - {f}")
 
@@ -372,10 +375,10 @@ class KeyCommands:
                 if active_keys.get(kt) == label_lower:
                     self.m.state_manager.remove_active_key(kt)
 
-            print(f"💡 {_('msg.tip_alias_remote', alias=self.m.gitrepo.get_host_alias(label))}")
-            print("   " + _("msg.rerun_other_label"))
+            print(f"💡 {_(K.msg.tip_alias_remote, alias=self.m.gitrepo.get_host_alias(label))}")
+            print("   " + _(K.msg.rerun_other_label))
         else:
-            self.m._fail(_('err.key_not_found', label=label), icon='⚠️')
+            self.m._fail(_(K.err.key_not_found, label=label), icon=ICON_WARN)
 
     # ------------------------------------------------------------------
     # 切换 / 打标签 / 重命名
@@ -386,36 +389,36 @@ class KeyCommands:
         label_lower = label.lower()
 
         if label_lower in self.m.RESERVED_LABELS:
-            label_msg = _('err.label_reserved_switch', label=label)
+            label_msg = _(K.err.label_reserved_switch, label=label)
             self.m._fail(label_msg)
             return
 
         if not key_type:
             key_type = self.m.keystore.detect_key_type_for_label(label)
             if not key_type:
-                msg = _("err.key_not_found_short", label=label)
+                msg = _(K.err.key_not_found_short, label=label)
                 self.m._fail(msg)
                 return
-            print(f"🔍 {_('msg.auto_detected_type', key_type=key_type)}")
+            print(f"🔍 {_(K.msg.auto_detected_type, key_type=key_type)}")
 
-        source_file = self.m.ssh_dir / f"id_{key_type}.{label}"
-        target_file = self.m.ssh_dir / f"id_{key_type}"
+        source_file = private_key_path(self.m.ssh_dir, key_type, label)
+        target_file = private_key_path(self.m.ssh_dir, key_type)
 
         if not source_file.exists():
-            self.m._fail(_('err.key_missing', name=source_file.name))
+            self.m._fail(_(K.err.key_missing, name=source_file.name))
             return
 
         if target_file.exists():
             active_keys = self.m.state_manager.read_active_keys()
             current_label = active_keys.get(key_type, 'original')
 
-            original_backup = self.m.ssh_dir / f"id_{key_type}.original"
+            original_backup = private_key_path(self.m.ssh_dir, key_type, 'original')
             if not original_backup.exists():
                 self.m.keystore.copy_key_pair(target_file, original_backup)
-                print(f"💾 {_('msg.original_backed_up', name=original_backup.name)}")
+                print(f"💾 {_(K.msg.original_backed_up, name=original_backup.name)}")
 
             if current_label != 'original':
-                backup_file = self.m.ssh_dir / f"id_{key_type}.{current_label}"
+                backup_file = private_key_path(self.m.ssh_dir, key_type, current_label)
                 if not backup_file.exists():
                     self.m.keystore.copy_key_pair(target_file, backup_file)
 
@@ -425,8 +428,8 @@ class KeyCommands:
 
         self.m.gitrepo.update_ssh_config_alias(label, source_file)
 
-        print(f"✅ {_('msg.switched_to', label=label, key_type=key_type)}")
-        print(f"{_('lbl.file_placeholder')} {target_file.name}")
+        print(f"✅ {_(K.msg.switched_to, label=label, key_type=key_type)}")
+        print(f"{_(K.lbl.file_placeholder)} {target_file.name}")
 
         # 密钥↔作者自动联动：全局切换时自动设置全局 author（若 label 有绑定）
         self.m.author_service.apply_auto_author(label, repo_path=None, scope='global')
@@ -439,19 +442,19 @@ class KeyCommands:
         if not key_type:
             key_type = self.m.keystore.detect_default_key_type()
             if not key_type:
-                self.m._fail(_("err.no_default_key"))
+                self.m._fail(_(K.err.no_default_key))
                 return
 
-        source_file = self.m.ssh_dir / f"id_{key_type}"
-        target_file = self.m.ssh_dir / f"id_{key_type}.{new_label}"
+        source_file = private_key_path(self.m.ssh_dir, key_type)
+        target_file = private_key_path(self.m.ssh_dir, key_type, new_label)
 
         if not source_file.exists():
-            self.m._fail(_('err.default_key_missing', name=source_file.name))
+            self.m._fail(_(K.err.default_key_missing, name=source_file.name))
             return
 
         if target_file.exists():
-            print(f"⚠️  {_('err.label_exists', new_label=new_label)}")
-            if not prompt_confirm(_("misc.overwrite")):
+            print(f"⚠️  {_(K.err.label_exists, new_label=new_label)}")
+            if not prompt_confirm(_(K.misc.overwrite)):
                 return
 
         self.m.keystore.copy_key_pair(source_file, target_file)
@@ -460,7 +463,7 @@ class KeyCommands:
         # 默认密钥通常由 switch_key 从某标签复制而来，active_keys 记录了来源标签。
         self._inherit_metadata_from_default(key_type, new_label)
 
-        print(f"✅ {_('msg.tag_added', new_label=new_label, key_type=key_type)}")
+        print(f"✅ {_(K.msg.tag_added, new_label=new_label, key_type=key_type)}")
 
         if switch_after:
             self.m.key.switch(new_label, key_type)
@@ -501,12 +504,12 @@ class KeyCommands:
         new_label_lower = new_label.lower()
 
         if old_label_lower == 'default':
-            self.m._fail(_("err.cannot_rename_default"))
+            self.m._fail(_(K.err.cannot_rename_default))
             return
 
         self._validate_label(new_label)
         if new_label_lower == old_label_lower:
-            self.m._fail(_("err.same_label"), icon='⚠️')
+            self.m._fail(_(K.err.same_label), icon=ICON_WARN)
             return
 
         # 确定要重命名的密钥类型集合：
@@ -517,28 +520,28 @@ class KeyCommands:
         else:
             types_to_rename = [
                 t for t in SUPPORTED_KEY_TYPES
-                if (self.m.ssh_dir / f"id_{t}.{old_label}").exists()
+                if private_key_path(self.m.ssh_dir, t, old_label).exists()
             ]
 
         if not types_to_rename:
-            msg = _("err.key_not_found_short", label=old_label)
+            msg = _(K.err.key_not_found_short, label=old_label)
             self.m._fail(msg)
             return
 
         # 检查目标文件是否全部可用，避免部分重命名后中断
         for t in types_to_rename:
-            new_file = self.m.ssh_dir / f"id_{t}.{new_label}"
+            new_file = private_key_path(self.m.ssh_dir, t, new_label)
             if new_file.exists():
-                self.m._fail(_('err.target_exists', new_label=new_label, type=t),
-                             icon='⚠️')
-                print(f"   {_('lbl.file_placeholder')} {new_file.name}")
+                self.m._fail(_(K.err.target_exists, new_label=new_label, type=t),
+                             icon=ICON_WARN)
+                print(f"   {_(K.lbl.file_placeholder)} {new_file.name}")
                 return
 
         renamed_count = 0
         last_new_file = None
         for t in types_to_rename:
-            old_file = self.m.ssh_dir / f"id_{t}.{old_label}"
-            new_file = self.m.ssh_dir / f"id_{t}.{new_label}"
+            old_file = private_key_path(self.m.ssh_dir, t, old_label)
+            new_file = private_key_path(self.m.ssh_dir, t, new_label)
 
             old_file.rename(new_file)
             old_pub = Path(str(old_file) + '.pub')
@@ -552,12 +555,11 @@ class KeyCommands:
 
         self.m.state_manager.update_label(old_label, new_label)
 
-        renamed_msg = _(
-            'msg.renamed',
+        renamed_msg = _(K.msg.renamed,
             old=old_label, new=new_label, count=renamed_count,
             types=', '.join(types_to_rename),
         )
         print(f"✅ {renamed_msg}")
-        print(f"💡 {_('msg.tip_alias', alias=self.m.gitrepo.get_host_alias(old_label))}")
-        tip_msg = _("msg.rerun_new_label", new_label=new_label)
+        print(f"💡 {_(K.msg.tip_alias, alias=self.m.gitrepo.get_host_alias(old_label))}")
+        tip_msg = _(K.msg.rerun_new_label, new_label=new_label)
         print(f"   {tip_msg}")

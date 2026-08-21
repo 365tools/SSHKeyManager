@@ -14,7 +14,9 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Optional, Union
 
 from ...i18n import _
+from ...language import K
 from ...ui.output import (
+    ICON_WARN,
     print,
     section as print_section_header,
     status as output_status,
@@ -61,7 +63,7 @@ class HistoryCommands:
 
         repo_path = Path(repo_path).resolve()
         if not (repo_path / '.git').exists():
-            self.m._fail(_('err.not_git_repo', path=repo_path))
+            self.m._fail(_(K.err.not_git_repo, path=repo_path))
             return
 
         old_name, new_name = self._split_pair(name)
@@ -75,25 +77,25 @@ class HistoryCommands:
 
         # 互斥校验：精细替换不能与任何全量刷新混用
         if precise and (full_author or full_name or full_email):
-            self.m._fail(_("err.author_exclusive"))
+            self.m._fail(_(K.err.author_exclusive))
             return
         # --author 不能与 --name/--email 单值全量混用
         if full_author and (full_name or full_email):
-            self.m._fail(_("err.author_exclusive"))
+            self.m._fail(_(K.err.author_exclusive))
             return
 
         if author:
             # 从作者列表读取 label 对应的 name/email
             stored = self.m.state_manager.read_authors().get(author.lower())
             if not stored:
-                self.m._fail(_('err.author_not_found', label=author),
-                             hint=_("err.use_author_list"))
+                self.m._fail(_(K.err.author_not_found, label=author),
+                             hint=_(K.err.use_author_list))
                 return
             match_all = True
             new_name = stored.get('name') or None
             new_email = stored.get('email') or None
             if not new_name and not new_email:
-                self.m._fail(_("err.author_empty", label=author))
+                self.m._fail(_(K.err.author_empty, label=author))
                 return
         elif full_name or full_email:
             # 单值全量刷新：match_all 模式，只刷新提供的字段
@@ -101,18 +103,18 @@ class HistoryCommands:
         else:
             match_all = False
             if not old_name and not old_email:
-                self.m._fail(_("err.need_old"))
+                self.m._fail(_(K.err.need_old))
                 return
             if not new_name and not new_email:
-                self.m._fail(_("err.need_new"))
+                self.m._fail(_(K.err.need_new))
                 return
 
-        print_section_header(_("hdr.rewrite"))
-        print(f"{_('lbl.repo_path')} {repo_path}")
+        print_section_header(_(K.hdr.rewrite))
+        print(f"{_(K.lbl.repo_path)} {repo_path}")
 
         # 预览：列出历史中的作者
         authors = get_authors_in_repo(repo_path)
-        print(f"\n{_('lbl.current_authors')}")
+        print(f"\n{_(K.lbl.current_authors)}")
         for a in authors:
             print(f"   - {a}")
 
@@ -124,17 +126,17 @@ class HistoryCommands:
             # 只展示实际被刷新的字段（--author 全量刷两者；单值只刷其一）
             parts = []
             if new_name:
-                parts.append(f"{_('misc.name')} -> '{new_name}'")
+                parts.append(f"{_(K.misc.name)} -> '{new_name}'")
             if new_email:
-                parts.append(f"{_('misc.email')} -> '{new_email}'")
-            match_desc = [f"{_('misc.all')} [{' | '.join(parts)}]"]
+                parts.append(f"{_(K.misc.email)} -> '{new_email}'")
+            match_desc = [f"{_(K.misc.all)} [{' | '.join(parts)}]"]
         else:
             match_desc = []
             if old_name:
-                match_desc.append(f"{_('misc.name')} '{old_name}' -> '{new_name or old_name}'")
+                match_desc.append(f"{_(K.misc.name)} '{old_name}' -> '{new_name or old_name}'")
             if old_email:
-                match_desc.append(f"{_('misc.email')} '{old_email}' -> '{new_email or old_email}'")
-        print(f"\n⚙️ {_('lbl.rules')} {', '.join(match_desc)}")
+                match_desc.append(f"{_(K.misc.email)} '{old_email}' -> '{new_email or old_email}'")
+        print(f"\n⚙️ {_(K.lbl.rules)} {', '.join(match_desc)}")
 
         # 用 dry-run 预估（fast-export 到临时流，不导入）。
         # 显式传活跃 refs（排除 refs/original/ 备份），避免 matched 计数
@@ -150,27 +152,27 @@ class HistoryCommands:
         except Exception:
             matched = 0
         if matched == 0:
-            self.m._fail(_('err.no_matches'), icon='⚠️')
+            self.m._fail(_(K.err.no_matches), icon=ICON_WARN)
             return
-        print(f"ℹ️  {_('msg.will_rewrite_count', count=matched)}")
+        print(f"ℹ️  {_(K.msg.will_rewrite_count, count=matched)}")
 
         # 破坏性操作确认
-        print(f"\n⚠️  {_('msg.rewrites_history')}")
-        print("   " + _("msg.force_push"))
+        print(f"\n⚠️  {_(K.msg.rewrites_history)}")
+        print("   " + _(K.msg.force_push))
         if not skip_confirm:
-            if not prompt_confirm(_("msg.continue_rewrite")):
-                self.m._fail(_("misc.operation_cancelled"))
+            if not prompt_confirm(_(K.msg.continue_rewrite)):
+                self.m._fail(_(K.misc.operation_cancelled))
                 return
 
         try:
-            with output_status(_('msg.rewriting')):
+            with output_status(_(K.msg.rewriting)):
                 result = rewrite_history(repo_path, cfg)
         except Exception as e:
-            self.m._fail(_('err.rewrite_failed', err=e))
+            self.m._fail(_(K.err.rewrite_failed, err=e))
             return
 
-        print(f"\n✅ {_('msg.history_rewritten')}")
-        print(f"   {_('msg.matched_commits', count=result.get('matched_commits', 0))}")
-        print(f"   {_('msg.rewritten_lines', count=result.get('rewritten', 0))}")
-        print(f"\n⚠️  {_('msg.refs_backed_up')}")
-        print(f"   {_('msg.force_push_all')}")
+        print(f"\n✅ {_(K.msg.history_rewritten)}")
+        print(f"   {_(K.msg.matched_commits, count=result.get('matched_commits', 0))}")
+        print(f"   {_(K.msg.rewritten_lines, count=result.get('rewritten', 0))}")
+        print(f"\n⚠️  {_(K.msg.refs_backed_up)}")
+        print(f"   {_(K.msg.force_push_all)}")

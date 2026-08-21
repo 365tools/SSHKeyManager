@@ -11,6 +11,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Optional
 
 from ...i18n import _
+from ...language import K
 from ...ui.output import print, separator as print_separator
 
 if TYPE_CHECKING:
@@ -30,12 +31,12 @@ class SystemCommands:
 
         lang = get_lang()
         name = "Chinese" if lang == "zh" else "English"
-        print_section_header(_("hdr.auto_author"))
-        print(f"   {_('lbl.current_language')} {name} ({lang})")
+        print_section_header(_(K.hdr.auto_author))
+        print(f"   {_(K.lbl.current_language)} {name} ({lang})")
 
         auto_author = self.m.state_manager.read_auto_author()
-        status = _("misc.on") if auto_author else _("misc.off")
-        print(f"   🔀 {_('msg.auto_author_status', status=status)}")
+        status = _(K.misc.on) if auto_author else _(K.misc.off)
+        print(f"   🔀 {_(K.msg.auto_author_status, status=status)}")
 
     def language(self, lang: str) -> str:
         """设置输出语言并持久化到状态文件
@@ -62,40 +63,40 @@ class SystemCommands:
 
         updater = UpdateManager()
         print_separator()
-        print(_("hdr.update"))
+        print(_(K.hdr.update))
         print_separator()
-        print(f"\n{_('lbl.current_version')} v{updater.current_version}")
-        print(f"{_('lbl.platform')} {updater.platform}")
+        print(f"\n{_(K.lbl.current_version)} v{updater.current_version}")
+        print(f"{_(K.lbl.platform)} {updater.platform}")
 
-        print("\n" + _("upd.checking"))
+        print("\n" + _(K.upd.checking))
         update_info = updater.check_update(force=force)
 
         if not update_info:
-            print("✅ " + _("upd.up_to_date"))
+            print("✅ " + _(K.upd.up_to_date))
             return None
 
-        print(f"\n🎉 {_('upd.new_version', version=update_info['version'])}")
-        print(f"{_('upd.release_date')} {update_info.get('published_at') or _('msg.unknown')}")
+        print(f"\n🎉 {_(K.upd.new_version, version=update_info['version'])}")
+        print(f"{_(K.upd.release_date)} {update_info.get('published_at') or _(K.msg.unknown)}")
 
         if update_info.get("body"):
-            print(f"\n{_('upd.update_notes')}")
+            print(f"\n{_(K.upd.update_notes)}")
             for line in update_info["body"].split("\n")[:10]:
                 print(f"  {line}")
             if len(update_info["body"].split("\n")) > 10:
                 print("  ...")
 
         if check:
-            print(f"\n💡 {_('upd.run_update')}")
+            print(f"\n💡 {_(K.upd.run_update)}")
             return None
 
         print()
         try:
-            response = input(_("upd.prompt", version=update_info["version"]))
+            response = input(_(K.upd.prompt, version=update_info["version"]))
             if response.lower() == "n":
-                self.m._fail(_("upd.cancelled"))
+                self.m._fail(_(K.upd.cancelled))
                 return None
         except KeyboardInterrupt:
-            self.m._fail(_("upd.cancelled"))
+            self.m._fail(_(K.upd.cancelled))
             return None
 
         print()

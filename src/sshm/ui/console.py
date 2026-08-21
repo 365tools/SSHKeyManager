@@ -8,7 +8,6 @@
 不产生 ANSI 码，输出行为保持干净可预测。
 """
 
-import re
 import sys
 from datetime import datetime
 from typing import Iterable, Optional
@@ -17,6 +16,8 @@ from rich.console import Console
 from rich.prompt import Confirm as RichConfirm
 from rich.rule import Rule
 from rich.table import Table
+
+from ..language import K
 
 from wcwidth import wcswidth as _wcswidth
 from wcwidth import wcwidth as _wcwidth_char
@@ -60,11 +61,6 @@ def setup_windows_console() -> None:
                 reconfigure(errors='replace')
         except Exception:
             pass  # 静默失败（如流不支持该操作）
-
-
-def get_key_pattern() -> re.Pattern[str]:
-    """获取密钥文件名匹配模式"""
-    return re.compile(r'^id_(rsa|ed25519|ecdsa|dsa)(\.\w+)?$')
 
 
 def format_timestamp(dt: datetime) -> str:
@@ -231,4 +227,4 @@ def wait_for_key() -> None:
     """等待用户按键（基于 click.pause）"""
     import click
     from ..i18n import _
-    click.pause(f"\n{_('menu.press_any')}")
+    click.pause(f"\n{_(K.menu.press_any)}")

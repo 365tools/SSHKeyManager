@@ -9,6 +9,7 @@ import sys
 from pathlib import Path
 
 from ....i18n import _
+from ....language import K
 from ....ui.console import print_section_header, prompt_confirm
 from ....ui.output import print
 from ....ui.tip import render_business_error
@@ -16,7 +17,7 @@ from ....ui.tip import render_business_error
 
 def add_to_path() -> None:
     """将当前可执行文件路径添加到环境变量"""
-    print_section_header(_("hdr.add_to_path"))
+    print_section_header(_(K.hdr.add_to_path))
     
     # 获取当前可执行文件路径
     if getattr(sys, 'frozen', False):
@@ -28,8 +29,8 @@ def add_to_path() -> None:
         exe_path = Path(__file__).parent.parent.resolve()
         exe_dir = exe_path
     
-    print(f"{_('sys.current_exe', path=exe_path)}")
-    print(f"{_('sys.directory', dir=exe_dir)}")
+    print(f"{_(K.sys.current_exe, path=exe_path)}")
+    print(f"{_(K.sys.directory, dir=exe_dir)}")
     
     if sys.platform == 'win32':
         _add_to_windows_path(exe_dir)
@@ -64,14 +65,14 @@ def _add_to_windows_path(exe_dir: Path) -> None:
                          if Path(p).resolve() == exe_dir.resolve()]
         
         if existing_paths:
-            print(_("sys.path_exists",
+            print(_(K.sys.path_exists,
                     path=existing_paths[0]))
             
             if existing_paths[0] != exe_dir_str:
-                print(_("sys.current_path", path=exe_dir_str))
-                print(_("sys.existing_path", path=existing_paths[0]))
+                print(_(K.sys.current_path, path=exe_dir_str))
+                print(_(K.sys.existing_path, path=existing_paths[0]))
                 
-                if prompt_confirm(_("sys.update_path_prompt")):
+                if prompt_confirm(_(K.sys.update_path_prompt)):
                     # 移除旧路径
                     path_entries = [p for p in path_entries if p not in existing_paths]
                     # 添加新路径到开头
@@ -84,11 +85,11 @@ def _add_to_windows_path(exe_dir: Path) -> None:
                     # 广播环境变量更新
                     _broadcast_env_change()
                     
-                    print("\n✅ " + _("sys.env_updated"))
-                    print("\n💡 " + _("sys.restart_tip"))
-                    print("   " + _("sys.use_sshm_directly"))
+                    print("\n✅ " + _(K.sys.env_updated))
+                    print("\n💡 " + _(K.sys.restart_tip))
+                    print("   " + _(K.sys.use_sshm_directly))
                 else:
-                    render_business_error(_("misc.operation_cancelled"))
+                    render_business_error(_(K.misc.operation_cancelled))
                     winreg.CloseKey(key)
             else:
                 winreg.CloseKey(key)
@@ -103,15 +104,15 @@ def _add_to_windows_path(exe_dir: Path) -> None:
             # 广播环境变量更新
             _broadcast_env_change()
             
-            print("\n✅ " + _("sys.env_added"))
+            print("\n✅ " + _(K.sys.env_added))
             print(f"   {exe_dir_str}")
-            print("\n💡 " + _("sys.restart_tip"))
-            print("   " + _("sys.use_sshm_directly"))
+            print("\n💡 " + _(K.sys.restart_tip))
+            print("   " + _(K.sys.use_sshm_directly))
     
     except PermissionError:
-        render_business_error(_("err.permission_denied"))
+        render_business_error(_(K.err.permission_denied))
     except Exception as e:
-        render_business_error(_('err.add_failed', err=e))
+        render_business_error(_(K.err.add_failed, err=e))
 
 
 def _add_to_unix_path(exe_dir: Path) -> None:
@@ -134,26 +135,26 @@ def _add_to_unix_path(exe_dir: Path) -> None:
     if rc_file.exists():
         content = rc_file.read_text(encoding='utf-8')
         if exe_dir_str in content:
-            print(_("sys.path_in", name=rc_file.name))
+            print(_(K.sys.path_in, name=rc_file.name))
             return
     
-    print(_("sys.will_add", path=rc_file))
-    print(_("sys.command", cmd=export_line))
+    print(_(K.sys.will_add, path=rc_file))
+    print(_(K.sys.command, cmd=export_line))
     
-    if prompt_confirm("\n" + _("sys.continue")):
+    if prompt_confirm("\n" + _('sys.continue')):
         try:
             with rc_file.open('a', encoding='utf-8') as f:
                 f.write(f"\n# Added by sshm\n")
                 f.write(f"{export_line}\n")
             
-            print("\n✅ " + _("sys.config_added"))
-            print(f"\n💡 " + _("sys.run_to_apply"))
+            print("\n✅ " + _(K.sys.config_added))
+            print(f"\n💡 " + _(K.sys.run_to_apply))
             print(f"   source {rc_file}")
-            print("\n   " + _("sys.or_restart"))
+            print("\n   " + _(K.sys.or_restart))
         except Exception as e:
-            render_business_error(_('err.add_failed', err=e))
+            render_business_error(_(K.err.add_failed, err=e))
     else:
-        render_business_error(_("misc.operation_cancelled"))
+        render_business_error(_(K.misc.operation_cancelled))
 
 
 def _broadcast_env_change() -> None:

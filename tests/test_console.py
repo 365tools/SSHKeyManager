@@ -6,7 +6,6 @@ from sshm.ui.console import (
     get_display_width,
     format_timestamp,
     format_size,
-    get_key_pattern,
 )
 
 
@@ -44,10 +43,3 @@ class TestFormat:
         from datetime import datetime
         ts = format_timestamp(datetime(2026, 8, 16, 12, 30, 0))
         assert ts == '2026-08-16 12:30:00'
-
-    def test_key_pattern(self):
-        pattern = get_key_pattern()
-        assert pattern.match('id_ed25519')
-        assert pattern.match('id_ed25519.github')
-        assert pattern.match('id_rsa')
-        assert not pattern.match('id_weird')

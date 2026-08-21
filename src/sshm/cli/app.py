@@ -111,13 +111,13 @@ def _print_version_rows(rows) -> None:
     """
     from ..ui.output import print as _print
     from ..ui.console import get_display_width, pad_cell
-    label_hdr = _('ver.label')
+    label_hdr = _(K.ver.label)
     labels = [label_hdr] + [r[1] for r in rows]
     label_w = max(get_display_width(l) for l in labels)
     lead = ' ' * 2          # 行首缩进
     emoji_cell = ' ' * 4    # emoji(双宽) + 2 空格的固定位
     gap = ' ' * 2           # 标签列与值列之间
-    _print(f"{lead}{emoji_cell}{pad_cell(label_hdr, label_w)}{gap}{_('ver.value')}")
+    _print(f"{lead}{emoji_cell}{pad_cell(label_hdr, label_w)}{gap}{_(K.ver.value)}")
     for emoji, label, value in rows:
         _print(f"{lead}{emoji}  {pad_cell(label, label_w)}{gap}{value}")
 
@@ -125,22 +125,22 @@ def _print_version_rows(rows) -> None:
 def _version_callback(value: bool) -> None:
     if value:
         frozen = getattr(sys, 'frozen', False)
-        mode = _('ver.mode_packaged') if frozen else _('ver.mode_source')
+        mode = _(K.ver.mode_packaged) if frozen else _(K.ver.mode_source)
         system = platform.system()
         arch = platform.machine()
         python_ver = platform.python_version()
         from ..constants import VERSION
         rows = [
-            ['📦', _('ver.version'), f"v{VERSION}"],
-            ['🖥️', _('ver.platform'), f"{system} {arch}"],
-            ['🐍', _('ver.python'), python_ver],
-            ['⚙️', _('ver.mode'), mode],
+            ['📦', _(K.ver.version), f"v{VERSION}"],
+            ['🖥️', _(K.ver.platform), f"{system} {arch}"],
+            ['🐍', _(K.ver.python), python_ver],
+            ['⚙️', _(K.ver.mode), mode],
         ]
         if frozen:
-            rows.append(['🏷️', _('ver.build'), _build_source()])
+            rows.append(['🏷️', _(K.ver.build), _build_source()])
             btime = _build_time()
             if btime:
-                rows.append(['🕐', _('ver.build_time'), btime])
+                rows.append(['🕐', _(K.ver.build_time), btime])
         _print_version_rows(rows)
         raise typer.Exit()
 
@@ -149,10 +149,10 @@ def _build_source() -> str:
     """判断当前 exe 是本地编译版还是线上（发布）版。"""
     exe_dir = Path(sys.executable).parent
     if (exe_dir / '.source_local').exists():
-        return _('ver.build_local')
+        return _(K.ver.build_local)
     if (exe_dir / '.source_release').exists():
-        return _('ver.build_release')
-    return _('ver.build_unknown')
+        return _(K.ver.build_release)
+    return _(K.ver.build_unknown)
 
 
 def _build_time() -> str:
@@ -178,7 +178,7 @@ key_app = typer.Typer(
 @key_app.callback(invoke_without_command=True)
 def key_default(
     ctx: typer.Context,
-    path: Path = typer.Option(Path("."), "--path", "-p", help=_("opt.path")),
+    path: Path = typer.Option(Path("."), "--path", "-p", help=_(K.opt.path)),
 ) -> None:
     """未指定子命令时，默认显示当前正在使用的密钥（仓库级 > 全局默认）。"""
     if ctx.invoked_subcommand is None:
@@ -189,9 +189,9 @@ def key_default(
 
 @key_app.command("list", help=_(K.cmd.key_list))
 def key_list(
-    all: bool = typer.Option(False, "--all", "-a", help=_("opt.all")),
-    current: bool = typer.Option(False, "--current", "-c", help=_("opt.current")),
-    path: Path = typer.Option(Path("."), "--path", "-p", help=_("opt.path_with_c")),
+    all: bool = typer.Option(False, "--all", "-a", help=_(K.opt.all)),
+    current: bool = typer.Option(False, "--current", "-c", help=_(K.opt.current)),
+    path: Path = typer.Option(Path("."), "--path", "-p", help=_(K.opt.path_with_c)),
 ):
     manager = _manager()
     manager.key.list(show_content=all, repo_path=path, current_only=current)
@@ -201,12 +201,12 @@ def key_list(
 
 @key_app.command("create", help=_(K.cmd.key_create))
 def key_create(
-    label: str = typer.Argument(..., help=_("opt.label")),
-    email: str = typer.Argument(..., help=_("opt.email")),
+    label: str = typer.Argument(..., help=_(K.opt.label)),
+    email: str = typer.Argument(..., help=_(K.opt.email)),
     type: KeyType = typer.Option(
-        KeyType.ed25519, "--type", "-t", help=_("opt.type")),
-    host: str = typer.Option(None, "--host", "-H", help=_("opt.host")),
-    name: str = typer.Option(None, "--name", "-n", help=_("opt.name")),
+        KeyType.ed25519, "--type", "-t", help=_(K.opt.type)),
+    host: str = typer.Option(None, "--host", "-H", help=_(K.opt.host)),
+    name: str = typer.Option(None, "--name", "-n", help=_(K.opt.name)),
 ):
     manager = _manager()
     manager.key.create(label, email, type.value, host, name)
@@ -216,9 +216,9 @@ def key_create(
 
 @key_app.command("remove", help=_(K.cmd.key_remove))
 def key_remove(
-    label: str = typer.Argument(..., help=_("opt.label")),
+    label: str = typer.Argument(..., help=_(K.opt.label)),
     type: Optional[KeyType] = typer.Option(
-        None, "--type", "-t", help=_("opt.type_all")),
+        None, "--type", "-t", help=_(K.opt.type_all)),
 ):
     manager = _manager()
     manager.key.remove(label, type.value if type else None)
@@ -228,10 +228,10 @@ def key_remove(
 
 @key_app.command("rename", help=_(K.cmd.key_rename))
 def key_rename(
-    old_label: str = typer.Argument(..., help=_("opt.old_label")),
-    new_label: str = typer.Argument(..., help=_("opt.new_label_name")),
+    old_label: str = typer.Argument(..., help=_(K.opt.old_label)),
+    new_label: str = typer.Argument(..., help=_(K.opt.new_label_name)),
     type: KeyType = typer.Option(
-        KeyType.ed25519, "--type", "-t", help=_("opt.type")),
+        KeyType.ed25519, "--type", "-t", help=_(K.opt.type)),
 ):
     manager = _manager()
     manager.key.rename(old_label, new_label, type.value)
@@ -241,10 +241,10 @@ def key_rename(
 
 @key_app.command("label", help=_(K.cmd.key_label))
 def key_label(
-    label: str = typer.Argument(..., help=_("opt.new_label")),
+    label: str = typer.Argument(..., help=_(K.opt.new_label)),
     type: Optional[KeyType] = typer.Option(
-        None, "--type", "-t", help=_("opt.type_auto")),
-    switch: bool = typer.Option(False, "--switch", "-s", help=_("opt.switch_after")),
+        None, "--type", "-t", help=_(K.opt.type_auto)),
+    switch: bool = typer.Option(False, "--switch", "-s", help=_(K.opt.switch_after)),
 ):
     manager = _manager()
     manager.key.label(type.value if type else None, label, switch)
@@ -254,9 +254,9 @@ def key_label(
 
 @key_app.command("switch", help=_(K.cmd.key_switch))
 def key_switch(
-    label: str = typer.Argument(..., help=_("opt.label")),
+    label: str = typer.Argument(..., help=_(K.opt.label)),
     type: Optional[KeyType] = typer.Option(
-        None, "--type", "-t", help=_("opt.type_auto")),
+        None, "--type", "-t", help=_(K.opt.type_auto)),
 ):
     manager = _manager()
     manager.key.switch(label, type.value if type else None)
@@ -266,7 +266,7 @@ def key_switch(
 
 @key_app.command("current", help=_(K.cmd.key_current))
 def key_current(
-    path: Path = typer.Option(Path("."), "--path", "-p", help=_("opt.path")),
+    path: Path = typer.Option(Path("."), "--path", "-p", help=_(K.opt.path)),
 ):
     manager = _manager()
     manager.key.current(path)
@@ -286,7 +286,7 @@ repo_app = typer.Typer(
 @repo_app.callback(invoke_without_command=True)
 def repo_default(
     ctx: typer.Context,
-    path: Path = typer.Option(Path("."), "--path", "-p", help=_("opt.path")),
+    path: Path = typer.Option(Path("."), "--path", "-p", help=_(K.opt.path)),
 ) -> None:
     """未指定子命令时，默认显示当前仓库配置。"""
     if ctx.invoked_subcommand is None:
@@ -297,11 +297,11 @@ def repo_default(
 
 @repo_app.command("use", help=_(K.cmd.repo_use))
 def repo_use(
-    label: str = typer.Argument(..., help=_("opt.label")),
-    path: Path = typer.Option(Path("."), "--path", "-p", help=_("opt.path")),
-    global_: bool = typer.Option(False, "--global", "-g", help=_("opt.global")),
-    yes: bool = typer.Option(False, "--yes", "-y", help=_("opt.yes")),
-    author: bool = typer.Option(False, "--author", "-a", help=_("opt.author_same")),
+    label: str = typer.Argument(..., help=_(K.opt.label)),
+    path: Path = typer.Option(Path("."), "--path", "-p", help=_(K.opt.path)),
+    global_: bool = typer.Option(False, "--global", "-g", help=_('opt.global')),
+    yes: bool = typer.Option(False, "--yes", "-y", help=_(K.opt.yes)),
+    author: bool = typer.Option(False, "--author", "-a", help=_(K.opt.author_same)),
 ):
     manager = _manager()
     if global_:
@@ -321,10 +321,10 @@ def repo_use(
 
 @repo_app.command("clone", help=_(K.cmd.repo_clone))
 def repo_clone(
-    label: str = typer.Argument(..., help=_("opt.clone_label")),
-    url: str = typer.Argument(..., help=_("opt.url")),
-    target: str = typer.Argument(None, help=_("opt.target")),
-    yes: bool = typer.Option(False, "--yes", "-y", help=_("opt.yes")),
+    label: str = typer.Argument(..., help=_(K.opt.clone_label)),
+    url: str = typer.Argument(..., help=_(K.opt.url)),
+    target: str = typer.Argument(None, help=_(K.opt.target)),
+    yes: bool = typer.Option(False, "--yes", "-y", help=_(K.opt.yes)),
 ):
     manager = _manager()
     manager.repo.clone(label, url, target, yes)
@@ -334,7 +334,7 @@ def repo_clone(
 
 @repo_app.command("info", help=_(K.cmd.repo_info))
 def repo_info(
-    path: Path = typer.Option(Path("."), "--path", "-p", help=_("opt.path")),
+    path: Path = typer.Option(Path("."), "--path", "-p", help=_(K.opt.path)),
 ):
     manager = _manager()
     manager.repo.info(path)
@@ -344,9 +344,9 @@ def repo_info(
 
 @repo_app.command("test", help=_(K.cmd.repo_test))
 def repo_test(
-    label: str = typer.Argument(None, help=_("opt.test_label")),
-    path: Path = typer.Option(Path("."), "--path", "-p", help=_("opt.path")),
-    all: bool = typer.Option(False, "--all", "-a", help=_("opt.test_all")),
+    label: str = typer.Argument(None, help=_(K.opt.test_label)),
+    path: Path = typer.Option(Path("."), "--path", "-p", help=_(K.opt.path)),
+    all: bool = typer.Option(False, "--all", "-a", help=_(K.opt.test_all)),
 ):
     manager = _manager()
     manager.repo.test(label, all, path)
@@ -393,10 +393,10 @@ def backup_list() -> None:
 
 @backup_app.command("restore", help=_(K.cmd.backup_restore))
 def backup_restore(
-    backup: str = typer.Argument(None, help=_("opt.backup_name")),
+    backup: str = typer.Argument(None, help=_(K.opt.backup_name)),
     type: Optional[KeyType] = typer.Option(
-        None, "--type", "-t", help=_("opt.type_only")),
-    yes: bool = typer.Option(False, "--yes", "-y", help=_("opt.yes_prompts")),
+        None, "--type", "-t", help=_(K.opt.type_only)),
+    yes: bool = typer.Option(False, "--yes", "-y", help=_(K.opt.yes_prompts)),
 ):
     manager = _manager()
     manager.backup.restore(backup, type.value if type else None, yes)
@@ -416,7 +416,7 @@ author_app = typer.Typer(
 @author_app.callback(invoke_without_command=True)
 def author_default(
     ctx: typer.Context,
-    path: Path = typer.Option(Path("."), "--path", "-p", help=_("opt.path")),
+    path: Path = typer.Option(Path("."), "--path", "-p", help=_(K.opt.path)),
 ) -> None:
     """未指定子命令时，默认显示当前仓库的 git 作者配置。"""
     if ctx.invoked_subcommand is None:
@@ -435,9 +435,9 @@ def author_list() -> None:
 
 @author_app.command("add", help=_(K.cmd.author_add))
 def author_add(
-    label: str = typer.Argument(..., help=_("opt.author_label")),
-    name: str = typer.Option(None, "--name", "-n", help=_("opt.author_name")),
-    email: str = typer.Option(None, "--email", "-e", help=_("opt.author_email")),
+    label: str = typer.Argument(..., help=_(K.opt.author_label)),
+    name: str = typer.Option(None, "--name", "-n", help=_(K.opt.author_name)),
+    email: str = typer.Option(None, "--email", "-e", help=_(K.opt.author_email)),
 ):
     manager = _manager()
     manager.author.add(label, name, email)
@@ -447,14 +447,14 @@ def author_add(
 
 @author_app.command("update", help=_(K.cmd.author_update))
 def author_update(
-    label: str = typer.Argument(..., help=_("opt.author_label")),
-    name: str = typer.Option(None, "--name", "-n", help=_("opt.author_name")),
+    label: str = typer.Argument(..., help=_(K.opt.author_label)),
+    name: str = typer.Option(None, "--name", "-n", help=_(K.opt.author_name)),
     email: str = typer.Option(
-        None, "--email", "-e", help=_("opt.author_email_update")),
+        None, "--email", "-e", help=_(K.opt.author_email_update)),
 ):
     # 至少提供 --name 或 --email 之一：纯参数校验，前置以渲染统一 tip 模板 + 非零退出
     if not name and not email:
-        raise click.UsageError(_("msg.update_author_need"))
+        raise click.UsageError(_(K.msg.update_author_need))
     manager = _manager()
     manager.author.update(label, name, email)
     _fail_exit(manager)
@@ -463,8 +463,8 @@ def author_update(
 
 @author_app.command("remove", help=_(K.cmd.author_remove))
 def author_remove(
-    label: str = typer.Argument(..., help=_("opt.author_label")),
-    yes: bool = typer.Option(False, "--yes", "-y", help=_("opt.yes")),
+    label: str = typer.Argument(..., help=_(K.opt.author_label)),
+    yes: bool = typer.Option(False, "--yes", "-y", help=_(K.opt.yes)),
 ):
     manager = _manager()
     manager.author.remove(label, yes)
@@ -474,12 +474,12 @@ def author_remove(
 
 @author_app.command("use", help=_(K.cmd.author_use))
 def author_use(
-    label: str = typer.Argument(..., help=_("opt.author_label")),
-    path: Path = typer.Option(Path("."), "--path", "-p", help=_("opt.path")),
-    name: str = typer.Option(None, "--name", "-n", help=_("opt.override_name")),
-    email: str = typer.Option(None, "--email", "-e", help=_("opt.override_email")),
-    global_: bool = typer.Option(False, "--global", "-g", help=_("opt.global_author")),
-    yes: bool = typer.Option(False, "--yes", "-y", help=_("opt.yes")),
+    label: str = typer.Argument(..., help=_(K.opt.author_label)),
+    path: Path = typer.Option(Path("."), "--path", "-p", help=_(K.opt.path)),
+    name: str = typer.Option(None, "--name", "-n", help=_(K.opt.override_name)),
+    email: str = typer.Option(None, "--email", "-e", help=_(K.opt.override_email)),
+    global_: bool = typer.Option(False, "--global", "-g", help=_(K.opt.global_author)),
+    yes: bool = typer.Option(False, "--yes", "-y", help=_(K.opt.yes)),
 ):
     manager = _manager()
     scope = "global" if global_ else "local"
@@ -490,8 +490,8 @@ def author_use(
 
 @author_app.command("unset", help=_(K.cmd.author_unset))
 def author_unset(
-    path: Path = typer.Option(Path("."), "--path", "-p", help=_("opt.path")),
-    global_: bool = typer.Option(False, "--global", "-g", help=_("opt.clear_global")),
+    path: Path = typer.Option(Path("."), "--path", "-p", help=_(K.opt.path)),
+    global_: bool = typer.Option(False, "--global", "-g", help=_(K.opt.clear_global)),
 ):
     manager = _manager()
     scope = "global" if global_ else "local"
@@ -520,11 +520,11 @@ def history_default(ctx: typer.Context) -> None:
 
 @history_app.command("rewrite", help=_(K.cmd.history_rewrite))
 def history_rewrite(
-    path: Path = typer.Option(Path("."), "--path", "-p", help=_("opt.path")),
-    name: str = typer.Option(None, "--name", "-n", help=_("opt.name_arg")),
-    email: str = typer.Option(None, "--email", "-e", help=_("opt.email_arg")),
-    author: str = typer.Option(None, "--author", "-a", help=_("opt.author")),
-    yes: bool = typer.Option(False, "--yes", "-y", help=_("opt.yes")),
+    path: Path = typer.Option(Path("."), "--path", "-p", help=_(K.opt.path)),
+    name: str = typer.Option(None, "--name", "-n", help=_(K.opt.name_arg)),
+    email: str = typer.Option(None, "--email", "-e", help=_(K.opt.email_arg)),
+    author: str = typer.Option(None, "--author", "-a", help=_(K.opt.author)),
+    yes: bool = typer.Option(False, "--yes", "-y", help=_(K.opt.yes)),
 ):
     # —— 用法/参数校验（判定与 manager 层一致，前置到 CLI 层以渲染统一 tip
     #     模板 + 非零退出，取代 manager 层的裸 _fail 输出）——
@@ -542,14 +542,14 @@ def history_rewrite(
     full_email = bool(new_email and not old_email)
     full_author = bool(author)
     if precise and (full_author or full_name or full_email):
-        raise click.UsageError(_("err.author_exclusive"))
+        raise click.UsageError(_(K.err.author_exclusive))
     if full_author and (full_name or full_email):
-        raise click.UsageError(_("err.author_exclusive"))
+        raise click.UsageError(_(K.err.author_exclusive))
     if not (full_author or full_name or full_email):
         if not old_name and not old_email:
-            raise click.UsageError(_("err.need_old"))
+            raise click.UsageError(_(K.err.need_old))
         if not new_name and not new_email:
-            raise click.UsageError(_("err.need_new"))
+            raise click.UsageError(_(K.err.need_new))
     # —— 结束参数校验 ——
     manager = _manager()
     manager.history.rewrite(path, name, email, author, yes)
@@ -581,7 +581,7 @@ def config_default(
 @config_app.command("auto-author", help=_(K.cmd.config_auto_author))
 def config_auto_author(
     on: Optional[OnOff] = typer.Argument(
-        None, help=_("opt.on_off"), metavar="on|off"),
+        None, help=_(K.opt.on_off), metavar="on|off"),
 ):
     manager = _manager()
     if on is None:
@@ -595,30 +595,30 @@ def config_auto_author(
 @config_app.command("language", help=_(K.cmd.config_language))
 def config_lang(
     lang: Optional[Lang] = typer.Argument(
-        None, help=_("opt.lang_value"), metavar="en|zh"),
+        None, help=_(K.opt.lang_value), metavar="en|zh"),
 ):
     manager = _manager()
     if lang is None:
         cur = get_lang()
         name = "Chinese" if cur == "zh" else "English"
-        print(_("lbl.current_language") + f" {name} ({cur})")
-        print(_("lbl.available_languages"))
+        print(_(K.lbl.current_language) + f" {name} ({cur})")
+        print(_(K.lbl.available_languages))
         _show_tip("config", "language")
         return
     lang_value = lang.value
     manager.config.language(lang_value)
     if lang_value == "zh":
-        print(_("msg.lang_zh"))
+        print(_(K.msg.lang_zh))
     else:
-        print(_("msg.lang_en"))
+        print(_(K.msg.lang_en))
     _fail_exit(manager)
     _show_tip("config", "language")
 
 
 @config_app.command("update", help=_(K.cmd.config_update))
 def config_update(
-    check: bool = typer.Option(False, "--check", help=_("opt.check_only")),
-    force: bool = typer.Option(False, "--force", help=_("opt.force_check")),
+    check: bool = typer.Option(False, "--check", help=_(K.opt.check_only)),
+    force: bool = typer.Option(False, "--force", help=_(K.opt.force_check)),
 ):
     """检查并更新到最新版本"""
     manager = _manager()

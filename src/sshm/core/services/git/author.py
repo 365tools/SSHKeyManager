@@ -15,7 +15,9 @@ from pathlib import Path
 from typing import Callable, Dict, Optional, Union
 
 from ....i18n import _
-from ....ui.output import print
+from ....language import K
+from ....ui.output import ICON_WARN, print
+from ...utils.process import git
 
 
 class AuthorService:
@@ -36,10 +38,7 @@ class AuthorService:
                        key: str) -> Optional[str]:
         """读取 git 配置项（local/global）"""
         try:
-            result = subprocess.run(
-                ['git', '-C', str(repo_path), 'config', f'--{scope}', key],
-                capture_output=True, text=True, check=True
-            )
+            result = git(repo_path, 'config', f'--{scope}', key)
             return result.stdout.strip() or None
         except (subprocess.CalledProcessError, OSError):
             return None
@@ -81,16 +80,16 @@ class AuthorService:
         if not (result['name'] or result['email']):
             key_type = self.keystore.detect_key_type_for_label(label)
             if not key_type:
-                msg = _("err.key_not_found_short", label=label)
-                self._fail(msg, hint=_("msg.use_all_keys_tip"))
+                msg = _(K.err.key_not_found_short, label=label)
+                self._fail(msg, hint=_(K.msg.use_all_keys_tip))
                 return None
-            msg = _("msg.not_usable_author", label=label)
-            self._fail(msg, icon='⚠️', hint="\n".join([
-                _("msg.available_remedies"),
+            msg = _(K.msg.not_usable_author, label=label)
+            self._fail(msg, icon=ICON_WARN, hint="\n".join([
+                _(K.msg.available_remedies),
                 f"   - sshm key create {label} <email> --name \"name\"  # "
-                + _("msg.recreate_key"),
+                + _(K.msg.recreate_key),
                 f"   - sshm author add {label} --name \"name\" --email <email>  # "
-                + _("msg.temp_override"),
+                + _(K.msg.temp_override),
             ]))
             return None
 
@@ -106,10 +105,7 @@ class AuthorService:
     def infer_author_name_from_remote(self, repo_path: Path) -> Optional[str]:
         """从 remote URL 推断用户名（git@github.com:allureyc/repo.git → allureyc）"""
         try:
-            result = subprocess.run(
-                ['git', '-C', str(repo_path), 'remote', 'get-url', 'origin'],
-                capture_output=True, text=True, check=True
-            )
+            result = git(repo_path, 'remote', 'get-url', 'origin')
             parsed = self.gitrepo.parse_git_url(result.stdout.strip())
             if parsed:
                 return parsed[1]
@@ -141,20 +137,12 @@ class AuthorService:
         repo = Path(repo_path).resolve() if repo_path else Path.cwd()
         try:
             if author.get('name'):
-                subprocess.run(
-                    ['git', '-C', str(repo), 'config', f'--{scope}',
-                     'user.name', author['name']],
-                    check=True, capture_output=True
-                )
+                git(repo, 'config', f'--{scope}', 'user.name', author['name'])
             if author.get('email'):
-                subprocess.run(
-                    ['git', '-C', str(repo), 'config', f'--{scope}',
-                     'user.email', author['email']],
-                    check=True, capture_output=True
-                )
+                git(repo, 'config', f'--{scope}', 'user.email', author['email'])
         except (subprocess.CalledProcessError, OSError) as e:
-            self._fail(_('err.auto_author_failed', err=e), icon='⚠️')
+            self._fail(_(K.err.auto_author_failed, err=e), icon=ICON_WARN)
             return
 
-        print(f"{_('msg.auto_set_author', label=label)}: "
+        print(f"{_(K.msg.auto_set_author, label=label)}: "
               f"{author.get('name', '') or ''} <{author.get('email', '') or ''}>")

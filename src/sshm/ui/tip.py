@@ -27,13 +27,13 @@ from __future__ import annotations
 from typing import Any, Iterable, List, Optional
 
 from .console import print_separator
-from .output import print as _print
+from .output import ICON_BULLET, ICON_ERR, print as _print
 
 __all__ = ['render_tip_block', 'render_business_error',
            'command_list_lines', 'related_command_blocks', 'ITEM_BULLET']
 
 # 命令/建议列表项统一前缀图标（与 💡 标题形成视觉层级，一处定义全局复用）
-ITEM_BULLET = "➖"
+ITEM_BULLET = ICON_BULLET
 
 
 def render_tip_block(lines: Iterable[str], *, top: bool = True,
@@ -129,7 +129,7 @@ def related_command_blocks(group: Optional[str],
     return blocks
 
 
-def render_business_error(msg: str, *, icon: str = '❌',
+def render_business_error(msg: str, *, icon: str = ICON_ERR,
                           hint: Optional[str] = None) -> None:
     """统一渲染业务错误：顶部空行 + icon 消息 +（可选）💡 建议 tip 段。
 

@@ -19,7 +19,8 @@ from packaging.version import Version, InvalidVersion
 
 from ....constants import VERSION
 from ....i18n import _
-from ....ui.output import print, progress
+from ....language import K
+from ....ui.output import ICON_WARN, print, progress
 from ....ui.tip import render_business_error
 
 
@@ -187,12 +188,12 @@ class UpdateManager:
         """
         # 源码运行模式：无法用下载的 exe 替换 .py 入口，直接提示
         if not getattr(sys, 'frozen', False):
-            render_business_error(_("upd.from_source"),
-                                  icon='⚠️', hint=_("upd.use_git_pull"))
+            render_business_error(_(K.upd.from_source),
+                                  icon=ICON_WARN, hint=_(K.upd.use_git_pull))
             return False
 
         try:
-            print(_("upd.downloading"))
+            print(_(K.upd.downloading))
             
             # 下载到临时文件
             req = Request(download_url)
@@ -209,7 +210,7 @@ class UpdateManager:
                 
                 with open(temp_path, 'wb') as f, \
                         progress(total=total_size if total_size > 0 else None,
-                                 desc=_('upd.downloading')) as p:
+                                 desc=_(K.upd.downloading)) as p:
                     while True:
                         chunk = response.read(chunk_size)
                         if not chunk:
@@ -224,7 +225,7 @@ class UpdateManager:
             current_exe = sys.executable if getattr(sys, 'frozen', False) else sys.argv[0]
             current_exe = os.path.abspath(current_exe)
             
-            print(_("upd.updating"))
+            print(_(K.upd.updating))
             
             # 根据平台执行不同的更新策略
             if self.platform == "windows":
@@ -247,8 +248,8 @@ del "%~f0"
                 subprocess.Popen(['cmd', '/c', batch_path], 
                                creationflags=subprocess.CREATE_NEW_CONSOLE if hasattr(subprocess, 'CREATE_NEW_CONSOLE') else 0)
                 
-                print("\n✅ " + _("upd.script_started"))
-                print(_("upd.exit_after"))
+                print("\n✅ " + _(K.upd.script_started))
+                print(_(K.upd.exit_after))
                 
             else:
                 # Linux/macOS: 直接替换（需要权限）
@@ -258,20 +259,20 @@ del "%~f0"
                 try:
                     import shutil
                     shutil.move(temp_path, current_exe)
-                    print("\n✅ " + _("upd.complete"))
-                    print(_("upd.run_again"))
+                    print("\n✅ " + _(K.upd.complete))
+                    print(_(K.upd.run_again))
                 except PermissionError:
                     # 需要 sudo
-                    render_business_error(_("upd.need_admin"),
-                                          icon='⚠️',
-                                          hint=_("upd.run_manual",
+                    render_business_error(_(K.upd.need_admin),
+                                          icon=ICON_WARN,
+                                          hint=_(K.upd.run_manual,
                                                  src=temp_path, dst=current_exe))
                     return False
             
             return True
             
         except Exception as e:
-            render_business_error(f"{_('upd.failed')} {e}")
+            render_business_error(f"{_(K.upd.failed)} {e}")
             return False
     
     def check_and_notify(self) -> None:
@@ -281,8 +282,8 @@ del "%~f0"
         """
         update_info = self.check_update(force=False)
         if update_info:
-            msg = _("upd.available",
+            msg = _(K.upd.available,
                     version=update_info['version'], current=self.current_version)
-            hint = _("upd.run_update")
+            hint = _(K.upd.run_update)
             print(f"\n💡 {msg}")
             print(f"   {hint}\n")

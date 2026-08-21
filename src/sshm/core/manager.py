@@ -13,7 +13,7 @@ SSH 密钥管理器 - 门面（Facade）
 from pathlib import Path
 from typing import Optional
 
-from ..constants import BACKUP_DIR_NAME, STATE_FILE_NAME
+from ..constants import BACKUP_DIR_NAME, DEFAULT_SSH_DIR, SSH_CONFIG_NAME, STATE_FILE_NAME
 from .commands import (
     AuthorCommands, HistoryCommands, KeyCommands, RepoCommands, SystemCommands,
 )
@@ -24,7 +24,7 @@ from .services.ssh.config import SSHConfigManager
 from .services.ssh.keystore import KeyStore
 from .services.storage.backup import BackupService
 from .services.storage.state import StateManager
-from ..ui.output import print
+from ..ui.output import ICON_ERR, ICON_WARN, print
 from ..ui.tip import render_business_error
 
 
@@ -40,9 +40,9 @@ class SSHKeyManager:
         Args:
             ssh_dir: SSH 目录路径，默认为 ~/.ssh
         """
-        self.ssh_dir = ssh_dir or Path.home() / '.ssh'
+        self.ssh_dir = ssh_dir or DEFAULT_SSH_DIR
         self.backup_dir = self.ssh_dir / BACKUP_DIR_NAME
-        self.config_file = self.ssh_dir / 'config'
+        self.config_file = self.ssh_dir / SSH_CONFIG_NAME
         self.state_file = self.ssh_dir / STATE_FILE_NAME
 
         # 初始化子管理器
@@ -83,7 +83,7 @@ class SSHKeyManager:
         self.keystore.ensure_directories()
         self.backup_dir.mkdir(mode=0o700, exist_ok=True)
 
-    def _fail(self, msg: str, *, icon: str = '❌', hint: Optional[str] = None):
+    def _fail(self, msg: str, *, icon: str = ICON_ERR, hint: Optional[str] = None):
         """记录业务失败并渲染统一错误（不抛异常，保持原有控制流）。
 
         Args:
@@ -103,7 +103,7 @@ class SSHKeyManager:
         与 `_fail` 的区别：**不置 `_had_error`**，命令仍按成功退出。
         用于"提示但命令正常完成"的告警场景，避免误报非零退出码。
         """
-        render_business_error(msg, icon='⚠️', hint=hint)
+        render_business_error(msg, icon=ICON_WARN, hint=hint)
 
     def _mark_error(self) -> None:
         """仅标记业务失败（不打印）。
