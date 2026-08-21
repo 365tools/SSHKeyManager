@@ -84,12 +84,18 @@ def _load_registry():
 
 
 def _run(args: list) -> subprocess.CompletedProcess:
-    """运行 `python -m sshm <args>`，UTF-8 收集输出。"""
+    """运行 `python -m sshm <args>`，UTF-8 收集输出。
+
+    显式把仓库 src 放入 PYTHONPATH：确保校验的是当前仓库源码，而非环境里
+    已安装的其它副本（避免被别的 editable 安装 / 残留环境变量遮蔽）。
+    """
+    env = dict(os.environ)
+    env['PYTHONPATH'] = str(SRC) + os.pathsep + env.get('PYTHONPATH', '')
     return subprocess.run(
         [sys.executable, '-X', 'utf8', '-m', 'sshm'] + args,
         capture_output=True, text=True, encoding='utf-8',
         errors='replace', timeout=30,
-        cwd=str(ROOT),
+        cwd=str(ROOT), env=env,
     )
 
 

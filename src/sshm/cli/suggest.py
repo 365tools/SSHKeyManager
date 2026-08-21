@@ -128,10 +128,10 @@ def render_error(argv: List[str], suggestions: List[str]) -> None:
     # 判定错误场景类型与主消息
     if first in _known_groups() and len(args) >= 2:
         group = first
-        msg = _("err.no_such_subcommand", group=group, cmd=args[1])
+        msg = _(K.err.no_such_subcommand, group=group, cmd=args[1])
     else:
         group = None
-        msg = _("err.no_such_command", cmd=first)
+        msg = _(K.err.no_such_command, cmd=first)
 
     # 与常规命令输出一致：顶部先空一行，再输出内容
     _print()
@@ -144,10 +144,10 @@ def render_error(argv: List[str], suggestions: List[str]) -> None:
     # 块2：建议 / 提示（建议行统一用 ➖ 前缀，与命令列表一致）
     from ..ui.tip import ITEM_BULLET
     if suggestions:
-        tip_lines = [f"💡 {_('suggest.did_you_mean')}"]
+        tip_lines = [f"💡 {_(K.suggest.did_you_mean)}"]
         tip_lines += [f"{ITEM_BULLET} {s}" for s in suggestions]
     else:
-        tip_lines = [f"💡 {_('suggest.hint_help')}"]
+        tip_lines = [f"💡 {_(K.suggest.hint_help)}"]
     render_tip_block(tip_lines)
 
     # 块3：本组相关命令（组内错误 → 该分组全量命令；顶层未知 → 顶层分组名）
@@ -188,7 +188,12 @@ def _command_params_block(exc: Any) -> List[str]:
         base = f"sshm {cmd.name}"
 
     # 每个参数：签名 token + 是否必填 + 含义
-    from click.core import Argument
+    # typer 0.27 起 TyperArgument/TyperOption 不再继承 click.core.Argument
+    # （改用自研的 typer._click.core.Parameter 基类），仅 isinstance(click.Argument)
+    # 会把位置参数误判为选项，渲染成 `label LABEL` 而非 `<LABEL>`（CI 三平台失败）。
+    # 同时兼容新旧 typer：旧版 TyperArgument 是 click.Argument 子类，新版不是。
+    from click.core import Argument as _ClickArgument
+    from typer.core import TyperArgument as _TyperArgument
     entries = []
     for p in cmd.params:
         # 统一大写：`human_readable_name` 在 Linux/Windows 上大小写可能不同
@@ -196,7 +201,7 @@ def _command_params_block(exc: Any) -> List[str]:
         human = (getattr(p, 'human_readable_name', None) or p.name or '').upper()
         required = bool(getattr(p, 'required', False))
         help_txt = getattr(p, 'help', None) or ''
-        is_argument = isinstance(p, Argument)
+        is_argument = isinstance(p, _ClickArgument) or isinstance(p, _TyperArgument)
         opts = getattr(p, 'opts', None) or []
         flag = '/'.join(opts) if opts else (human or '')
         # 枚举/选择参数（Click Choice）：直接展示支持值 ed25519|rsa|...，
@@ -220,7 +225,7 @@ def _command_params_block(exc: Any) -> List[str]:
 
     # Usage 完整签名：按实际终端宽度（rich Console）自适应续行，
     # 续行缩进对齐到 "💡 Usage: " 之后（用显示宽度计算，中文/emoji 双宽正确）。
-    prefix = f"💡 {_('suggest.usage')} {base}"
+    prefix = f"💡 {_(K.suggest.usage)} {base}"
     indent = ' ' * get_display_width(prefix)
     term_width = max(getattr(_console, 'width', None) or 80, 1)
     tokens = [t for t, _, _ in entries]
@@ -238,7 +243,7 @@ def _command_params_block(exc: Any) -> List[str]:
     if entries:
         width = max(len(t) for t, _, _ in entries)
         for token, required, help_txt in entries:
-            tag = _('suggest.required') if required else _('suggest.optional')
+            tag = _(K.suggest.required) if required else _(K.suggest.optional)
             row = f"  {token:<{width}}  {tag}"
             if help_txt:
                 row += f"  {help_txt}"

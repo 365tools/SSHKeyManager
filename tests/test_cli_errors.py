@@ -1,6 +1,8 @@
 """CLI 错误处理测试：残缺指令、非法指令、非法参数"""
 import pytest
 
+from conftest import strip_ansi
+
 
 def test_unknown_command(cli_runner):
     """未知指令应报错退出（非零）"""
@@ -63,7 +65,7 @@ def test_render_error_structure_top_level(capsys):
 
     suggest.render_error(['list'], ['sshm key list', 'sshm backup list',
                                     'sshm author list'])
-    out = capsys.readouterr().out
+    out = strip_ansi(capsys.readouterr().out)
 
     # 顶部先空一行（与常规命令输出一致），随后才是 ❌ 错误消息（上方无分隔线）
     assert out.startswith('\n❌ No such command'), repr(out[:120])
@@ -80,7 +82,7 @@ def test_render_error_structure_in_group(capsys):
     from sshm.cli import suggest
 
     suggest.render_error(['key', 'lst'], ['sshm key list'])
-    out = capsys.readouterr().out
+    out = strip_ansi(capsys.readouterr().out)
 
     assert '❌ No such command' in out
     assert "in group 'key'" in out
@@ -98,7 +100,7 @@ def test_render_usage_error_missing_argument(capsys):
 
     exc = UsageError('Missing argument')
     suggest.render_usage_error(exc, ['key', 'switch'])
-    out = capsys.readouterr().out
+    out = strip_ansi(capsys.readouterr().out)
 
     # 统一模板：❌ 错误消息开头（非 ┌─ Error 面板）
     assert '┌─ Error' not in out
@@ -128,7 +130,7 @@ def test_render_usage_error_missing_parameter_shows_usage_and_commands(capsys):
     assert type(exc).__name__ == 'MissingParameter'
 
     suggest.render_usage_error(exc, ['key', 'switch'])
-    out = capsys.readouterr().out
+    out = strip_ansi(capsys.readouterr().out)
 
     # 缺参数 → 展示完整签名 + 每参数含义（必填/可选 + 枚举支持值）
     assert '💡 Usage: sshm key switch <LABEL> [--type/-t ed25519|rsa|ecdsa|dsa]' in out
@@ -149,7 +151,7 @@ def test_render_usage_error_bad_parameter(capsys):
 
     exc = BadParameter("'x' is not one of 'a', 'b'.")
     suggest.render_usage_error(exc, ['key', 'create', 'l', 'e', '--type', 'x'])
-    out = capsys.readouterr().out
+    out = strip_ansi(capsys.readouterr().out)
 
     assert '┌─ Error' not in out
     assert '❌' in out
@@ -164,7 +166,7 @@ def test_render_usage_error_unknown_command_reuses_suggestion(capsys):
 
     suggest.render_usage_error(UsageError('No such command'),
                                ['key', 'lst'])
-    out = capsys.readouterr().out
+    out = strip_ansi(capsys.readouterr().out)
 
     assert '💡 Did you mean:' in out
     assert '➖ sshm key list' in out

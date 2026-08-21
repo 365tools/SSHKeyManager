@@ -6,21 +6,26 @@ ui.tip 渲染模板测试 - 验证"统一 tip 段"在非 tty 下行为稳定。
 
 from __future__ import annotations
 
+from conftest import strip_ansi
+
 
 def test_render_tip_block_single_emits_one_separator_and_lines(capsys):
     """单段调用：顶部分隔线 + 各内容行（无底部分隔线）。"""
     from sshm.ui.tip import render_tip_block
 
     render_tip_block(['💡 line 1', '  detail'])
-    out = capsys.readouterr().out
+    out = strip_ansi(capsys.readouterr().out)
 
     # 顶部应有分隔线
     assert '────' in out
     # 内容应紧跟其后
     assert '💡 line 1' in out
     assert '  detail' in out
-    # 单段底部不应再出现一条分隔线（设计：只顶部分隔，避免双线）
-    sep_count = out.count('─' * 80)
+    # 单段底部不应再出现一条分隔线（设计：只顶部分隔，避免双线）。
+    # 分隔线宽度随终端/rich 版本变化（非 tty=80、Rule 路径=控制台宽度），
+    # 按"整行都是 ─"计数，避免硬编码 80 造成的跨环境脆弱。
+    sep_count = sum(1 for line in out.splitlines()
+                    if line.strip() and set(line.strip()) == {'─'})
     assert sep_count == 1, (
         f"single block should emit exactly one separator, got {sep_count}")
 
@@ -31,10 +36,11 @@ def test_render_tip_block_consecutive_no_double_separator(capsys):
 
     render_tip_block(['💡 first'])
     render_tip_block(['💡 second'])
-    out = capsys.readouterr().out
+    out = strip_ansi(capsys.readouterr().out)
 
-    # 应有 2 条分隔线（每段一条），不是 4 条
-    sep_count = out.count('─' * 80)
+    # 应有 2 条分隔线（每段一条），不是 4 条；计数方式同宽度无关
+    sep_count = sum(1 for line in out.splitlines()
+                    if line.strip() and set(line.strip()) == {'─'})
     assert sep_count == 2, (
         f"two consecutive blocks should emit 2 separators, got {sep_count}")
     # 两段内容都在
@@ -47,10 +53,11 @@ def test_render_tip_block_empty_lines_safe(capsys):
     from sshm.ui.tip import render_tip_block
 
     render_tip_block([])
-    out = capsys.readouterr().out
+    out = strip_ansi(capsys.readouterr().out)
 
-    # 空段：仍有一条顶部分隔线，无内容
-    sep_count = out.count('─' * 80)
+    # 空段：仍有一条顶部分隔线，无内容（计数方式同宽度无关）
+    sep_count = sum(1 for line in out.splitlines()
+                    if line.strip() and set(line.strip()) == {'─'})
     assert sep_count == 1
 
 

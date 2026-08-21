@@ -6,11 +6,18 @@
 
 import sys
 import threading
-from pathlib import Path
 
 import click
 
-from .constants import STATE_FILE_NAME
+# typer 0.27 起自研了 typer._click 子模块：用法错误（缺参数/非法枚举/未知选项）
+# 抛出的是 typer._click.exceptions.*（不再继承公开 click.UsageError）。
+# 为兼容新旧 typer，main() 统一同时捕获两种；旧版 typer 无 _click，回退为 click.UsageError。
+try:
+    from typer._click.exceptions import UsageError as _TyperUsageError
+except ImportError:
+    _TyperUsageError = click.UsageError
+
+from .constants import DEFAULT_SSH_DIR, STATE_FILE_NAME
 from .core.errors import SSHMError
 from .core.services.net.updater import UpdateManager
 from .core.services.storage.state import StateManager
@@ -19,7 +26,7 @@ from .i18n import load_from_state
 def _load_lang_before_parse() -> None:
     """在解析参数/显示帮助前应用语言（环境变量优先于状态文件）"""
     try:
-        state = StateManager(Path.home() / '.ssh' / STATE_FILE_NAME)
+        state = StateManager(DEFAULT_SSH_DIR / STATE_FILE_NAME)
         load_from_state(state.read_lang())
     except Exception:
         load_from_state(None)
@@ -84,8 +91,10 @@ def main() -> None:
         _print()
         _print(f"❌ {e}")
         raise SystemExit(e.exit_code)
-    except click.UsageError as e:
-        # 用法错误（缺参数/非法枚举/未知选项/未知命令等）：统一模板渲染
+    except (click.UsageError, _TyperUsageError) as e:
+        # 用法错误（缺参数/非法枚举/未知选项/未知命令等）：统一模板渲染。
+        # typer 0.27 起用法错误为 typer._click.exceptions.*，需与 click.UsageError
+        # 一并捕获，否则会裸 traceback 抛给用户。
         suggest.render_usage_error(e, list(sys.argv[1:]))
         raise SystemExit(e.exit_code)
 

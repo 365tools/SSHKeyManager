@@ -1,6 +1,8 @@
 """CLI 帮助测试：验证所有命令/子命令的 --help 正常生成"""
 import pytest
 
+from conftest import strip_ansi
+
 
 @pytest.mark.parametrize('args', [
     ['key'], ['repo'], ['backup'], ['author'], ['history'], ['config'],
@@ -46,10 +48,10 @@ def test_version_flag(cli_runner):
     runner, app = cli_runner
     r1 = runner.invoke(app, ['-v'])
     assert r1.exit_code == 0
-    assert VERSION in r1.output
+    assert VERSION in strip_ansi(r1.output)
     r2 = runner.invoke(app, ['--version'])
     assert r2.exit_code == 0
-    assert VERSION in r2.output
+    assert VERSION in strip_ansi(r2.output)
 
 
 def test_version_src_mode_has_no_build_line(cli_runner):

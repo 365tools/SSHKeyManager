@@ -1,10 +1,23 @@
 """pytest 共享 fixtures：隔离真实 ~/.ssh 与 git 仓库"""
 import os
+import re
 import subprocess
 import sys
 from pathlib import Path
 
 import pytest
+
+# 剥离 ANSI 转义序列（颜色/加粗/暗色等），使断言基于渲染的"文本层"。
+# 说明：rich 按 tty/版本/环境决定是否输出 ANSI，而断言关心的是内容本身；
+# 这里不关闭 rich 的颜色能力（生产代码照常输出颜色），只在测试断言前
+# 提取纯文本，保证跨环境（CI 管道 / 开发终端 / 不同 rich 版本）稳定。
+_ANSI_CSI_RE = re.compile(r'\x1b\[[0-9;]*[a-zA-Z]')
+
+
+def strip_ansi(text: str) -> str:
+    """移除 rich/终端 ANSI 转义序列（颜色/加粗/暗色等）。"""
+    return _ANSI_CSI_RE.sub('', text)
+
 
 # 确保 src 在模块搜索路径
 SRC = Path(__file__).resolve().parent.parent / 'src'
