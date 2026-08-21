@@ -191,7 +191,9 @@ def _command_params_block(exc: Any) -> List[str]:
     from click.core import Argument
     entries = []
     for p in cmd.params:
-        human = getattr(p, 'human_readable_name', None) or p.name or ''
+        # 统一大写：`human_readable_name` 在 Linux/Windows 上大小写可能不同
+        # （如 `label` vs `LABEL`），统一转大写以保证跨平台 Usage 一致
+        human = (getattr(p, 'human_readable_name', None) or p.name or '').upper()
         required = bool(getattr(p, 'required', False))
         help_txt = getattr(p, 'help', None) or ''
         is_argument = isinstance(p, Argument)

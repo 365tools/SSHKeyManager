@@ -128,9 +128,12 @@ class TestCheckUpdate:
                 {'name': 'sshm-linux-x64', 'browser_download_url': 'https://x/linux'},
             ],
         }
-        with patch('sshm.core.services.net.updater.urlopen',
-                   return_value=self._fake_response(payload)):
-            result = updater.check_update(force=True)
+        # 显式 mock 平台为 Windows，使平台资产选择与运行环境无关（CI 上是 Linux）
+        with patch('sshm.core.services.net.updater.platform.system',
+                   return_value='Windows'):
+            with patch('sshm.core.services.net.updater.urlopen',
+                       return_value=self._fake_response(payload)):
+                result = updater.check_update(force=True)
         assert result is not None
         assert result['download_url'] == 'https://x/win.exe'
 
@@ -146,7 +149,11 @@ class TestCheckUpdate:
             'assets': [{'name': 'sshm-windows-x64.exe',
                         'browser_download_url': 'https://x/win.exe'}],
         }
-        with patch('sshm.core.services.net.updater.urlopen',
-                   return_value=self._fake_response(payload)):
-            updater.check_update(force=True)
+        # 资产名是 windows 的，mock 平台为 Windows，否则 Linux 上找不到匹配资产
+        # 会返回 None 不写缓存（导致缓存文件不存在）
+        with patch('sshm.core.services.net.updater.platform.system',
+                   return_value='Windows'):
+            with patch('sshm.core.services.net.updater.urlopen',
+                       return_value=self._fake_response(payload)):
+                updater.check_update(force=True)
         assert updater.CACHE_FILE.exists()
