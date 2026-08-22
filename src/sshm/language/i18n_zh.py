@@ -229,6 +229,8 @@ ZH: dict[str, str] = {
     "msg.not_rolled_back": "注意: 已应用到仓库的 git config 不会被回滚",
     "msg.current_effective": "当前生效: 仓库配置优先于全局",
     "msg.author_list_tip": "使用 'sshm author list' 查看已保存的作者",
+    "msg.author_not_in_list": "当前生效作者（{name} <{email}>）不在已保存列表中",
+    "msg.author_not_in_list_tip": "执行 'sshm author add <标签> -n \"{name}\" -e {email}' 登记它，或用 'sshm author use <标签>' 切换",
     "msg.quick_set": "使用 'sshm author use <标签>' 快速设置当前仓库作者",
     "msg.clear_repo_config": "使用 'sshm author unset' 清除仓库级配置",
     "msg.no_new_value": "（未提供新值，保持现状）",

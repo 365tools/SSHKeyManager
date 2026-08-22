@@ -330,14 +330,23 @@ class AuthorCommands:
 
         eff_email_lower = (eff_email or "").lower()
         eff_name_lower = (eff_name or "").lower()
+        # 仅当 name 与 email 两者同时非空且都匹配时才判定为"正在使用"。
+        # 单字段匹配会导致共用邮箱/同名的不同作者被误标（见 issue）。
+        eff_has_both = bool(eff_name and eff_email)
 
         rows = []
+        matched_any = False
         for label in sorted(authors):
             info = authors[label]
             name = info.get("name") or ""
             email = info.get("email") or ""
-            # 正在使用判断：邮箱精确匹配优先，其次姓名匹配
-            is_active = bool(email and email.lower() == eff_email_lower) or (not email and name and name.lower() == eff_name_lower)
+            is_active = (
+                eff_has_both
+                and bool(name and name.lower() == eff_name_lower)
+                and bool(email and email.lower() == eff_email_lower)
+            )
+            if is_active:
+                matched_any = True
             icon = "📍" if is_active else ""
             label_scope = scope if is_active else ""
             rows.append(
@@ -362,6 +371,14 @@ class AuthorCommands:
             truncatable=[2, 3],
             center_cols=[0],
         )
+
+        # 当前生效作者（name+email 组合）未命中列表中任何一条时，如实提示，
+        # 避免 📍 被误标到某个仅邮箱/姓名撞车的作者身上。
+        if (eff_name or eff_email) and not matched_any:
+            eff_name_disp = eff_name or _(K.misc.not_set)
+            eff_email_disp = eff_email or _(K.misc.not_set)
+            print("\n⚠️  " + _(K.msg.author_not_in_list, name=eff_name_disp, email=eff_email_disp))
+            print("   " + _(K.msg.author_not_in_list_tip, name=eff_name_disp, email=eff_email_disp))
 
         print("\n💡 " + _(K.misc.usage))
         print("   sshm author use <label> [--global]   # " + _(K.msg.apply_repo_global))

@@ -229,6 +229,8 @@ EN: dict[str, str] = {
     "msg.not_rolled_back": "Note: already-applied git config will NOT be rolled back",
     "msg.current_effective": "Current effective: repo config overrides global",
     "msg.author_list_tip": "use 'sshm author list' to view saved authors",
+    "msg.author_not_in_list": "Current effective author ({name} <{email}>) is NOT in the saved list",
+    "msg.author_not_in_list_tip": "run 'sshm author add <label> -n \"{name}\" -e {email}' to register it, or 'sshm author use <label>' to switch",
     "msg.quick_set": "use 'sshm author use <label>' to quickly set the current repo author",
     "msg.clear_repo_config": "use 'sshm author unset' to clear repo-level config",
     "msg.no_new_value": "(no new value, keeping current)",

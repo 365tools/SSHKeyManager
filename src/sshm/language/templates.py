@@ -250,6 +250,8 @@ KEYS: tuple[str, ...] = (
     "msg.not_rolled_back",
     "msg.current_effective",
     "msg.author_list_tip",
+    "msg.author_not_in_list",
+    "msg.author_not_in_list_tip",
     "msg.quick_set",
     "msg.clear_repo_config",
     "msg.no_new_value",
