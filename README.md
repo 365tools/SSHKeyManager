@@ -113,7 +113,8 @@ curl -fsSL https://raw.githubusercontent.com/Eavelabs/sshm/main/scripts/install.
 
 ```bash
 git clone https://github.com/Eavelabs/sshm.git
-cd SSHManager
+cd sshm
+python -m sshm --version
 python -m sshm key list
 ```
 
@@ -122,16 +123,20 @@ python -m sshm key list
 假设你需要同时使用**个人 GitHub** 和**公司 GitLab**：
 
 ```bash
-# 1️⃣ 创建密钥（自动配置 Host 别名）
-sshm key create personal my@email.com -H github.com
-sshm key create work work@company.com -H gitlab.com
+# 1️⃣ 创建密钥
+sshm key create personal --name "Personal" --email my@email.com
+sshm key create work --name "Work Dev" --email work@company.com
 
 # 2️⃣ 查看状态
 sshm key list
 
-# 3️⃣ 在项目中使用
+# 3️⃣ 设为全局默认
+sshm key switch personal
+
+# 4️⃣ 在项目中按仓库绑定密钥与作者
 cd ~/my-project
-sshm repo use personal        # 自动为当前仓库配置 personal 密钥
+sshm repo use personal        # 为当前仓库配置 personal 密钥
+sshm author use personal      # 为当前仓库设置对应 Git 作者
 ```
 
 ✅ **搞定！** 以后推送代码时，系统会自动选择正确的密钥，无需手动切换。
@@ -158,19 +163,20 @@ sshm 遵循标准且安全的目录结构：
 | 命令 | 说明 |
 | :--- | :--- |
 | `sshm key list [-a]` | 查看所有密钥（`-a` 显示公钥内容） |
-| `sshm key create <标签> <邮箱> [-H 主机] [-t 类型]` | 创建新密钥 |
-| `sshm key switch <标签>` | 切换全局默认密钥（同时自动切换绑定的全局作者） |
-| `sshm repo use <标签> [-p 路径]` | 为 Git 仓库配置专用密钥（同时自动切换绑定的作者） |
-| `sshm repo clone <标签> <git-url> [目录] [-y]` | 用指定密钥克隆仓库，克隆后仓库直接使用该密钥 |
-| `sshm config auto-author [on|off]` | 查看/开关"凭据-作者"自动联动（默认开启） |
-| `sshm author <子命令>` | 管理/设置仓库与全局 Git 作者 |
-| `sshm history rewrite` | 重写所有历史中的作者名/邮箱（改名/改邮箱） |
+| `sshm key create <标签> [--name ..] [--email ..] [-t 类型] [--bits N]` | 创建新密钥（邮箱可省略，从公钥推断） |
+| `sshm key switch <标签>` | 切换全局默认密钥（默认开启 `auto-author` 时会同步对应作者） |
+| `sshm key current` | 查看当前使用的密钥 |
+| `sshm key rename <旧> <新>` / `sshm key remove <标签>` / `sshm key label` | 重命名 / 删除 / 保存当前默认密钥为标签 |
+| `sshm repo use <标签> [-p 路径]` | 为 Git 仓库配置专用密钥 |
+| `sshm repo clone <git-url> --key <标签> [目录]` | 用指定密钥克隆仓库，克隆后仓库直接使用该密钥 |
 | `sshm repo info` | 查看当前仓库配置详情 |
-| `sshm repo test [标签] [--all]` | 测试 SSH 连接 |
+| `sshm repo test [--all]` | 测试 SSH 连接 |
+| `sshm author list / add / update / remove / use / unset` | 管理并应用仓库/全局 Git 作者 |
+| `sshm history rewrite [--author <标签>]` / `[--name OLD:NEW]` / `[--email OLD:NEW]` | 重写历史中的作者名/邮箱（破坏性，需强制推送） |
 | `sshm backup create / list / restore` | 备份、列出、恢复密钥 |
-| `sshm key label / rename / remove` | 标签、重命名、删除密钥 |
-| `sshm config language` | 切换中英文（i18n） |
-| `sshm config update [--check]` | 检查并更新到最新版本 |
+| `sshm config auto-author [on/off]` | 开关"密钥-作者"自动联动（默认开启；省略参数可查看当前状态） |
+| `sshm config language [en/zh]` | 切换中英文输出（省略参数可查看当前语言） |
+| `sshm config update` | 检查并更新到最新版本 |
 | `sshm --help` | 查看完整帮助 |
 
 > 📖 完整命令详解与实战案例请见 [使用指南](docs/USAGE.md)

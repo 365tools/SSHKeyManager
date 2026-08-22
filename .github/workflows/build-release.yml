@@ -127,7 +127,7 @@ jobs:
       #   - 引用 @main 分支（action 尚未打 tag，跟随 main 最新改动）
       - name: Create Release
         id: create_release
-        uses: Eavelabs/actions/release-notes@main
+        uses: eavelabs-community/actions/release-notes@main
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
@@ -144,14 +144,14 @@ jobs:
 
             ```powershell
             # 一键安装脚本
-            irm https://raw.githubusercontent.com/Eavelabs/sshm/main/scripts/install.ps1 | iex
+            irm https://raw.githubusercontent.com/eavelabs-community/sshm/main/scripts/install.ps1 | iex
             ```
 
             **Linux / macOS 用户**
 
             ```bash
             # 一键安装脚本
-            curl -fsSL https://raw.githubusercontent.com/Eavelabs/sshm/main/scripts/install.sh | bash
+            curl -fsSL https://raw.githubusercontent.com/eavelabs-community/sshm/main/scripts/install.sh | bash
             ```
 
             > 💡 **`sshm` 显示旧版本 / 运行报错？** 可能是 PATH 残留了旧目录，重装并加清理参数：
