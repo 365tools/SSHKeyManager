@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 SSH 连接测试 - 封装对 `ssh -T git@host` 的探测与结果判定。
 
@@ -16,7 +15,6 @@ from __future__ import annotations
 
 import re
 import subprocess
-from typing import Optional, Tuple
 
 from ....i18n import _
 from ....language import K
@@ -56,7 +54,7 @@ class SSHTester:
     _HI_RE = re.compile(r"Hi ([^!]+)!", re.IGNORECASE)
     _WELCOME_RE = re.compile(r"Welcome to [^,]+, (@?[\w.-]+)")
 
-    def test(self, host: str) -> Tuple[bool, str]:
+    def test(self, host: str) -> tuple[bool, str]:
         """测试 SSH 连接（兼容 GitHub/GitLab/Bitbucket/自建 Git 平台）
 
         Returns:
@@ -102,9 +100,9 @@ class SSHTester:
         except FileNotFoundError:
             return (False, _(K.err.ssh_not_found))
         except Exception as e:
-            return (False, f"{_(K.misc.error)}: {str(e)}")
+            return (False, f"{_(K.misc.error)}: {e!s}")
 
-    def _extract_user(self, output: str) -> Optional[str]:
+    def _extract_user(self, output: str) -> str | None:
         """从输出中提取认证用户名（"Hi <user>!" / "Welcome to ..., <user>"）"""
         m = self._HI_RE.search(output) or self._WELCOME_RE.search(output)
         return m.group(1) if m else None

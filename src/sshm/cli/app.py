@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Typer CLI 应用 - sshm 命令行入口
 
@@ -15,7 +14,6 @@ import platform
 import sys
 from enum import Enum
 from pathlib import Path
-from typing import Optional
 
 import click
 import typer
@@ -23,7 +21,7 @@ import typer
 from ..constants import SUPPORTED_KEY_TYPES
 from ..core import SSHKeyManager
 from ..i18n import _, get_lang
-from ..language import K, LANGUAGES
+from ..language import LANGUAGES, K
 from ..ui.output import print
 from .registry import GROUP_ORDER, related_commands
 
@@ -45,9 +43,7 @@ class Lang(str, Enum):
 
 
 # 防御性校验：枚举成员与单一来源常量一致，避免未来 drift
-assert {m.value for m in KeyType} == set(SUPPORTED_KEY_TYPES), (
-    "KeyType 与 SUPPORTED_KEY_TYPES 不一致"
-)
+assert {m.value for m in KeyType} == set(SUPPORTED_KEY_TYPES), "KeyType 与 SUPPORTED_KEY_TYPES 不一致"
 assert {m.value for m in Lang} == set(LANGUAGES), "Lang 与 LANGUAGES 不一致"
 
 
@@ -116,8 +112,8 @@ def _print_version_rows(rows) -> None:
     判为单宽，而项目统一按 wcwidth 判为双宽，两套测量不一致会导致标签列参差。
     这里改用项目统一的 wcwidth 测量（get_display_width / pad_cell）手动对齐。
     """
-    from ..ui.output import print as _print
     from ..ui.console import get_display_width, pad_cell
+    from ..ui.output import print as _print
 
     label_hdr = _(K.ver.label)
     labels = [label_hdr] + [r[1] for r in rows]
@@ -170,7 +166,7 @@ def _build_time() -> str:
         import datetime
         import os as _os
 
-        ts = datetime.datetime.fromtimestamp(_os.path.getmtime(sys.executable))
+        ts = datetime.datetime.fromtimestamp(_os.path.getmtime(sys.executable), tz=datetime.timezone.utc)
         return ts.strftime("%Y-%m-%d %H:%M:%S")
     except Exception:
         return ""
@@ -228,9 +224,7 @@ def key_create(
 @key_app.command("remove", help=_(K.cmd.key_remove))
 def key_remove(
     label: str = typer.Argument(..., help=_(K.opt.label)),
-    type: Optional[KeyType] = typer.Option(
-        None, "--type", "-t", help=_(K.opt.type_all)
-    ),
+    type: KeyType | None = typer.Option(None, "--type", "-t", help=_(K.opt.type_all)),
 ):
     manager = _manager()
     manager.key.remove(label, type.value if type else None)
@@ -253,9 +247,7 @@ def key_rename(
 @key_app.command("label", help=_(K.cmd.key_label))
 def key_label(
     label: str = typer.Argument(..., help=_(K.opt.new_label)),
-    type: Optional[KeyType] = typer.Option(
-        None, "--type", "-t", help=_(K.opt.type_auto)
-    ),
+    type: KeyType | None = typer.Option(None, "--type", "-t", help=_(K.opt.type_auto)),
     switch: bool = typer.Option(False, "--switch", "-s", help=_(K.opt.switch_after)),
 ):
     manager = _manager()
@@ -267,9 +259,7 @@ def key_label(
 @key_app.command("switch", help=_(K.cmd.key_switch))
 def key_switch(
     label: str = typer.Argument(..., help=_(K.opt.label)),
-    type: Optional[KeyType] = typer.Option(
-        None, "--type", "-t", help=_(K.opt.type_auto)
-    ),
+    type: KeyType | None = typer.Option(None, "--type", "-t", help=_(K.opt.type_auto)),
 ):
     manager = _manager()
     manager.key.switch(label, type.value if type else None)
@@ -410,9 +400,7 @@ def backup_list() -> None:
 @backup_app.command("restore", help=_(K.cmd.backup_restore))
 def backup_restore(
     backup: str = typer.Argument(None, help=_(K.opt.backup_name)),
-    type: Optional[KeyType] = typer.Option(
-        None, "--type", "-t", help=_(K.opt.type_only)
-    ),
+    type: KeyType | None = typer.Option(None, "--type", "-t", help=_(K.opt.type_only)),
     yes: bool = typer.Option(False, "--yes", "-y", help=_(K.opt.yes_prompts)),
 ):
     manager = _manager()
@@ -549,7 +537,7 @@ def history_rewrite(
 ):
     # —— 用法/参数校验（判定与 manager 层一致，前置到 CLI 层以渲染统一 tip
     #     模板 + 非零退出，取代 manager 层的裸 _fail 输出）——
-    def _split_pair(v: Optional[str]):
+    def _split_pair(v: str | None):
         if not v:
             return None, None
         if ":" in v:
@@ -604,7 +592,7 @@ def config_default(
 
 @config_app.command("auto-author", help=_(K.cmd.config_auto_author))
 def config_auto_author(
-    on: Optional[OnOff] = typer.Argument(None, help=_(K.opt.on_off), metavar="on|off"),
+    on: OnOff | None = typer.Argument(None, help=_(K.opt.on_off), metavar="on|off"),
 ):
     manager = _manager()
     if on is None:
@@ -617,9 +605,7 @@ def config_auto_author(
 
 @config_app.command("language", help=_(K.cmd.config_language))
 def config_lang(
-    lang: Optional[Lang] = typer.Argument(
-        None, help=_(K.opt.lang_value), metavar="en|zh"
-    ),
+    lang: Lang | None = typer.Argument(None, help=_(K.opt.lang_value), metavar="en|zh"),
 ):
     manager = _manager()
     if lang is None:
@@ -681,4 +667,3 @@ def main_callback(
     ),
 ) -> None:
     """sshm - Multi-account Git SSH key management tool"""
-    pass

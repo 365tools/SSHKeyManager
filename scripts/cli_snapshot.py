@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 CLI 输出标准化快照 / 回归检查脚本。
 
@@ -129,10 +128,7 @@ def _run_scenarios(scenarios, handler) -> list:
         return [handler(argv, label, succeed) for argv, label, succeed in scenarios]
     results = [None] * len(scenarios)
     with ThreadPoolExecutor(max_workers=jobs) as ex:
-        future_map = {
-            ex.submit(handler, argv, label, succeed): i
-            for i, (argv, label, succeed) in enumerate(scenarios)
-        }
+        future_map = {ex.submit(handler, argv, label, succeed): i for i, (argv, label, succeed) in enumerate(scenarios)}
         for fut in as_completed(future_map):
             idx = future_map[fut]
             results[idx] = fut.result()
@@ -182,7 +178,7 @@ def _validate(name, out, err, code, should_succeed):
     if should_succeed and code != 0:
         problems.append(f"退出码 {code}（应成功 0）")
     if not should_succeed and code == 0:
-        problems.append(f"退出码 0（非法值应被拦截非零退出）")
+        problems.append("退出码 0（非法值应被拦截非零退出）")
     if "Traceback" in combined:
         problems.append("包含 Traceback")
     if "Internal Server Error" in combined:
@@ -286,9 +282,7 @@ def _do_collect(lang: str, scenarios) -> Path:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="CLI 输出标准化快照/回归检查")
-    parser.add_argument(
-        "--check", action="store_true", help="校验输出符合标准（供 check_all.py 调用）"
-    )
+    parser.add_argument("--check", action="store_true", help="校验输出符合标准（供 check_all.py 调用）")
     parser.add_argument(
         "--lang",
         choices=["en", "zh", "both"],
@@ -314,9 +308,7 @@ def main() -> int:
 
     def _checker(argv, label, should_succeed):
         proc = _run(argv)
-        ok, problems = _validate(
-            label, proc.stdout, proc.stderr, proc.returncode, should_succeed
-        )
+        ok, problems = _validate(label, proc.stdout, proc.stderr, proc.returncode, should_succeed)
         return (
             label,
             proc.returncode,

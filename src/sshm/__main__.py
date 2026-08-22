@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 主程序入口 - 支持 python -m sshm 运行
 """

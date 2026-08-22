@@ -1,7 +1,6 @@
 """CLI 帮助测试：验证所有命令/子命令的 --help 正常生成"""
 
 import pytest
-
 from conftest import strip_ansi
 
 
@@ -108,7 +107,6 @@ def test_version_help_shorthand(cli_runner):
 
 def test_build_source_detection(monkeypatch, tmp_path):
     """构建来源判断：根据 exe 旁的标记文件区分本地/线上/未知"""
-    import sys as _sys
     import importlib
 
     cli_mod = importlib.import_module("sshm.cli.app")

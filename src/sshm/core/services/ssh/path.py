@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 系统工具模块 - PATH 配置等系统级操作
 """
@@ -61,9 +60,7 @@ def _add_to_windows_path(exe_dir: Path) -> None:
         path_entries = [p.strip() for p in current_path.split(";") if p.strip()]
 
         # 检查路径是否已存在
-        existing_paths = [
-            p for p in path_entries if Path(p).resolve() == exe_dir.resolve()
-        ]
+        existing_paths = [p for p in path_entries if Path(p).resolve() == exe_dir.resolve()]
 
         if existing_paths:
             print(_(K.sys.path_exists, path=existing_paths[0]))
@@ -144,11 +141,11 @@ def _add_to_unix_path(exe_dir: Path) -> None:
     if prompt_confirm("\n" + _("sys.continue")):
         try:
             with rc_file.open("a", encoding="utf-8") as f:
-                f.write(f"\n# Added by sshm\n")
+                f.write("\n# Added by sshm\n")
                 f.write(f"{export_line}\n")
 
             print("\n✅ " + _(K.sys.config_added))
-            print(f"\n💡 " + _(K.sys.run_to_apply))
+            print("\n💡 " + _(K.sys.run_to_apply))
             print(f"   source {rc_file}")
             print("\n   " + _(K.sys.or_restart))
         except Exception as e:

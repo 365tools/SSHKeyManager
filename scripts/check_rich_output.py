@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 输出统一性检查脚本 - 找出所有"未走 rich 的裸 print()"调用。
 
@@ -27,12 +26,7 @@ from pathlib import Path
 # 确保控制台 UTF-8（Windows 默认 GBK 无法输出 emoji）
 _stdout_reconfigure = getattr(sys.stdout, "reconfigure", None)
 _stderr_reconfigure = getattr(sys.stderr, "reconfigure", None)
-if (
-    sys.stdout.encoding
-    and sys.stdout.encoding.lower() not in ("utf-8", "utf8")
-    and _stdout_reconfigure
-    and _stderr_reconfigure
-):
+if sys.stdout.encoding and sys.stdout.encoding.lower() not in ("utf-8", "utf8") and _stdout_reconfigure and _stderr_reconfigure:
     try:
         _stdout_reconfigure(encoding="utf-8")
         _stderr_reconfigure(encoding="utf-8")
@@ -119,17 +113,13 @@ def main() -> bool:
         print(f"   （白名单豁免 {len(EXEMPT)} 个文件，见 EXEMPT 注释）")
         return False
 
-    print(
-        f"⚠️  发现 {len(report)} 个文件使用 Python 内置 print()（共 {total} 处），不走 rich：\n"
-    )
+    print(f"⚠️  发现 {len(report)} 个文件使用 Python 内置 print()（共 {total} 处），不走 rich：\n")
     for rel, hits in report:
         print(f"  {rel}")
         for lineno, content in hits:
             print(f"      L{lineno:>4}: {content}")
         print()
-    print(
-        "提示：将这些 print 改为从 ui.output 引入的 rich print，并在调用前补首行空行。"
-    )
+    print("提示：将这些 print 改为从 ui.output 引入的 rich print，并在调用前补首行空行。")
     return True
 
 

@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 Git 仓库命令组 - 仓库相关命令的编排（use / clone / info / test）。
 
@@ -12,22 +11,30 @@ from __future__ import annotations
 import re
 import subprocess
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING
 
 from ...i18n import _
 from ...language import K
-from ..services.ssh.keypaths import private_key_path, public_key_path
 from ...ui.output import (
     ICON_ERR,
     ICON_OK,
     ICON_WARN,
     print,
-    section as print_section_header,
-    separator as print_separator,
-    table as print_table,
+)
+from ...ui.output import (
     confirm as prompt_confirm,
 )
+from ...ui.output import (
+    section as print_section_header,
+)
+from ...ui.output import (
+    separator as print_separator,
+)
+from ...ui.output import (
+    table as print_table,
+)
 from ...ui.tip import render_tip_block
+from ..services.ssh.keypaths import private_key_path, public_key_path
 
 if TYPE_CHECKING:
     from ..manager import SSHKeyManager
@@ -36,12 +43,10 @@ if TYPE_CHECKING:
 class RepoCommands:
     """Git 仓库命令编排。"""
 
-    def __init__(self, m: "SSHKeyManager"):
+    def __init__(self, m: SSHKeyManager):
         self.m = m
 
-    def use(
-        self, label: str, repo_path: Union[str, Path] = ".", skip_confirm: bool = False
-    ):
+    def use(self, label: str, repo_path: str | Path = ".", skip_confirm: bool = False):
         """为指定 Git 仓库配置使用特定密钥"""
         repo_path = Path(repo_path).resolve()
 
@@ -84,9 +89,7 @@ class RepoCommands:
 
             # 私有化/非标准 Git：校验并自动对齐 hostname 映射
             repo_hostname = self.m.gitrepo.resolve_repo_hostname(current_url)
-            if not self.m.gitrepo.align_hostname_with_repo(
-                label, repo_hostname, skip_confirm
-            ):
+            if not self.m.gitrepo.align_hostname_with_repo(label, repo_hostname, skip_confirm):
                 return
 
             # 确保 SSH config 别名存在且唯一（此时 hostname 已对齐，别名正确）
@@ -128,13 +131,11 @@ class RepoCommands:
             print_separator()
             print("✅ " + _(K.hdr.config_complete))
             print(f"   cd {repo_path}")
-            print(f"   git push")
+            print("   git push")
             print_separator()
 
             # 密钥↔作者自动联动：局部切换时自动设置仓库 author（若 label 有绑定）
-            self.m.author_service.apply_auto_author(
-                label, repo_path=str(repo_path), scope="local"
-            )
+            self.m.author_service.apply_auto_author(label, repo_path=str(repo_path), scope="local")
 
         except subprocess.CalledProcessError as e:
             if "No such remote" in str(e.stderr):
@@ -150,7 +151,7 @@ class RepoCommands:
         self,
         label: str,
         url: str,
-        target_dir: Optional[str] = None,
+        target_dir: str | None = None,
         skip_confirm: bool = False,
     ):
         """使用指定密钥标签克隆 Git 仓库，并在克隆后为该仓库配置该密钥"""
@@ -176,9 +177,7 @@ class RepoCommands:
 
         # 对齐 hostname（适配私有化 Git），并确保 SSH config 别名存在
         repo_hostname = self.m.gitrepo.resolve_repo_hostname(url)
-        if not self.m.gitrepo.align_hostname_with_repo(
-            label, repo_hostname, skip_confirm
-        ):
+        if not self.m.gitrepo.align_hostname_with_repo(label, repo_hostname, skip_confirm):
             return
 
         key_file = private_key_path(self.m.ssh_dir, key_type, label)
@@ -215,23 +214,19 @@ class RepoCommands:
         # 设置作者（若标签有显式作者信息）。
         # 注意：这里禁用 remote 推断，因为 clone 的 remote 是 sshm 别名 URL，
         # 其 user 段是组织名而非作者名，推断会把 org 名错设成 user.name。
-        author = self.m.author_service.get_author_info(
-            label, repo_path=cloned_dir, infer_from_remote=False
-        )
+        author = self.m.author_service.get_author_info(label, repo_path=cloned_dir, infer_from_remote=False)
         if author and (author.get("name") or author.get("email")):
             print()
-            self.m.author.use(
-                label, cloned_dir, skip_confirm=True, infer_from_remote=False
-            )
+            self.m.author.use(label, cloned_dir, skip_confirm=True, infer_from_remote=False)
 
         print()
         print_separator()
         print("✅ " + _(K.hdr.config_complete))
         print(f"   cd {cloned_dir}")
-        print(f"   git push")
+        print("   git push")
         print_separator()
 
-    def info(self, repo_path: Union[str, Path] = "."):
+    def info(self, repo_path: str | Path = "."):
         """显示当前 Git 仓库的 SSH 配置信息"""
         print_section_header(_(K.hdr.repo_info))
 
@@ -285,9 +280,7 @@ class RepoCommands:
                             ssh_config = self.m.config_manager.config_file
                             if ssh_config.exists():
                                 # 按 Host 块解析，打印匹配该别名的完整配置块
-                                block = self.m.gitrepo.extract_ssh_config_block(
-                                    host_alias
-                                )
+                                block = self.m.gitrepo.extract_ssh_config_block(host_alias)
                                 if block:
                                     print(f"\n{_(K.lbl.ssh_config)}")
                                     for line in block:
@@ -322,9 +315,9 @@ class RepoCommands:
 
     def test(
         self,
-        label: Optional[str] = None,
+        label: str | None = None,
         test_all: bool = False,
-        repo_path: Union[str, Path] = ".",
+        repo_path: str | Path = ".",
     ):
         """测试 SSH 连接"""
         if test_all:
@@ -357,10 +350,7 @@ class RepoCommands:
 
                 workers = min(8, len(network_tasks))
                 with ThreadPoolExecutor(max_workers=workers) as pool:
-                    future_map = {
-                        label: pool.submit(self.m.tester.test, alias)
-                        for label, alias, _ in network_tasks
-                    }
+                    future_map = {label: pool.submit(self.m.tester.test, alias) for label, alias, _ in network_tasks}
                     for label, _alias, _kt in network_tasks:
                         outcome[label] = future_map[label].result()
 
@@ -400,7 +390,7 @@ class RepoCommands:
             if not key_type:
                 msg = _(K.err.key_not_found_files, label=label)
                 self.m._fail(msg)
-                print(f"\n💡 " + _(K.msg.use_all_keys_tip))
+                print("\n💡 " + _(K.msg.use_all_keys_tip))
                 return
 
             host_alias = self.m.gitrepo.get_host_alias(label)
@@ -411,12 +401,12 @@ class RepoCommands:
             # 未配置 config 别名时无法路由到真实主机，直接给出友好提示
             if not self.m.config_manager.has_host(host_alias):
                 print(f"\n⚠️  {_(K.msg.alias_not_configured, alias=host_alias)}")
-                print(f"   " + _(K.msg.run_use_first, label=label))
-                print(f"   " + _(K.msg.run_use_global, label=label))
+                print("   " + _(K.msg.run_use_first, label=label))
+                print("   " + _(K.msg.run_use_global, label=label))
                 self.m._mark_error()
                 return
 
-            print(f"\n🧪 " + _(K.msg.testing))
+            print("\n🧪 " + _(K.msg.testing))
 
             success, message = self.m.tester.test(host_alias)
             if success:
@@ -456,8 +446,8 @@ class RepoCommands:
                         print(f"✅ {message}")
                     else:
                         self.m._fail(message)
-                        print(f"\n💡 " + _(K.msg.check_config_tip))
-                        print(f"   " + _(K.msg.use_info))
+                        print("\n💡 " + _(K.msg.check_config_tip))
+                        print("   " + _(K.msg.use_info))
                 else:
                     print("\n⚠️  " + _(K.msg.not_ssh_url))
                     print("   " + _(K.msg.use_to_convert))

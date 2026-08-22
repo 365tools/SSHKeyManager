@@ -1,7 +1,6 @@
 """CLI 错误处理测试：残缺指令、非法指令、非法参数"""
 
 import pytest
-
 from conftest import strip_ansi
 
 
@@ -74,9 +73,7 @@ def test_render_error_structure_top_level(capsys):
     各块之间以分隔线衔接。"""
     from sshm.cli import suggest
 
-    suggest.render_error(
-        ["list"], ["sshm key list", "sshm backup list", "sshm author list"]
-    )
+    suggest.render_error(["list"], ["sshm key list", "sshm backup list", "sshm author list"])
     out = strip_ansi(capsys.readouterr().out)
 
     # 顶部先空一行（与常规命令输出一致），随后才是 ❌ 错误消息（上方无分隔线）
@@ -108,6 +105,7 @@ def test_render_error_structure_in_group(capsys):
 def test_render_usage_error_missing_argument(capsys):
     """缺必填参数：统一 ❌ 渲染 + 用法提示，而非 Click 原生面板。"""
     from click.exceptions import UsageError
+
     from sshm.cli import suggest
 
     exc = UsageError("Missing argument")
@@ -123,13 +121,12 @@ def test_render_usage_error_missing_argument(capsys):
 
 def test_render_usage_error_missing_parameter_shows_usage_and_commands(capsys):
     """缺必填参数应额外展示该命令所需参数 + 同组相关命令。"""
-    from sshm.cli import suggest
-
     # 用真实 Typer app + standalone_mode=False 触发真实 MissingParameter
     # （模拟 `sshm key switch` 缺 LABEL），再交给统一渲染
     import sys
     from unittest import mock
 
+    from sshm.cli import suggest
     from sshm.cli.app import app
 
     exc = None
@@ -159,6 +156,7 @@ def test_render_usage_error_missing_parameter_shows_usage_and_commands(capsys):
 def test_render_usage_error_bad_parameter(capsys):
     """非法枚举值：保留 Click 的错误文案，套统一 ❌ 模板。"""
     from click.exceptions import BadParameter
+
     from sshm.cli import suggest
 
     exc = BadParameter("'x' is not one of 'a', 'b'.")
@@ -174,6 +172,7 @@ def test_render_usage_error_bad_parameter(capsys):
 def test_render_usage_error_unknown_command_reuses_suggestion(capsys):
     """未知命令的 UsageError 应复用完整命令建议。"""
     from click.exceptions import UsageError
+
     from sshm.cli import suggest
 
     suggest.render_usage_error(UsageError("No such command"), ["key", "lst"])
@@ -193,7 +192,6 @@ def test_add_missing_args(cli_runner):
 
 def test_add_invalid_key_type(cli_runner, manager):
     """非法密钥类型应报错"""
-    from sshm.core.manager import SSHKeyManager
 
     with pytest.raises(ValueError):
         manager.key.create("x", "a@b.com", key_type="invalid-type")

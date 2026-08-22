@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 交互式菜单 - 双击运行时的用户界面
 """
@@ -7,22 +6,18 @@
 from rich.prompt import Confirm as RichConfirm
 from rich.prompt import Prompt as RichPrompt
 
-from ..constants import VERSION, DEFAULT_KEY_TYPE
+from ..constants import DEFAULT_KEY_TYPE, VERSION
 from ..core import SSHKeyManager
 from ..core.services.net.updater import UpdateManager
 from ..i18n import _
 from ..language import K
-from ..ui.console import print_separator, print_section_header, wait_for_key
+from ..ui.console import print_section_header, print_separator, wait_for_key
 from ..ui.output import print
 
 
 def get_input(prompt: str, required: bool = True) -> str:
     """获取用户输入（基于 rich.prompt，支持必填校验与默认值）"""
-    return (
-        str(RichPrompt.ask(prompt, default="", show_default=False)).strip()
-        if not required
-        else _ask_required(prompt)
-    )
+    return str(RichPrompt.ask(prompt, default="", show_default=False)).strip() if not required else _ask_required(prompt)
 
 
 def _ask_required(prompt: str) -> str:
@@ -168,11 +163,7 @@ def show_interactive_menu() -> None:
                         manager.author.list()
                         print()
                         label = get_input(_(K.prompt.enter_author_label))
-                        scope = (
-                            "global"
-                            if _ask_confirm(_(K.prompt.apply_global))
-                            else "local"
-                        )
+                        scope = "global" if _ask_confirm(_(K.prompt.apply_global)) else "local"
                         manager.author.use(label, ".", scope=scope, skip_confirm=False)
                     elif sub_choice == "5":
                         print(_(K.lbl.delete_author))
@@ -204,9 +195,7 @@ def show_interactive_menu() -> None:
                 info = updater.check_update()
                 if info:
                     print(f"\n🎉 {_(K.upd.new_version, version=info['version'])}")
-                    print(
-                        f"{_(K.upd.release_date)} {info.get('published_at', 'Unknown')}"
-                    )
+                    print(f"{_(K.upd.release_date)} {info.get('published_at', 'Unknown')}")
                     print(f"\n{_(K.upd.update_notes)}\n{info.get('body', '')}")
                 else:
                     print("\n✅ " + _(K.upd.up_to_date))
@@ -236,8 +225,9 @@ def show_interactive_menu() -> None:
 
 def show_help() -> None:
     """显示帮助信息（由 Typer 自动生成，命令清单/示例/参数说明全自动聚合）"""
-    import click
     from typing import cast
+
+    import click
     from typer.main import get_command
 
     from .app import app

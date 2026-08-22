@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 历史重写命令组 - 重写 Git 历史作者/邮箱的编排。
 
@@ -11,16 +10,24 @@ from __future__ import annotations
 
 import subprocess
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING
 
 from ...i18n import _
 from ...language import K
 from ...ui.output import (
     ICON_WARN,
-    print as rich_print,
-    section as print_section_header,
-    status as output_status,
+)
+from ...ui.output import (
     confirm as prompt_confirm,
+)
+from ...ui.output import (
+    print as rich_print,
+)
+from ...ui.output import (
+    section as print_section_header,
+)
+from ...ui.output import (
+    status as output_status,
 )
 
 if TYPE_CHECKING:
@@ -30,11 +37,11 @@ if TYPE_CHECKING:
 class HistoryCommands:
     """历史重写命令组（对应 CLI `sshm history rewrite`）。"""
 
-    def __init__(self, m: "SSHKeyManager"):
+    def __init__(self, m: SSHKeyManager):
         self.m = m
 
     @staticmethod
-    def _split_pair(value: Optional[str]):
+    def _split_pair(value: str | None):
         """解析 'OLD:NEW' 或 'NEW' 形式的参数。
 
         Returns:
@@ -49,10 +56,10 @@ class HistoryCommands:
 
     def rewrite(
         self,
-        repo_path: Union[str, Path] = ".",
-        name: Optional[str] = None,
-        email: Optional[str] = None,
-        author: Optional[str] = None,
+        repo_path: str | Path = ".",
+        name: str | None = None,
+        email: str | None = None,
+        author: str | None = None,
         skip_confirm: bool = False,
     ):
         """重写 Git 历史中的作者/邮箱。
@@ -146,13 +153,9 @@ class HistoryCommands:
         else:
             match_desc = []
             if old_name:
-                match_desc.append(
-                    f"{_(K.misc.name)} '{old_name}' -> '{new_name or old_name}'"
-                )
+                match_desc.append(f"{_(K.misc.name)} '{old_name}' -> '{new_name or old_name}'")
             if old_email:
-                match_desc.append(
-                    f"{_(K.misc.email)} '{old_email}' -> '{new_email or old_email}'"
-                )
+                match_desc.append(f"{_(K.misc.email)} '{old_email}' -> '{new_email or old_email}'")
         rich_print(f"\n🛠 {_(K.lbl.rules)} {', '.join(match_desc)}")
 
         # 用 dry-run 预估（fast-export 到临时流，不导入）。

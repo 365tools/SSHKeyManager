@@ -24,8 +24,8 @@ from __future__ import annotations
 import os
 import re
 import subprocess
+from collections.abc import Iterator
 from pathlib import Path
-from typing import Iterator, Optional, Tuple
 
 # author/committer 行示例：
 #   author Alice <alice@x.com> 1786862590 +0800
@@ -49,10 +49,10 @@ class RewriteConfig:
 
     def __init__(
         self,
-        old_name: Optional[str] = None,
-        new_name: Optional[str] = None,
-        old_email: Optional[str] = None,
-        new_email: Optional[str] = None,
+        old_name: str | None = None,
+        new_name: str | None = None,
+        old_email: str | None = None,
+        new_email: str | None = None,
         match_all: bool = False,
     ):
         self.old_name = old_name
@@ -77,8 +77,8 @@ def _clean_git_env() -> dict:
 def _run_git(
     repo: Path,
     args: list,
-    input_bytes: Optional[bytes] = None,
-    input_text: Optional[str] = None,
+    input_bytes: bytes | None = None,
+    input_text: str | None = None,
     capture: bool = True,
     binary_output: bool = False,
 ) -> subprocess.CompletedProcess:
@@ -117,7 +117,7 @@ def _run_git(
     )
 
 
-def _walk_person_lines(stream: bytes) -> Iterator[Tuple[int, int, "re.Match"]]:
+def _walk_person_lines(stream: bytes) -> Iterator[tuple[int, int, re.Match]]:
     """逐字节遍历 fast-export 流，仅 yield 命令层的 author/committer 行。
 
     yield (行起始字节下标, 行结束字节下标, 匹配对象)。
@@ -128,7 +128,7 @@ def _walk_person_lines(stream: bytes) -> Iterator[Tuple[int, int, "re.Match"]]:
     while i < n:
         nl = stream.find(b"\n", i)
         line_end = (nl + 1) if nl != -1 else n
-        content = stream[i:nl if nl != -1 else n]
+        content = stream[i : nl if nl != -1 else n]
 
         dm = _DATA_COUNT.match(content)
         if dm:
@@ -173,14 +173,12 @@ def _count_matches(stream: bytes, cfg: RewriteConfig) -> int:
             continue
         name = m.group("name")
         email = m.group("email")
-        if cfg.old_name and name == cfg.old_name.encode("utf-8"):
-            count += 1
-        elif cfg.old_email and email == cfg.old_email.encode("utf-8"):
+        if cfg.old_name and name == cfg.old_name.encode("utf-8") or cfg.old_email and email == cfg.old_email.encode("utf-8"):
             count += 1
     return count
 
 
-def _rewrite_stream(stream: bytes, cfg: RewriteConfig) -> Tuple[bytes, int]:
+def _rewrite_stream(stream: bytes, cfg: RewriteConfig) -> tuple[bytes, int]:
     """字节级重写 fast-export 流，返回 (新流 bytes, 替换次数)。
 
     data 块按原始字节整体复制，命令层 author/committer 行按规则替换。
@@ -192,12 +190,12 @@ def _rewrite_stream(stream: bytes, cfg: RewriteConfig) -> Tuple[bytes, int]:
     while i < n:
         nl = stream.find(b"\n", i)
         line_end = (nl + 1) if nl != -1 else n
-        content = stream[i:nl if nl != -1 else n]
+        content = stream[i : nl if nl != -1 else n]
 
         dm = _DATA_COUNT.match(content)
         if dm:
             count = int(dm.group(1))
-            out += stream[i:nl + 1]               # 'data <n>\n'
+            out += stream[i : nl + 1]  # 'data <n>\n'
             out += stream[nl + 1 : nl + 1 + count]  # 原样复制 count 个原始字节
             i = nl + 1 + count
             if i < n and stream[i : i + 1] == b"\n":
@@ -248,9 +246,7 @@ def _rewrite_stream(stream: bytes, cfg: RewriteConfig) -> Tuple[bytes, int]:
             if hit:
                 replaced += 1
                 rest = m.group("rest")
-                out += (
-                    m.group("kind") + b" " + new_name + b" <" + new_email + b">" + rest + b"\n"
-                )
+                out += m.group("kind") + b" " + new_name + b" <" + new_email + b">" + rest + b"\n"
             else:
                 out += stream[i:line_end]
         else:
@@ -270,9 +266,7 @@ def _active_refs(repo: Path) -> list:
     refs = _run_git(repo, ["for-each-ref", "--format=%(refname)"])
     if refs.returncode != 0:
         return []
-    return [
-        r for r in refs.stdout.splitlines() if r and not r.startswith("refs/original/")
-    ]
+    return [r for r in refs.stdout.splitlines() if r and not r.startswith("refs/original/")]
 
 
 def _backup_refs(repo: Path) -> None:
@@ -358,9 +352,7 @@ def rewrite_history(repo_path: Path, cfg: RewriteConfig) -> dict:
         return {"matched_commits": 0, "rewritten": 0}
     export = _run_git(repo, ["fast-export"] + active, binary_output=True)
     if export.returncode != 0:
-        raise RuntimeError(
-            f"git fast-export failed: {export.stderr.decode('utf-8', 'replace').strip()}"
-        )
+        raise RuntimeError(f"git fast-export failed: {export.stderr.decode('utf-8', 'replace').strip()}")
     original = export.stdout
 
     matched = _count_matches(original, cfg)
@@ -376,9 +368,7 @@ def rewrite_history(repo_path: Path, cfg: RewriteConfig) -> dict:
     # 4. 导入重写后的流（原始 bytes stdin，绝不经过文本层）
     imp = _run_git(repo, ["fast-import", "--quiet", "--force"], input_bytes=new_stream)
     if imp.returncode != 0:
-        raise RuntimeError(
-            f"git fast-import failed: {imp.stderr.decode('utf-8', 'replace').strip()}"
-        )
+        raise RuntimeError(f"git fast-import failed: {imp.stderr.decode('utf-8', 'replace').strip()}")
 
     # 5. 更新当前分支指向
     _update_current_branch(repo)

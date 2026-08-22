@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 死代码/冗余内容检测脚本。
 
@@ -77,14 +76,7 @@ def find_unused_i18n_keys(keys: list[str]) -> list[str]:
             continue
         for node in ast.walk(tree):
             # 1. `_(key)` / `_('key')` 调用：第一个参数是字符串常量
-            if (
-                isinstance(node, ast.Call)
-                and isinstance(node.func, ast.Name)
-                and node.func.id == "_"
-                and node.args
-                and isinstance(node.args[0], ast.Constant)
-                and isinstance(node.args[0].value, str)
-            ):
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "_" and node.args and isinstance(node.args[0], ast.Constant) and isinstance(node.args[0].value, str):
                 used_keys.add(node.args[0].value)
             # 2. `K.cmd.xxx` 属性访问：拼接为 'cmd.xxx'
             if isinstance(node, ast.Attribute):
@@ -183,12 +175,7 @@ def check_i18n_placeholders() -> list[str]:
                     target, value = t.id, node.value
         if target == "EN" and isinstance(value, ast.Dict):
             for k, v in zip(value.keys, value.values):
-                if (
-                    isinstance(k, ast.Constant)
-                    and isinstance(v, ast.Constant)
-                    and isinstance(k.value, str)
-                    and isinstance(v.value, str)
-                ):
+                if isinstance(k, ast.Constant) and isinstance(v, ast.Constant) and isinstance(k.value, str) and isinstance(v.value, str):
                     templates[k.value] = set(re.findall(r"\{(\w+)\}", v.value))
 
     problems: list[str] = []
@@ -200,14 +187,7 @@ def check_i18n_placeholders() -> list[str]:
         except (SyntaxError, OSError):
             continue
         for node in ast.walk(ptree):
-            if (
-                isinstance(node, ast.Call)
-                and isinstance(node.func, ast.Name)
-                and node.func.id == "_"
-                and node.args
-                and isinstance(node.args[0], ast.Constant)
-                and isinstance(node.args[0].value, str)
-            ):
+            if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "_" and node.args and isinstance(node.args[0], ast.Constant) and isinstance(node.args[0].value, str):
                 key = node.args[0].value
                 if key not in templates:
                     continue
@@ -215,15 +195,9 @@ def check_i18n_placeholders() -> list[str]:
                 extra = kwargs - templates[key]
                 missing = templates[key] - kwargs
                 if extra:
-                    problems.append(
-                        f"{p.name}:{node.lineno} - '{key}' has extra placeholder(s) "
-                        f"{sorted(extra)} (template: {sorted(templates[key])})"
-                    )
+                    problems.append(f"{p.name}:{node.lineno} - '{key}' has extra placeholder(s) {sorted(extra)} (template: {sorted(templates[key])})")
                 if missing:
-                    problems.append(
-                        f"{p.name}:{node.lineno} - '{key}' missing placeholder(s) "
-                        f"{sorted(missing)} (template: {sorted(templates[key])})"
-                    )
+                    problems.append(f"{p.name}:{node.lineno} - '{key}' missing placeholder(s) {sorted(missing)} (template: {sorted(templates[key])})")
     return problems
 
 
@@ -311,28 +285,19 @@ def main() -> int:
     ]
     for symbol, f in dead_symbols:
         if check_symbol_unused(symbol, f):
-            problems.append(
-                f"[dead-symbol] '{symbol}' ({f}) has no external references"
-            )
+            problems.append(f"[dead-symbol] '{symbol}' ({f}) has no external references")
 
     # 3. CommandMeta.summary 字段（仅当字段仍存在时检测是否被读取）
     registry_py = SRC / "sshm" / "cli" / "registry.py"
-    if registry_py.exists() and re.search(
-        r"\bsummary\b", registry_py.read_text(encoding="utf-8")
-    ):
-        summary_used = any(
-            re.search(r"\.summary\b", p.read_text(encoding="utf-8"))
-            for p in _collect_all_src_py()
-        )
+    if registry_py.exists() and re.search(r"\bsummary\b", registry_py.read_text(encoding="utf-8")):
+        summary_used = any(re.search(r"\.summary\b", p.read_text(encoding="utf-8")) for p in _collect_all_src_py())
         if not summary_used:
             problems.append("[dead-field] CommandMeta.summary is never read")
 
     # 3.5 i18n 占位符一致性
     ph_problems = check_i18n_placeholders()
     if ph_problems:
-        problems.append(
-            f"[i18n-placeholder] {len(ph_problems)} placeholder mismatch(es):"
-        )
+        problems.append(f"[i18n-placeholder] {len(ph_problems)} placeholder mismatch(es):")
         for pp_ in ph_problems:
             problems.append(f"    - {pp_}")
 

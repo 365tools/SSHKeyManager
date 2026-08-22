@@ -2,11 +2,11 @@
 本地构建脚本 - 用于测试 PyInstaller 打包
 """
 
+import os
+import platform
 import shutil
 import subprocess
 import sys
-import platform
-import os
 from pathlib import Path
 
 # 统一 stdout/stderr 为 UTF-8，避免 Windows GBK 控制台无法打印 emoji 导致
@@ -130,7 +130,7 @@ def build() -> None:
             print(f"💻 平台: {platform.system()} {platform.machine()}")
 
             # 测试运行
-            print(f"\n🧪 测试运行...")
+            print("\n🧪 测试运行...")
             try:
                 # 使用 UTF-8 编码解码输出，避免 Windows GBK 编码问题
                 test_result = subprocess.run(

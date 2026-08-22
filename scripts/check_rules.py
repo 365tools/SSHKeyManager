@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 业务层统一规则检测脚本。
 
@@ -63,10 +62,7 @@ def check_had_error_direct() -> list[str]:
             if isinstance(node, ast.Assign):
                 for t in node.targets:
                     if _target_has(t, "_had_error"):
-                        problems.append(
-                            f"{p.name}: {node.lineno} - direct self.m._had_error "
-                            f"assignment; use _fail/_mark_error"
-                        )
+                        problems.append(f"{p.name}: {node.lineno} - direct self.m._had_error assignment; use _fail/_mark_error")
     return problems
 
 
@@ -90,10 +86,7 @@ def check_raise() -> list[str]:
                     exc_name = exc.id
                 # ValidationError 是合法校验异常（CLI 层统一捕获），其余禁止
                 if exc_name not in ("ValidationError",):
-                    problems.append(
-                        f"{p.name}: {node.lineno} - 'raise {exc_name or '?'}' "
-                        f"in command layer; use _fail() or ValidationError"
-                    )
+                    problems.append(f"{p.name}: {node.lineno} - 'raise {exc_name or '?'}' in command layer; use _fail() or ValidationError")
     return problems
 
 
@@ -128,15 +121,9 @@ def check_output_import() -> list[str]:
         # 找模块内 print(...) 调用（不含被重绑定的函数定义）
         if not imported_print:
             for node in ast.walk(tree):
-                if (
-                    isinstance(node, ast.Call)
-                    and isinstance(node.func, ast.Name)
-                    and node.func.id == "print"
-                ):
+                if isinstance(node, ast.Call) and isinstance(node.func, ast.Name) and node.func.id == "print":
                     # 排除 print 是函数参数名的情况（粗略）
-                    problems.append(
-                        f"{p.name}: {node.lineno} - uses builtin print(); add 'from ..ui.output import print'"
-                    )
+                    problems.append(f"{p.name}: {node.lineno} - uses builtin print(); add 'from ..ui.output import print'")
     return problems
 
 
@@ -156,10 +143,7 @@ def check_ctor_param() -> list[str]:
                         args = [a.arg for a in item.args.args]
                         # 形参 [self, X]：X 应 == m
                         if len(args) >= 2 and args[1] != "m":
-                            problems.append(
-                                f"{p.name}: {item.lineno} - {node.name}.__init__ "
-                                f"param '{args[1]}', expected 'm'"
-                            )
+                            problems.append(f"{p.name}: {item.lineno} - {node.name}.__init__ param '{args[1]}', expected 'm'")
     return problems
 
 
@@ -177,15 +161,11 @@ def check_service_import_commands() -> list[str]:
             if isinstance(node, ast.ImportFrom):
                 mod = node.module or ""
                 if "commands" in mod and "sshm.core.commands" in mod:
-                    problems.append(
-                        f"{p.name}: {node.lineno} - service layer imports '{mod}'"
-                    )
+                    problems.append(f"{p.name}: {node.lineno} - service layer imports '{mod}'")
             if isinstance(node, ast.Import):
                 for alias in node.names:
                     if "commands" in alias.name:
-                        problems.append(
-                            f"{p.name}: {node.lineno} - service layer imports '{alias.name}'"
-                        )
+                        problems.append(f"{p.name}: {node.lineno} - service layer imports '{alias.name}'")
     return problems
 
 
@@ -209,10 +189,7 @@ def check_filename_pkg_duplicate() -> list[str]:
             continue
         for part in filename.split("_"):
             if part.lower() == parent_clean:
-                problems.append(
-                    f"{p.relative_to(ROOT)}: filename '{filename}' duplicates "
-                    f"parent package '{parent}'"
-                )
+                problems.append(f"{p.relative_to(ROOT)}: filename '{filename}' duplicates parent package '{parent}'")
                 break
     return problems
 
@@ -240,9 +217,7 @@ def main() -> int:
 
     print("[OK] All business-layer rules satisfied.")
     print(f"  - commands/: {len(_py_files(COMMANDS))} files checked")
-    print(
-        f"  - core/: {len([p for p in _py_files(CORE) if p.parent != COMMANDS])} service files checked"
-    )
+    print(f"  - core/: {len([p for p in _py_files(CORE) if p.parent != COMMANDS])} service files checked")
     print(f"  - sshm/ pkg naming: {len(_py_files(SSHM))} modules checked")
     return 0
 

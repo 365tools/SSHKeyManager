@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 ui.tip 渲染模板测试 - 验证"统一 tip 段"在非 tty 下行为稳定。
 """
@@ -24,12 +23,8 @@ def test_render_tip_block_single_emits_one_separator_and_lines(capsys):
     # 单段底部不应再出现一条分隔线（设计：只顶部分隔，避免双线）。
     # 分隔线宽度随终端/rich 版本变化（非 tty=80、Rule 路径=控制台宽度），
     # 按"整行都是 ─"计数，避免硬编码 80 造成的跨环境脆弱。
-    sep_count = sum(
-        1 for line in out.splitlines() if line.strip() and set(line.strip()) == {"─"}
-    )
-    assert sep_count == 1, (
-        f"single block should emit exactly one separator, got {sep_count}"
-    )
+    sep_count = sum(1 for line in out.splitlines() if line.strip() and set(line.strip()) == {"─"})
+    assert sep_count == 1, f"single block should emit exactly one separator, got {sep_count}"
 
 
 def test_render_tip_block_consecutive_no_double_separator(capsys):
@@ -41,12 +36,8 @@ def test_render_tip_block_consecutive_no_double_separator(capsys):
     out = strip_ansi(capsys.readouterr().out)
 
     # 应有 2 条分隔线（每段一条），不是 4 条；计数方式同宽度无关
-    sep_count = sum(
-        1 for line in out.splitlines() if line.strip() and set(line.strip()) == {"─"}
-    )
-    assert sep_count == 2, (
-        f"two consecutive blocks should emit 2 separators, got {sep_count}"
-    )
+    sep_count = sum(1 for line in out.splitlines() if line.strip() and set(line.strip()) == {"─"})
+    assert sep_count == 2, f"two consecutive blocks should emit 2 separators, got {sep_count}"
     # 两段内容都在
     assert "💡 first" in out
     assert "💡 second" in out
@@ -60,17 +51,15 @@ def test_render_tip_block_empty_lines_safe(capsys):
     out = strip_ansi(capsys.readouterr().out)
 
     # 空段：仍有一条顶部分隔线，无内容（计数方式同宽度无关）
-    sep_count = sum(
-        1 for line in out.splitlines() if line.strip() and set(line.strip()) == {"─"}
-    )
+    sep_count = sum(1 for line in out.splitlines() if line.strip() and set(line.strip()) == {"─"})
     assert sep_count == 1
 
 
 def test_command_list_lines_with_command_meta():
     """命令元数据 → `💡 标题` + `➖ sshm <group> <name>  <desc>` 对齐行。"""
+    from sshm.cli.registry import commands_in_group
     from sshm.i18n import _
     from sshm.language import K
-    from sshm.cli.registry import commands_in_group
     from sshm.ui.tip import ITEM_BULLET, command_list_lines
 
     lines = command_list_lines("key", commands_in_group("key"))

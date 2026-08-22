@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 密钥命令组 - 密钥管理相关命令的编排（list / add / remove / switch / tag / rename）。
 
@@ -10,26 +9,30 @@
 from __future__ import annotations
 
 import re
-import shutil
 import subprocess
 from pathlib import Path
-from typing import TYPE_CHECKING, Optional, Union
+from typing import TYPE_CHECKING
 
 from ...constants import DEFAULT_KEY_TYPE, SUPPORTED_KEY_TYPES
 from ...i18n import _
 from ...language import K
-from ..services.ssh.keypaths import private_key_path, public_key_path
-from ...ui.console import format_size, format_timestamp
-from ..errors import ValidationError
+from ...ui.console import format_timestamp
 from ...ui.output import (
     ICON_WARN,
     print,
-    section as print_section_header,
-    separator as print_separator,
-    table as print_table,
+)
+from ...ui.output import (
     confirm as prompt_confirm,
 )
+from ...ui.output import (
+    section as print_section_header,
+)
+from ...ui.output import (
+    table as print_table,
+)
 from ...ui.tip import render_tip_block
+from ..errors import ValidationError
+from ..services.ssh.keypaths import private_key_path, public_key_path
 
 if TYPE_CHECKING:
     from ..manager import SSHKeyManager
@@ -38,7 +41,7 @@ if TYPE_CHECKING:
 class KeyCommands:
     """密钥管理命令编排。"""
 
-    def __init__(self, m: "SSHKeyManager"):
+    def __init__(self, m: SSHKeyManager):
         self.m = m
 
     # ------------------------------------------------------------------
@@ -76,7 +79,7 @@ class KeyCommands:
     def list(
         self,
         show_content: bool = False,
-        repo_path: Union[str, Path] = ".",
+        repo_path: str | Path = ".",
         current_only: bool = False,
     ):
         """列出所有密钥（表格形式）"""
@@ -143,11 +146,7 @@ class KeyCommands:
                     scope = ""
 
                 host_alias = self.m.gitrepo.get_host_alias(label)
-                alias_display = (
-                    f"git@{host_alias}:user/repo.git"
-                    if self.m.config_manager.has_host(host_alias)
-                    else "-"
-                )
+                alias_display = f"git@{host_alias}:user/repo.git" if self.m.config_manager.has_host(host_alias) else "-"
 
                 rows.append(
                     [
@@ -199,7 +198,7 @@ class KeyCommands:
 
         render_tip_block([f"💡 {_(K.msg.use_tip)}"])
 
-    def current(self, repo_path: Union[str, Path] = "."):
+    def current(self, repo_path: str | Path = "."):
         """展示当前正在生效的密钥（含来源与全局默认详情）。
 
         判定规则（作用域优先级）：仓库级 > 全局默认。
@@ -215,18 +214,12 @@ class KeyCommands:
         print(f"{_(K.lbl.repo_path)} {repo_path}\n")
 
         if repo_key:
-            print(
-                f"📍 {_(K.misc.current_key)}: {repo_key.upper()} "
-                f"({_(K.misc.scope_repo)})"
-            )
+            print(f"📍 {_(K.misc.current_key)}: {repo_key.upper()} ({_(K.misc.scope_repo)})")
         elif active_keys:
             # 取首个全局默认（展示标签，按 key type）
             first_type = next(iter(active_keys))
             label = active_keys[first_type]
-            print(
-                f"📍 {_(K.misc.current_key)}: {label.upper()} "
-                f"({_(K.misc.scope_global)})"
-            )
+            print(f"📍 {_(K.misc.current_key)}: {label.upper()} ({_(K.misc.scope_global)})")
         else:
             print("⚠️  " + _(K.msg.current_key_none))
 
@@ -253,8 +246,8 @@ class KeyCommands:
         label: str,
         email: str,
         key_type: str = DEFAULT_KEY_TYPE,
-        host: Optional[str] = None,
-        name: Optional[str] = None,
+        host: str | None = None,
+        name: str | None = None,
     ):
         """创建新密钥"""
         if key_type not in SUPPORTED_KEY_TYPES:
@@ -298,9 +291,7 @@ class KeyCommands:
             if host:
                 host_alias = self.m.gitrepo.get_host_alias(label)
                 self.m.config_manager.update_host(host_alias, hostname, key_file)
-                print(
-                    f"✅ {_(K.msg.ssh_config_updated, alias=host_alias, hostname=hostname)}"
-                )
+                print(f"✅ {_(K.msg.ssh_config_updated, alias=host_alias, hostname=hostname)}")
 
             pub_file = Path(str(key_file) + ".pub")
             if pub_file.exists():
@@ -335,7 +326,7 @@ class KeyCommands:
         except Exception as e:
             self.m._fail(f"{_(K.misc.error)}: {e}")
 
-    def remove(self, label: str, key_type: Optional[str] = None):
+    def remove(self, label: str, key_type: str | None = None):
         """删除密钥"""
         label_lower = label.lower()
 
@@ -415,9 +406,7 @@ class KeyCommands:
                 if active_keys.get(kt) == label_lower:
                     self.m.state_manager.remove_active_key(kt)
 
-            print(
-                f"💡 {_(K.msg.tip_alias_remote, alias=self.m.gitrepo.get_host_alias(label))}"
-            )
+            print(f"💡 {_(K.msg.tip_alias_remote, alias=self.m.gitrepo.get_host_alias(label))}")
             print("   " + _(K.msg.rerun_other_label))
         else:
             self.m._fail(_(K.err.key_not_found, label=label), icon=ICON_WARN)
@@ -426,7 +415,7 @@ class KeyCommands:
     # 切换 / 打标签 / 重命名
     # ------------------------------------------------------------------
 
-    def switch(self, label: str, key_type: Optional[str] = None):
+    def switch(self, label: str, key_type: str | None = None):
         """切换默认密钥"""
         label_lower = label.lower()
 
@@ -476,9 +465,7 @@ class KeyCommands:
         # 密钥↔作者自动联动：全局切换时自动设置全局 author（若 label 有绑定）
         self.m.author_service.apply_auto_author(label, repo_path=None, scope="global")
 
-    def label(
-        self, key_type: Optional[str], new_label: str, switch_after: bool = False
-    ):
+    def label(self, key_type: str | None, new_label: str, switch_after: bool = False):
         """给默认密钥添加标签（key_type 为空时自动检测默认密钥类型）"""
         self._validate_label(new_label)
 
@@ -536,9 +523,7 @@ class KeyCommands:
             if email:
                 author = {"name": "", "email": email}
         if author:
-            self.m.state_manager.write_author(
-                label_lower, author.get("name", "") or "", author.get("email", "") or ""
-            )
+            self.m.state_manager.write_author(label_lower, author.get("name", "") or "", author.get("email", "") or "")
 
     def rename(self, old_label: str, new_label: str, key_type: str = DEFAULT_KEY_TYPE):
         """重命名密钥标签（处理该标签下的所有密钥类型，避免残留旧文件）"""
@@ -560,11 +545,7 @@ class KeyCommands:
         if key_type:
             types_to_rename = [key_type]
         else:
-            types_to_rename = [
-                t
-                for t in SUPPORTED_KEY_TYPES
-                if private_key_path(self.m.ssh_dir, t, old_label).exists()
-            ]
+            types_to_rename = [t for t in SUPPORTED_KEY_TYPES if private_key_path(self.m.ssh_dir, t, old_label).exists()]
 
         if not types_to_rename:
             msg = _(K.err.key_not_found_short, label=old_label)
@@ -575,9 +556,7 @@ class KeyCommands:
         for t in types_to_rename:
             new_file = private_key_path(self.m.ssh_dir, t, new_label)
             if new_file.exists():
-                self.m._fail(
-                    _(K.err.target_exists, new_label=new_label, type=t), icon=ICON_WARN
-                )
+                self.m._fail(_(K.err.target_exists, new_label=new_label, type=t), icon=ICON_WARN)
                 print(f"   {_(K.lbl.file_placeholder)} {new_file.name}")
                 return
 
@@ -607,8 +586,6 @@ class KeyCommands:
             types=", ".join(types_to_rename),
         )
         print(f"✅ {renamed_msg}")
-        print(
-            f"💡 {_(K.msg.tip_alias, alias=self.m.gitrepo.get_host_alias(old_label))}"
-        )
+        print(f"💡 {_(K.msg.tip_alias, alias=self.m.gitrepo.get_host_alias(old_label))}")
         tip_msg = _(K.msg.rerun_new_label, new_label=new_label)
         print(f"   {tip_msg}")

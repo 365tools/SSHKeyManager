@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 类型安全的翻译 key 常量 - 新增代码建议用 `K.*` 代替裸字符串。
 
@@ -18,9 +17,7 @@ from .templates import KEYS
 
 def _build_ns(mapping: dict) -> SimpleNamespace:
     """递归构建嵌套 SimpleNamespace：叶子值为完整 key 字符串。"""
-    return SimpleNamespace(
-        **{k: (_build_ns(v) if isinstance(v, dict) else v) for k, v in mapping.items()}
-    )
+    return SimpleNamespace(**{k: (_build_ns(v) if isinstance(v, dict) else v) for k, v in mapping.items()})
 
 
 def _group_keys() -> dict:

@@ -1,7 +1,8 @@
 """manager 单元测试：用临时 SSH 目录隔离，不触碰真实 ~/.ssh"""
 
-import pytest
 from pathlib import Path
+
+import pytest
 
 
 class TestStatePersistence:

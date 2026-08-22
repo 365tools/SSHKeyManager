@@ -53,9 +53,7 @@ class TestScanAllKeys:
 
     def test_ignores_non_key_files(self, ks, sample_keys):
         # README 不应出现在结果中
-        all_priv = [
-            i["private"].name for infos in ks.scan_all_keys().values() for i in infos
-        ]
+        all_priv = [i["private"].name for infos in ks.scan_all_keys().values() for i in infos]
         assert "README" not in all_priv
 
     def test_empty_dir(self, ks):

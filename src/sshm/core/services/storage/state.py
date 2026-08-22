@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 状态管理器 - 负责密钥状态的持久化
 """
@@ -7,7 +6,6 @@
 import json
 import os
 from pathlib import Path
-from typing import Dict, Optional
 
 
 class StateManager:
@@ -19,7 +17,7 @@ class StateManager:
     def __init__(self, state_file: Path):
         self.state_file = state_file
         # 进程内缓存：CLI 单进程场景下避免每个操作都重读磁盘
-        self._cache: Optional[dict] = None
+        self._cache: dict | None = None
 
     def _read_state(self) -> dict:
         """读取完整状态文件（兼容旧格式），带进程内缓存"""
@@ -33,7 +31,7 @@ class StateManager:
             if isinstance(data, dict):
                 self._cache = data
                 return data
-        except (json.JSONDecodeError, IOError):
+        except (OSError, json.JSONDecodeError):
             # 状态文件损坏：备份原文件，避免后续写入静默覆盖丢失数据
             try:
                 corrupt_backup = self.state_file.with_suffix(".state.corrupt")
@@ -61,7 +59,7 @@ class StateManager:
     # active_keys 相关
     # ------------------------------------------------------------------
 
-    def read_active_keys(self) -> Dict[str, str]:
+    def read_active_keys(self) -> dict[str, str]:
         """读取当前激活的密钥状态"""
         state = self._read_state()
         active = {}
@@ -116,7 +114,7 @@ class StateManager:
     # authors 相关
     # ------------------------------------------------------------------
 
-    def read_authors(self) -> Dict[str, Dict[str, str]]:
+    def read_authors(self) -> dict[str, dict[str, str]]:
         """读取作者信息映射 {label: {'name': str, 'email': str}}"""
         state = self._read_state()
         authors = state.get("authors", {})
@@ -143,7 +141,7 @@ class StateManager:
     # hosts 相关（label -> hostname 映射，供 use/remove/rename 使用）
     # ------------------------------------------------------------------
 
-    def read_hosts(self) -> Dict[str, str]:
+    def read_hosts(self) -> dict[str, str]:
         """读取标签到主机名的映射 {label: hostname}"""
         state = self._read_state()
         hosts = state.get("hosts", {})

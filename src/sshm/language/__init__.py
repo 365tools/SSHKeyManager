@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 language 包 - 多语言翻译字典与 key 模版
 
@@ -14,20 +13,20 @@ language 包 - 多语言翻译字典与 key 模版
 
 from .i18n_en import EN
 from .i18n_zh import ZH
+from .keys import K
 from .templates import (
+    KEY_GROUPS,
     KEYS,
     LANGUAGES,
-    KEY_GROUPS,
     LanguageDict,
 )
-from .keys import K
 
 __all__ = [
     "EN",
-    "ZH",
     "KEYS",
-    "LANGUAGES",
     "KEY_GROUPS",
-    "LanguageDict",
+    "LANGUAGES",
+    "ZH",
     "K",
+    "LanguageDict",
 ]

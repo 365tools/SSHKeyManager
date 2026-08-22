@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 SSH 配置管理器 - 负责 SSH config 文件的读写操作
 """
@@ -7,7 +6,6 @@ SSH 配置管理器 - 负责 SSH config 文件的读写操作
 import os
 import re
 from pathlib import Path
-from typing import Optional
 
 
 class SSHConfigManager:
@@ -51,12 +49,7 @@ class SSHConfigManager:
             insert_pos = matches[0].start()
             for m in reversed(matches):
                 content = content[: m.start()] + content[m.end() :]
-            content = (
-                content[:insert_pos]
-                + config_block.rstrip()
-                + "\n\n"
-                + content[insert_pos:]
-            )
+            content = content[:insert_pos] + config_block.rstrip() + "\n\n" + content[insert_pos:]
         else:
             content += "\n" + config_block
 
@@ -71,9 +64,7 @@ class SSHConfigManager:
 
         content = self.config_file.read_text(encoding="utf-8")
         pattern = rf"^# {re.escape(label)} - Auto-generated.*?(?=^#|\Z)"
-        content = re.sub(
-            pattern, "", content, flags=re.MULTILINE | re.DOTALL | re.IGNORECASE
-        )
+        content = re.sub(pattern, "", content, flags=re.MULTILINE | re.DOTALL | re.IGNORECASE)
         # 规整连续空行
         content = re.sub(r"\n{3,}", "\n\n", content)
         self._atomic_write(self.config_file, content)
@@ -89,7 +80,7 @@ class SSHConfigManager:
         except OSError:
             return False
 
-    def get_hostname(self, host: str) -> Optional[str]:
+    def get_hostname(self, host: str) -> str | None:
         """从 SSH config 反查指定 Host 对应的真实 HostName
 
         用于把别名还原为真实主机名（SSH 实际连接的目标）。

@@ -98,9 +98,7 @@ class TestRestoreBackup:
     def test_restore_restores_state(self, service, backup_env):
         backup_path = service.create(silent=True)
         # 修改状态文件后再恢复
-        backup_env["state_file"].write_text(
-            json.dumps({"lang": "zh"}), encoding="utf-8"
-        )
+        backup_env["state_file"].write_text(json.dumps({"lang": "zh"}), encoding="utf-8")
         service.restore(backup_path.name, skip_confirm=True)
         data = json.loads(backup_env["state_file"].read_text(encoding="utf-8"))
         assert data["lang"] == "en"  # 恢复回备份时状态

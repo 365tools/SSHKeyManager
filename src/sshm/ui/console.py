@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 控制台工具模块 - 格式化输出、Windows 编码修复等。
 
@@ -9,18 +8,17 @@
 """
 
 import sys
+from collections.abc import Iterable
 from datetime import datetime
-from typing import Iterable, Optional
 
 from rich.console import Console
 from rich.prompt import Confirm as RichConfirm
 from rich.rule import Rule
 from rich.table import Table
-
-from ..language import K
-
 from wcwidth import wcswidth as _wcswidth
 from wcwidth import wcwidth as _wcwidth_char
+
+from ..language import K
 
 # 统一的 rich Console：非 tty 时自动禁用颜色/装饰，保证管道输出干净
 _console = Console()
@@ -109,18 +107,14 @@ def _char_width(ch: str) -> int:
     if code in (0x200B, 0x200C, 0x200D, 0x2060) or 0xFE00 <= code <= 0xFE0F:
         return 0
     # 常见 emoji/符号区域（多数终端按双宽渲染）
-    if (
-        0x2600 <= code <= 0x27FF
-        or 0x2B00 <= code <= 0x2BFF
-        or 0x1F000 <= code <= 0x1FAFF
-    ):
+    if 0x2600 <= code <= 0x27FF or 0x2B00 <= code <= 0x2BFF or 0x1F000 <= code <= 0x1FAFF:
         return 2
     if unicodedata.east_asian_width(ch) in ("W", "F", "A"):
         return 2
     return 1
 
 
-def pad_cell(text: Optional[str], width: int, align: str = "left") -> str:
+def pad_cell(text: str | None, width: int, align: str = "left") -> str:
     """按显示宽度对齐单元格文本，超宽时截断并追加省略号。
 
     text 为 None 时按空串处理（适配解包自 Unknown 元组的调用点）。
@@ -153,9 +147,9 @@ def pad_cell(text: Optional[str], width: int, align: str = "left") -> str:
 def print_table(
     headers: list,
     rows: list,
-    truncatable: Optional[Iterable[int]] = None,
-    center_cols: Optional[Iterable[int]] = None,
-    min_widths: Optional[dict] = None,
+    truncatable: Iterable[int] | None = None,
+    center_cols: Iterable[int] | None = None,
+    min_widths: dict | None = None,
 ) -> None:
     """以表格形式打印数据，完全基于 rich Table 原生能力。
 
@@ -192,7 +186,7 @@ def print_table(
     _console.print(table)
 
 
-def prompt_confirm(message: str, default: Optional[str] = None) -> bool:
+def prompt_confirm(message: str, default: str | None = None) -> bool:
     """确认提示（基于 rich.prompt.Confirm）
 
     Args:
@@ -231,6 +225,7 @@ def print_section_header(title: str) -> None:
 def wait_for_key() -> None:
     """等待用户按键（基于 click.pause）"""
     import click
+
     from ..i18n import _
 
     click.pause(f"\n{_(K.menu.press_any)}")

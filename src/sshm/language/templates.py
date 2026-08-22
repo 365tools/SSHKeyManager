@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 通用翻译 key 模版 (templates.py)
 
@@ -20,10 +19,8 @@
   misc.   通用
 """
 
-from typing import Dict, Tuple
-
 # 语言字典类型：稳定 key -> 具体语言文本
-LanguageDict = Dict[str, str]
+LanguageDict = dict[str, str]
 
 # 支持的两种语言
 LANGUAGES = ("en", "zh")
@@ -31,7 +28,7 @@ LANGUAGES = ("en", "zh")
 # --------------------------------------------------------------------------
 # 权威 key 清单（各语言字典的 key 必须与此集合一致）
 # --------------------------------------------------------------------------
-KEYS: Tuple[str, ...] = (
+KEYS: tuple[str, ...] = (
     "misc.error",
     "suggest.did_you_mean",
     "suggest.hint_help",
@@ -488,7 +485,7 @@ KEYS: Tuple[str, ...] = (
 )
 
 # 分组元数据：prefix -> 说明（供工具/文档生成使用）
-KEY_GROUPS: Dict[str, str] = {
+KEY_GROUPS: dict[str, str] = {
     "cmd.": "命令 help 描述",
     "opt.": "选项/参数 help 描述",
     "hdr.": "章节标题 / 标题",

@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 国际化 (i18n) 组装模块 - 提供翻译函数与语言状态管理
 
@@ -18,7 +17,6 @@
 """
 
 import os
-from typing import Optional
 
 from .language.i18n_en import EN
 from .language.i18n_zh import ZH
@@ -28,10 +26,10 @@ __all__ = [
     "EN",
     "ZH",
     "_",
-    "set_lang",
     "get_lang",
-    "resolve_lang",
     "load_from_state",
+    "resolve_lang",
+    "set_lang",
 ]
 
 
@@ -57,7 +55,7 @@ def get_lang() -> str:
 # --------------------------------------------------------------------------
 
 
-def resolve_lang(env: Optional[str] = None, state_lang: Optional[str] = None) -> str:
+def resolve_lang(env: str | None = None, state_lang: str | None = None) -> str:
     """解析最终语言: env > state > 'en'
 
     Args:
@@ -79,7 +77,7 @@ def resolve_lang(env: Optional[str] = None, state_lang: Optional[str] = None) ->
     return "en"
 
 
-def load_from_state(state_lang: Optional[str]) -> None:
+def load_from_state(state_lang: str | None) -> None:
     """从状态文件加载语言并应用（环境变量优先）"""
     env = os.environ.get("SSHM_LANG")
     set_lang(resolve_lang(env, state_lang))

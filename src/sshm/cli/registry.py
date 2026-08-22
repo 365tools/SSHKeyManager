@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 CLI 命令注册表 - 命令分组 / 命令元数据 / 同组关联 的单一事实来源。
 
@@ -16,7 +15,6 @@ CLI 命令注册表 - 命令分组 / 命令元数据 / 同组关联 的单一事
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Dict, List
 
 from ..language import K
 
@@ -36,7 +34,7 @@ class CommandMeta:
 # ---------------------------------------------------------------------------
 # 分组定义：分组名 -> 有序命令清单（顺序即帮助/ tip 展示顺序）
 # ---------------------------------------------------------------------------
-GROUPS: Dict[str, List[CommandMeta]] = {
+GROUPS: dict[str, list[CommandMeta]] = {
     "key": [
         CommandMeta("list", K.cmd.key_list, "key"),
         CommandMeta("create", K.cmd.key_create, "key"),
@@ -76,7 +74,7 @@ GROUPS: Dict[str, List[CommandMeta]] = {
 }
 
 # 分组展示顺序（顶层帮助中的分组排列）
-GROUP_ORDER: List[str] = ["key", "repo", "backup", "author", "history", "config"]
+GROUP_ORDER: list[str] = ["key", "repo", "backup", "author", "history", "config"]
 
 
 # ---------------------------------------------------------------------------
@@ -84,12 +82,12 @@ GROUP_ORDER: List[str] = ["key", "repo", "backup", "author", "history", "config"
 # ---------------------------------------------------------------------------
 
 
-def commands_in_group(group: str) -> List[CommandMeta]:
+def commands_in_group(group: str) -> list[CommandMeta]:
     """返回某分组的命令清单（无则空列表）。"""
     return list(GROUPS.get(group, []))
 
 
-def related_commands(group: str, current: str, extra: tuple = ()) -> List[CommandMeta]:
+def related_commands(group: str, current: str, extra: tuple = ()) -> list[CommandMeta]:
     """返回某命令的"相关指令"（用于 tip）。
 
     - related 命令名作为**追加的跨组关联**（可跨分组，如 `key switch` 追加 `repo use`），
@@ -100,7 +98,7 @@ def related_commands(group: str, current: str, extra: tuple = ()) -> List[Comman
     group_cmds = commands_in_group(group)
     # related 命令名可能跨分组，全局查找一次即可
     all_cmds = [m for g in GROUPS.values() for m in g]
-    related_ordered: List[CommandMeta] = []
+    related_ordered: list[CommandMeta] = []
     for meta in group_cmds:
         if meta.name == current and meta.related:
             for nm in meta.related:

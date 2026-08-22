@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """Chinese (ZH) translations. Stable keys -> Chinese text."""
 
-from typing import Dict
-
-ZH: Dict[str, str] = {
+ZH: dict[str, str] = {
     # ---- 通用 (misc) ----
     "misc.error": "错误",
     "suggest.did_you_mean": "你是不是想找：",

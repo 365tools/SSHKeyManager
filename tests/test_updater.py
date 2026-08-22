@@ -76,9 +76,7 @@ class TestCache:
 
     def test_invalid_cache_structure_rejected(self, updater):
         # 缺 download_url 的结构应被视为无效缓存
-        updater.CACHE_FILE.write_text(
-            json.dumps({"version": "v9.9.9"}), encoding="utf-8"
-        )
+        updater.CACHE_FILE.write_text(json.dumps({"version": "v9.9.9"}), encoding="utf-8")
         assert updater._get_cache() is None
 
     def test_invalid_version_in_cache_rejected(self, updater):
@@ -161,9 +159,7 @@ class TestCheckUpdate:
     def test_network_error_returns_none(self, updater):
         from urllib.error import URLError
 
-        with patch(
-            "sshm.core.services.net.updater.urlopen", side_effect=URLError("offline")
-        ):
+        with patch("sshm.core.services.net.updater.urlopen", side_effect=URLError("offline")):
             assert updater.check_update(force=True) is None
 
     def test_saves_cache_after_check(self, updater):

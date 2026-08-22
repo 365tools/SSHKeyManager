@@ -1,21 +1,20 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 更新管理模块 - 检查更新和自动更新
 """
 
-import os
-import sys
 import json
+import os
 import platform
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
-from typing import Optional
-from urllib.request import urlopen, Request
+from typing import ClassVar
 from urllib.error import URLError
+from urllib.request import Request, urlopen
 
-from packaging.version import Version, InvalidVersion
+from packaging.version import InvalidVersion, Version
 
 from ....constants import VERSION
 from ....i18n import _
@@ -48,7 +47,7 @@ class UpdateManager:
             return "unknown"
 
     # 各平台对应的资产名关键词（用于从 release assets 中模糊匹配当前平台产物）
-    _PLATFORM_ASSET_KEYWORDS = {
+    _PLATFORM_ASSET_KEYWORDS: ClassVar[dict] = {
         "windows": ("windows", "win"),
         "linux": ("linux",),
         "macos": ("macos", "darwin"),
@@ -69,7 +68,7 @@ class UpdateManager:
         except Exception:
             return False
 
-    def _get_cache(self) -> Optional[dict]:
+    def _get_cache(self) -> dict | None:
         """读取缓存的版本信息"""
         if not self.CACHE_FILE.exists():
             return None
@@ -112,7 +111,7 @@ class UpdateManager:
             except OSError:
                 pass
 
-    def check_update(self, force: bool = False) -> Optional[dict]:
+    def check_update(self, force: bool = False) -> dict | None:
         """
         检查更新
 
@@ -191,9 +190,7 @@ class UpdateManager:
         """
         # 源码运行模式：无法用下载的 exe 替换 .py 入口，直接提示
         if not getattr(sys, "frozen", False):
-            render_business_error(
-                _(K.upd.from_source), icon=ICON_WARN, hint=_(K.upd.use_git_pull)
-            )
+            render_business_error(_(K.upd.from_source), icon=ICON_WARN, hint=_(K.upd.use_git_pull))
             return False
 
         try:
@@ -209,12 +206,8 @@ class UpdateManager:
                 chunk_size = 8192
 
                 # 创建临时文件
-                temp_fd, temp_path = tempfile.mkstemp(
-                    suffix=".exe" if self.platform == "windows" else ""
-                )
-                os.close(
-                    temp_fd
-                )  # 立即关闭 fd，避免文件句柄泄漏（更新后无法删除临时文件）
+                temp_fd, temp_path = tempfile.mkstemp(suffix=".exe" if self.platform == "windows" else "")
+                os.close(temp_fd)  # 立即关闭 fd，避免文件句柄泄漏（更新后无法删除临时文件）
 
                 with (
                     open(temp_path, "wb") as f,
@@ -236,9 +229,7 @@ class UpdateManager:
                         )
 
             # 获取当前可执行文件路径
-            current_exe = (
-                sys.executable if getattr(sys, "frozen", False) else sys.argv[0]
-            )
+            current_exe = sys.executable if getattr(sys, "frozen", False) else sys.argv[0]
             current_exe = os.path.abspath(current_exe)
 
             print(_(K.upd.updating))
@@ -263,9 +254,7 @@ del "%~f0"
                 # 启动批处理脚本
                 subprocess.Popen(
                     ["cmd", "/c", batch_path],
-                    creationflags=subprocess.CREATE_NEW_CONSOLE
-                    if hasattr(subprocess, "CREATE_NEW_CONSOLE")
-                    else 0,
+                    creationflags=subprocess.CREATE_NEW_CONSOLE if hasattr(subprocess, "CREATE_NEW_CONSOLE") else 0,
                 )
 
                 print("\n✅ " + _(K.upd.script_started))

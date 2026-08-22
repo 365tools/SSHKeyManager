@@ -79,6 +79,7 @@ def git_repo(tmp_path: Path) -> Path:
 def cli_runner():
     """Typer CLI 测试运行器"""
     from typer.testing import CliRunner
+
     from sshm.cli.app import app
 
     return CliRunner(), app

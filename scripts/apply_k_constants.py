@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 把代码中 `_('group.key')` 字面量批量替换为 `_(K.group.key)`（i18n K 常量收敛）。
 
@@ -25,16 +24,14 @@ SRC = PROJECT_ROOT / "src"
 sys.path.insert(0, str(SRC))
 sys.path.insert(0, str(SRC / "sshm"))
 
-from sshm.language.templates import KEYS  # noqa: E402
+from sshm.language.templates import KEYS
 
 # 匹配 `_('key')` / _("key")，key 含点号、rest 为标识符
 _CALL_RE = re.compile(r"\b_\s*\(\s*['\"]([a-z][a-z0-9_]*\.[a-zA-Z_][a-zA-Z0-9_]*)['\"]")
 # i18n 导入行：from <dots>i18n import _...
-_I18N_IMPORT_RE = re.compile(r"^(from (\.*)i18n import .*)$", re.M)
+_I18N_IMPORT_RE = re.compile(r"^(from (\.*)i18n import .*)$", re.MULTILINE)
 # 已有 K 导入
-_K_IMPORT_RE = re.compile(
-    r"^\s*from \.*language import .*\bK\b|^\s*import .*\bK\b", re.M
-)
+_K_IMPORT_RE = re.compile(r"^\s*from \.*language import .*\bK\b|^\s*import .*\bK\b", re.MULTILINE)
 
 
 def _k_expr(key: str) -> str:
@@ -83,10 +80,7 @@ def main() -> int:
         if text == orig:
             continue
         total += len(used_keys)
-        print(
-            ("DRY" if dry else "MOD")
-            + f" {py.relative_to(SRC)}  ({len(used_keys)} keys)"
-        )
+        print(("DRY" if dry else "MOD") + f" {py.relative_to(SRC)}  ({len(used_keys)} keys)")
         if not dry:
             py.write_text(text, encoding="utf-8")
 

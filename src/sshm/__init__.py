@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 sshm - 企业级多账号 SSH 密钥管理工具
 
@@ -17,14 +16,14 @@ sshm - 企业级多账号 SSH 密钥管理工具
 """
 
 from .constants import VERSION
-from .core import SSHKeyManager, SSHConfigManager, StateManager
+from .core import SSHConfigManager, SSHKeyManager, StateManager
 from .ui.console import setup_windows_console
 
 __version__ = VERSION
 __all__ = [
     "VERSION",
-    "SSHKeyManager",
     "SSHConfigManager",
+    "SSHKeyManager",
     "StateManager",
     "setup_windows_console",
 ]

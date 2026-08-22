@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 统一"tip 段"渲染模板 - 复用于命令底部与错误场景，避免到处手写不同的输出格式。
 
@@ -24,26 +23,26 @@
 
 from __future__ import annotations
 
-from typing import Any, Iterable, List, Optional
+from collections.abc import Iterable
+from typing import Any
 
 from .console import print_separator
-from .output import ICON_BULLET, ICON_ERR, print as _print
+from .output import ICON_BULLET, ICON_ERR
+from .output import print as _print
 
 __all__ = [
-    "render_tip_block",
-    "render_business_error",
+    "ITEM_BULLET",
     "command_list_lines",
     "related_command_blocks",
-    "ITEM_BULLET",
+    "render_business_error",
+    "render_tip_block",
 ]
 
 # 命令/建议列表项统一前缀图标（与 💡 标题形成视觉层级，一处定义全局复用）
 ITEM_BULLET = ICON_BULLET
 
 
-def render_tip_block(
-    lines: Iterable[str], *, top: bool = True, style: Optional[str] = None
-) -> None:
+def render_tip_block(lines: Iterable[str], *, top: bool = True, style: str | None = None) -> None:
     """渲染统一的 tip 段：可选顶部分隔线 + 内容行。
 
     设计：每段默认带一个**顶部分隔线**，不带底部分隔线。这样：
@@ -76,9 +75,7 @@ def render_tip_block(
             _print(line)
 
 
-def command_list_lines(
-    group: Optional[str], cmds: Iterable[Any], title_key: str = "misc.related_tip"
-) -> List[str]:
+def command_list_lines(group: str | None, cmds: Iterable[Any], title_key: str = "misc.related_tip") -> list[str]:
     """统一生成"💡 More commands in this group"命令清单行（唯一格式来源）。
 
     收敛了原先散落在 app._show_tip 与 suggest._group_commands_lines /
@@ -93,7 +90,6 @@ def command_list_lines(
     返回可直接交给 render_tip_block 的行列表（首行为 💡 标题）。
     """
     from ..i18n import _
-    from ..language import K
 
     lines = [f"💡 {_(title_key)}"]
     for item in cmds:
@@ -108,9 +104,7 @@ def command_list_lines(
     return lines
 
 
-def related_command_blocks(
-    group: Optional[str], cmds: Iterable[Any]
-) -> List[List[str]]:
+def related_command_blocks(group: str | None, cmds: Iterable[Any]) -> list[list[str]]:
     """把相关命令分为「本组」与「跨组 related」两块，各自带标题行。
 
     同组命令标题为 misc.related_tip（More commands in this group）；
@@ -132,15 +126,11 @@ def related_command_blocks(
     if local:
         blocks.append(command_list_lines(group, local, title_key=K.misc.related_tip))
     if cross:
-        blocks.append(
-            command_list_lines(group, cross, title_key=K.misc.related_tip_cross)
-        )
+        blocks.append(command_list_lines(group, cross, title_key=K.misc.related_tip_cross))
     return blocks
 
 
-def render_business_error(
-    msg: str, *, icon: str = ICON_ERR, hint: Optional[str] = None
-) -> None:
+def render_business_error(msg: str, *, icon: str = ICON_ERR, hint: str | None = None) -> None:
     """统一渲染业务错误：顶部空行 + icon 消息 +（可选）💡 建议 tip 段。
 
     这是所有业务错误（_fail / SSHMError 的 CLI 出口）的唯一渲染点，
@@ -155,7 +145,5 @@ def render_business_error(
     _print(f"{icon} {msg}")
     if hint:
         # hint 可为多行（\n 分隔），逐行渲染为 💡 tip 段，保留既有缩进/前缀
-        lines = [
-            f"💡 {ln}" if idx == 0 else ln for idx, ln in enumerate(hint.split("\n"))
-        ]
+        lines = [f"💡 {ln}" if idx == 0 else ln for idx, ln in enumerate(hint.split("\n"))]
         render_tip_block(lines)

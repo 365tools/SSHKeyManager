@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 git hooks 安装脚本
 
@@ -27,12 +26,7 @@ from pathlib import Path
 # basedpyright reportAttributeAccessIssue。
 _stdout_reconfigure = getattr(sys.stdout, "reconfigure", None)
 _stderr_reconfigure = getattr(sys.stderr, "reconfigure", None)
-if (
-    sys.stdout.encoding
-    and sys.stdout.encoding.lower() not in ("utf-8", "utf8")
-    and _stdout_reconfigure
-    and _stderr_reconfigure
-):
+if sys.stdout.encoding and sys.stdout.encoding.lower() not in ("utf-8", "utf8") and _stdout_reconfigure and _stderr_reconfigure:
     try:
         _stdout_reconfigure(encoding="utf-8")
         _stderr_reconfigure(encoding="utf-8")

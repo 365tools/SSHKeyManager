@@ -150,10 +150,7 @@ class TestResolveRepoHostname:
     def test_uses_config_hostname(self, service):
         # config 中有别名 -> 反查真实域名
         service.config_manager.hostname_map["mygit"] = "internal.example.com"
-        assert (
-            service.resolve_repo_hostname("git@mygit:org/repo")
-            == "internal.example.com"
-        )
+        assert service.resolve_repo_hostname("git@mygit:org/repo") == "internal.example.com"
 
     def test_fallback_to_url_host(self, service):
         assert service.resolve_repo_hostname("git@github.com:u/r") == "github.com"

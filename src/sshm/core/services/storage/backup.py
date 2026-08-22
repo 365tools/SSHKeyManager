@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 备份服务 - 密钥备份 / 恢复 / 列表。
 
@@ -11,9 +10,9 @@ from __future__ import annotations
 
 import os
 import shutil
-from datetime import datetime
+from collections.abc import Callable
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Callable, List, Optional
 
 from ....constants import SSH_CONFIG_NAME, STATE_FILE_NAME
 from ....i18n import _
@@ -52,12 +51,12 @@ class BackupService:
     def create(self, silent: bool = False) -> Path:
         """备份所有密钥"""
         # 毫秒级时间戳：避免同一秒内多次备份合并到同一目录
-        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+        timestamp = datetime.now(tz=timezone.utc).strftime("%Y%m%d_%H%M%S_%f")
         backup_path = self.backup_dir / f"backup_{timestamp}"
         backup_path.mkdir(mode=0o700, exist_ok=True)
 
         key_files = list(self.ssh_dir.glob("id_*"))
-        backed_up: List[str] = []
+        backed_up: list[str] = []
 
         for key_file in key_files:
             if key_file.is_file():
@@ -94,7 +93,7 @@ class BackupService:
             return
 
         for i, backup in enumerate(backups, 1):
-            mtime = datetime.fromtimestamp(backup.stat().st_mtime)
+            mtime = datetime.fromtimestamp(backup.stat().st_mtime, tz=timezone.utc)
             files = list(backup.glob("id_*"))
             print(f"\n[{i}] {backup.name}")
             print(f"    {_(K.lbl.time)} {format_timestamp(mtime)}")
@@ -103,8 +102,8 @@ class BackupService:
 
     def restore(
         self,
-        backup_name: Optional[str] = None,
-        key_type: Optional[str] = None,
+        backup_name: str | None = None,
+        key_type: str | None = None,
         skip_confirm: bool = False,
     ) -> None:
         """从备份恢复密钥"""
@@ -113,11 +112,7 @@ class BackupService:
         if backup_name:
             # 校验备份名，防止路径穿越 / 绝对路径 / 家目录逃逸出备份目录
             candidate = Path(backup_name)
-            if (
-                candidate.is_absolute()
-                or ".." in candidate.parts
-                or str(backup_name).startswith("~")
-            ):
+            if candidate.is_absolute() or ".." in candidate.parts or str(backup_name).startswith("~"):
                 self._error(f"❌ {_(K.err.invalid_backup_name, name=backup_name)}")
                 return
             backup_path = self.backup_dir / backup_name

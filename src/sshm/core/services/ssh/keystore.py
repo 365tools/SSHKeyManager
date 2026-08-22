@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 密钥文件仓库 - 只负责 ~/.ssh 目录下的密钥文件扫描 / 检测 / 复制。
 
@@ -9,9 +8,8 @@
 import os
 import re
 import shutil
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
-from typing import Dict, List, Optional
 
 from ....constants import SUPPORTED_KEY_TYPES
 from .keypaths import get_key_pattern, private_key_path, public_key_path
@@ -27,9 +25,9 @@ class KeyStore:
         """确保必要的目录存在"""
         self.ssh_dir.mkdir(mode=0o700, exist_ok=True)
 
-    def scan_all_keys(self) -> Dict[str, List[Dict]]:
+    def scan_all_keys(self) -> dict[str, list[dict]]:
         """扫描所有密钥文件"""
-        keys_by_label: Dict[str, List[Dict]] = {}
+        keys_by_label: dict[str, list[dict]] = {}
         key_pattern = get_key_pattern()
 
         for file in self.ssh_dir.glob("id_*"):
@@ -53,7 +51,7 @@ class KeyStore:
                 "public": pub_file,
                 "has_pub": pub_file.exists(),
                 "size": file.stat().st_size,
-                "mtime": datetime.fromtimestamp(file.stat().st_mtime),
+                "mtime": datetime.fromtimestamp(file.stat().st_mtime, tz=timezone.utc),
             }
 
             if label not in keys_by_label:
@@ -62,14 +60,14 @@ class KeyStore:
 
         return keys_by_label
 
-    def detect_key_type_for_label(self, label: str) -> Optional[str]:
+    def detect_key_type_for_label(self, label: str) -> str | None:
         """检测指定标签的密钥类型"""
         for key_type in SUPPORTED_KEY_TYPES:
             if private_key_path(self.ssh_dir, key_type, label).exists():
                 return key_type
         return None
 
-    def detect_default_key_type(self) -> Optional[str]:
+    def detect_default_key_type(self) -> str | None:
         """检测默认密钥类型"""
         for key_type in SUPPORTED_KEY_TYPES:
             if private_key_path(self.ssh_dir, key_type).exists():
@@ -99,9 +97,7 @@ class KeyStore:
         except OSError:
             pass  # 平台/只读异常时忽略，不影响主流程
 
-    def extract_email_from_pubkey(
-        self, key_type: str, label: Optional[str] = None
-    ) -> Optional[str]:
+    def extract_email_from_pubkey(self, key_type: str, label: str | None = None) -> str | None:
         """从公钥注释提取邮箱（ssh-keygen -C email 写入）
 
         label 为 None 时读取默认密钥（id_{type}.pub），否则读取带标签的公钥。

@@ -97,9 +97,7 @@ class TestGenerateConfigBlock:
     def test_windows_path_converted_to_posix(self):
         from sshm.core.services.ssh.config import SSHConfigManager
 
-        block = SSHConfigManager._generate_config_block(
-            "work", "gitlab.com", Path("C:\\Users\\x\\id_ed25519.work")
-        )
+        block = SSHConfigManager._generate_config_block("work", "gitlab.com", Path("C:\\Users\\x\\id_ed25519.work"))
         assert "IdentityFile C:/Users/x/id_ed25519.work" in block
         assert "\\" not in block.split("IdentityFile")[-1]
 

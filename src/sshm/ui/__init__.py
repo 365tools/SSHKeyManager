@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 展示层 - 输出抽象与终端渲染。
 
@@ -10,31 +9,31 @@
 """
 
 from .console import (
-    setup_windows_console,
-    format_timestamp,
     format_size,
+    format_timestamp,
     get_display_width,
     pad_cell,
-    prompt_confirm,
-    print_separator,
     print_section_header,
+    print_separator,
     print_table,
+    prompt_confirm,
+    setup_windows_console,
     wait_for_key,
 )
 from .output import ConsoleOutput, NullOutput, Output
 
 __all__ = [
-    "setup_windows_console",
-    "format_timestamp",
-    "format_size",
-    "get_display_width",
-    "pad_cell",
-    "prompt_confirm",
-    "print_separator",
-    "print_section_header",
-    "print_table",
-    "wait_for_key",
-    "Output",
     "ConsoleOutput",
     "NullOutput",
+    "Output",
+    "format_size",
+    "format_timestamp",
+    "get_display_width",
+    "pad_cell",
+    "print_section_header",
+    "print_separator",
+    "print_table",
+    "prompt_confirm",
+    "setup_windows_console",
+    "wait_for_key",
 ]

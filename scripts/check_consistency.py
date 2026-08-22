@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 三位一体一致性校验脚本。
 
@@ -61,9 +60,7 @@ def parse_registry() -> dict[str, list[tuple[str, str]]]:
                         name = ast.literal_eval(item.args[0])
                         # 解析 help_key：K.cmd.xxx -> 'cmd.xxx'
                         help_key = None
-                        if len(item.args) > 1 and isinstance(
-                            item.args[1], ast.Attribute
-                        ):
+                        if len(item.args) > 1 and isinstance(item.args[1], ast.Attribute):
                             parts = []
                             cur = item.args[1]
                             while isinstance(cur, ast.Attribute):
@@ -217,16 +214,12 @@ def main() -> int:
     # 1. registry -> cli 完整性
     for gc in sorted(registry_commands):
         if gc not in cli_commands:
-            problems.append(
-                f"[registry->cli] registry has {gc[0]} {gc[1]}, but app.py lacks it"
-            )
+            problems.append(f"[registry->cli] registry has {gc[0]} {gc[1]}, but app.py lacks it")
 
     # 2. cli -> registry 完整性（cli 有但注册表没有）
     for gc in sorted(cli_commands):
         if gc not in registry_commands:
-            problems.append(
-                f"[cli->registry] app.py has {gc[0]} {gc[1]}, but registry lacks it"
-            )
+            problems.append(f"[cli->registry] app.py has {gc[0]} {gc[1]}, but registry lacks it")
 
     # 3. 三位一体：命令函数体内的 manager.<group>.<method> 与命令名一致
     for (group, name), methods in sorted(cli.items()):
@@ -237,18 +230,13 @@ def main() -> int:
             if mg != group:
                 continue  # 跨组调用（如 repo use 调用 key.switch），仅提示不报错
             if method != name:
-                problems.append(
-                    f"[trinity] {group} {name} calls manager.{group}.{method}, "
-                    f"method should be {name}"
-                )
+                problems.append(f"[trinity] {group} {name} calls manager.{group}.{method}, method should be {name}")
 
     # 4. manager 属性存在性
     for gc in cli_commands:
         group = gc[0]
         if group not in manager_attrs:
-            problems.append(
-                f"[manager-attr] app.py uses manager.{group}, but manager lacks self.{group}"
-            )
+            problems.append(f"[manager-attr] app.py uses manager.{group}, but manager lacks self.{group}")
 
     # 5. help_key 命名规范：cmd.{group}_{name}（连字符转下划线）
     for (group, name), help_key in sorted(help_key_map.items()):
@@ -257,24 +245,17 @@ def main() -> int:
             continue
         expected = f"cmd.{group}_{name.replace('-', '_')}"
         if help_key != expected:
-            problems.append(
-                f"[help-key] {group} {name} help_key='{help_key}', "
-                f"expected '{expected}'"
-            )
+            problems.append(f"[help-key] {group} {name} help_key='{help_key}', expected '{expected}'")
 
     # 6. _show_tip(group, current) 与命令所属分组/命令名一致
     for g, n in tip_calls:
         if (g, n) not in registry_commands:
-            problems.append(
-                f"[tip] _show_tip('{g}', '{n}') has no matching registered command"
-            )
+            problems.append(f"[tip] _show_tip('{g}', '{n}') has no matching registered command")
 
     # 7. help_key 引用的 i18n key 必须存在
     for (group, name), help_key in sorted(help_key_map.items()):
         if help_key and help_key not in i18n_keys:
-            problems.append(
-                f"[i18n] {group} {name} help_key '{help_key}' missing from KEYS"
-            )
+            problems.append(f"[i18n] {group} {name} help_key '{help_key}' missing from KEYS")
 
     # 输出结果
     if problems:
@@ -283,7 +264,7 @@ def main() -> int:
             print(f"  [X] {p}")
         return 1
 
-    print(f"[OK] Trinity consistency check passed:")
+    print("[OK] Trinity consistency check passed:")
     print(f"  - registry groups: {len(groups)}, commands: {len(registry_commands)}")
     print(f"  - app.py commands: {len(cli_commands)}, all aligned with registry")
     print(f"  - manager group attrs: {sorted(manager_attrs)}")

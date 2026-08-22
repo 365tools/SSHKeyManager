@@ -25,18 +25,12 @@ def test_key_file_default(tmp_path):
 
 
 def test_key_file_labeled(tmp_path):
-    assert (
-        private_key_path(tmp_path, "ed25519", "github")
-        == tmp_path / "id_ed25519.github"
-    )
+    assert private_key_path(tmp_path, "ed25519", "github") == tmp_path / "id_ed25519.github"
 
 
 def test_pub_key_file(tmp_path):
     assert public_key_path(tmp_path, "ed25519") == tmp_path / "id_ed25519.pub"
-    assert (
-        public_key_path(tmp_path, "ed25519", "github")
-        == tmp_path / "id_ed25519.github.pub"
-    )
+    assert public_key_path(tmp_path, "ed25519", "github") == tmp_path / "id_ed25519.github.pub"
 
 
 def test_key_paths(tmp_path):

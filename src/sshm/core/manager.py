@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 SSH 密钥管理器 - 门面（Facade）
 
@@ -11,7 +10,6 @@ SSH 密钥管理器 - 门面（Facade）
 """
 
 from pathlib import Path
-from typing import Optional
 
 from ..constants import (
     BACKUP_DIR_NAME,
@@ -19,6 +17,8 @@ from ..constants import (
     SSH_CONFIG_NAME,
     STATE_FILE_NAME,
 )
+from ..ui.output import ICON_ERR, ICON_WARN
+from ..ui.tip import render_business_error
 from .commands import (
     AuthorCommands,
     HistoryCommands,
@@ -33,8 +33,6 @@ from .services.ssh.config import SSHConfigManager
 from .services.ssh.keystore import KeyStore
 from .services.storage.backup import BackupService
 from .services.storage.state import StateManager
-from ..ui.output import ICON_ERR, ICON_WARN, print
-from ..ui.tip import render_business_error
 
 
 class SSHKeyManager:
@@ -43,7 +41,7 @@ class SSHKeyManager:
     # 保留标签：original 为 use -g 切换时的系统备份，default 为默认密钥
     RESERVED_LABELS = ("default", "original")
 
-    def __init__(self, ssh_dir: Optional[Path] = None):
+    def __init__(self, ssh_dir: Path | None = None):
         """初始化管理器
 
         Args:
@@ -75,13 +73,9 @@ class SSHKeyManager:
             self.keystore,
             self._fail,
         )
-        self.backup = BackupService(
-            self.ssh_dir, self.backup_dir, self.state_file, self.config_file, self._fail
-        )
+        self.backup = BackupService(self.ssh_dir, self.backup_dir, self.state_file, self.config_file, self._fail)
         self.tester = SSHTester()
-        self.author_service = AuthorService(
-            self.state_manager, self.keystore, self.gitrepo, self._fail
-        )
+        self.author_service = AuthorService(self.state_manager, self.keystore, self.gitrepo, self._fail)
 
         # 命令编排组（与 CLI 分组一一对应：key/repo/backup/author/history/config）
         self.key = KeyCommands(self)
@@ -98,7 +92,7 @@ class SSHKeyManager:
         self.keystore.ensure_directories()
         self.backup_dir.mkdir(mode=0o700, exist_ok=True)
 
-    def _fail(self, msg: str, *, icon: str = ICON_ERR, hint: Optional[str] = None):
+    def _fail(self, msg: str, *, icon: str = ICON_ERR, hint: str | None = None):
         """记录业务失败并渲染统一错误（不抛异常，保持原有控制流）。
 
         Args:
@@ -112,7 +106,7 @@ class SSHKeyManager:
         self._had_error = True
         render_business_error(msg, icon=icon, hint=hint)
 
-    def _warn(self, msg: str, *, hint: Optional[str] = None) -> None:
+    def _warn(self, msg: str, *, hint: str | None = None) -> None:
         """渲染统一软告警（⚠️ + 可选 💡 建议）。
 
         与 `_fail` 的区别：**不置 `_had_error`**，命令仍按成功退出。

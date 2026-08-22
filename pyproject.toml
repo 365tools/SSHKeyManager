@@ -57,3 +57,6 @@ exclude = ["**/__pycache__", "**/*.pyc", "**/.git", "scripts", "docs", "repo"]
 typeCheckingMode = "basic"
 pythonVersion = "3.14"
 analyzeUnannotatedFunctions = false
+
+[tool.ruff]
+line-length = 200

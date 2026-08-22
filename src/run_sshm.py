@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 PyInstaller 入口点 - 使用绝对导入避免打包问题
 用于构建独立可执行文件
@@ -12,8 +11,7 @@ import sys
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 # 使用绝对导入
-from sshm.__main__ import main  # noqa: E402
-
+from sshm.__main__ import main
 
 if __name__ == "__main__":
     main()

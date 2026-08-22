@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 系统命令组 - 系统级命令的编排（lang / update / add_path）。
 
@@ -8,11 +7,12 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 from ...i18n import _
 from ...language import K
-from ...ui.output import print, separator as print_separator
+from ...ui.output import print
+from ...ui.output import separator as print_separator
 
 if TYPE_CHECKING:
     from ..manager import SSHKeyManager
@@ -21,7 +21,7 @@ if TYPE_CHECKING:
 class SystemCommands:
     """系统命令编排。"""
 
-    def __init__(self, m: "SSHKeyManager"):
+    def __init__(self, m: SSHKeyManager):
         self.m = m
 
     def show(self) -> None:
@@ -54,7 +54,7 @@ class SystemCommands:
         set_lang(lang)
         return lang
 
-    def update(self, check: bool = False, force: bool = False) -> Optional[int]:
+    def update(self, check: bool = False, force: bool = False) -> int | None:
         """检查并更新到最新版本。
 
         Returns:
@@ -77,9 +77,7 @@ class SystemCommands:
             return None
 
         print(f"\n🎉 {_(K.upd.new_version, version=update_info['version'])}")
-        print(
-            f"{_(K.upd.release_date)} {update_info.get('published_at') or _(K.msg.unknown)}"
-        )
+        print(f"{_(K.upd.release_date)} {update_info.get('published_at') or _(K.msg.unknown)}")
 
         if update_info.get("body"):
             print(f"\n{_(K.upd.update_notes)}")

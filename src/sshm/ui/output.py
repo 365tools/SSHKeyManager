@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 输出抽象 - 将核心层与具体控制台输出解耦。
 
@@ -17,9 +16,12 @@
 
 from __future__ import annotations
 
+from collections.abc import Iterator
 from contextlib import contextmanager
+from typing import ClassVar
 
-from typing import Iterator, Optional
+from rich.console import Console as _RichConsole
+from rich.progress import Progress as _RichProgress
 
 from .console import (
     _console,
@@ -29,22 +31,19 @@ from .console import (
     prompt_confirm,
 )
 
-from rich.console import Console as _RichConsole
-from rich.progress import Progress as _RichProgress
-
 __all__ = [
-    "Output",
     "ConsoleOutput",
     "NullOutput",
-    "set_output",
+    "Output",
+    "confirm",
     "get_output",
     "print",
-    "section",
-    "table",
-    "separator",
-    "confirm",
     "progress",
+    "section",
+    "separator",
+    "set_output",
     "status",
+    "table",
 ]
 
 
@@ -63,7 +62,7 @@ class Output:
     def separator(self, char: str = "=", length: int = 80) -> None:
         raise NotImplementedError
 
-    def confirm(self, message: str, default: Optional[str] = None) -> bool:
+    def confirm(self, message: str, default: str | None = None) -> bool:
         raise NotImplementedError
 
 
@@ -80,7 +79,7 @@ class ConsoleOutput(Output):
 
     # 状态 emoji 前缀 -> 语义颜色：按消息开头 emoji 自动着色，
     # 无需改动各命令调用点即可获得语义化的终端配色。
-    _EMOJI_STYLE = {
+    _EMOJI_STYLE: ClassVar[dict] = {
         ICON_OK: "bold green",
         "🎉": "bold green",
         "✔": "bold green",
@@ -92,7 +91,7 @@ class ConsoleOutput(Output):
         "🔀": "cyan",
         "📝": "cyan",
     }
-    _style_map = {
+    _style_map: ClassVar[dict] = {
         "info": "cyan",
         "success": "bold green",
         "warn": "yellow",
@@ -103,14 +102,14 @@ class ConsoleOutput(Output):
     def print(self, *args, **kwargs) -> None:
         # style 语义参数：映射为 rich 颜色；显式 style 优先级最高，
         # 未指定时按消息开头 emoji 自动识别语义颜色。
-        style: Optional[str] = kwargs.pop("style", None)
+        style: str | None = kwargs.pop("style", None)
         if style is None and args:
             first = str(args[0])
             for emoji, color in self._EMOJI_STYLE.items():
                 if first.startswith(emoji):
                     style = color
                     break
-        rich_style: Optional[str]
+        rich_style: str | None
         if isinstance(style, str):
             rich_style = self._style_map.get(style, style)
         else:
@@ -126,7 +125,7 @@ class ConsoleOutput(Output):
     def separator(self, char: str = "=", length: int = 80) -> None:
         print_separator(char, length)
 
-    def confirm(self, message: str, default: Optional[str] = None) -> bool:
+    def confirm(self, message: str, default: str | None = None) -> bool:
         return prompt_confirm(message, default)
 
 
@@ -145,7 +144,7 @@ class NullOutput(Output):
     def separator(self, char: str = "=", length: int = 80) -> None:
         pass
 
-    def confirm(self, message: str, default: Optional[str] = None) -> bool:
+    def confirm(self, message: str, default: str | None = None) -> bool:
         return True
 
 
@@ -187,7 +186,7 @@ def separator(char: str = "=", length: int = 80) -> None:
     _current.separator(char, length)
 
 
-def confirm(message: str, default: Optional[str] = None) -> bool:
+def confirm(message: str, default: str | None = None) -> bool:
     return _current.confirm(message, default)
 
 
@@ -197,15 +196,15 @@ def confirm(message: str, default: Optional[str] = None) -> bool:
 class _NoopProgress:
     """rich 不可用时的空进度句柄：所有调用静默，不产生任何输出。"""
 
-    def __init__(self, total: Optional[float] = None, desc: str = "") -> None:
+    def __init__(self, total: float | None = None, desc: str = "") -> None:
         self.completed = 0.0
         self.total = total
 
     def update(
         self,
         completed: float = 1,
-        advance: Optional[float] = None,
-        total: Optional[float] = None,
+        advance: float | None = None,
+        total: float | None = None,
         **kwargs,
     ) -> None:
         if advance is not None:
@@ -223,7 +222,7 @@ class _NoopProgress:
 class _RichProgressHandle:
     """rich 进度句柄：封装 Progress 与 task_id，暴露统一的 update/advance。"""
 
-    def __init__(self, progress: "_RichProgress", task_id, total):
+    def __init__(self, progress: _RichProgress, task_id, total):
         self._progress = progress
         self._task_id = task_id
         self._total = total
@@ -232,8 +231,8 @@ class _RichProgressHandle:
     def update(
         self,
         completed: float = 1,
-        advance: Optional[float] = None,
-        total: Optional[float] = None,
+        advance: float | None = None,
+        total: float | None = None,
         **kwargs,
     ) -> None:
         if advance is not None:
@@ -252,7 +251,7 @@ class _RichProgressHandle:
 
 
 @contextmanager
-def progress(total: Optional[float] = None, desc: str = "") -> Iterator:
+def progress(total: float | None = None, desc: str = "") -> Iterator:
     """进度条上下文管理器。
 
     rich 可用时显示真实进度条；非 tty 时自动降级为无操作。

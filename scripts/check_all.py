@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 统一提交前检查调度器 (check_all.py)
 
@@ -21,20 +20,15 @@ from __future__ import annotations
 import os
 import subprocess
 import sys
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable, Dict, List, Optional
 
 # 确保控制台使用 UTF-8（Windows 默认 GBK 无法输出 emoji）
 # 用 getattr 访问 reconfigure，规避 typeshed 对 TextIO 未声明该方法导致的
 # basedpyright reportAttributeAccessIssue。
 _stdout_reconfigure = getattr(sys.stdout, "reconfigure", None)
 _stderr_reconfigure = getattr(sys.stderr, "reconfigure", None)
-if (
-    sys.stdout.encoding
-    and sys.stdout.encoding.lower() not in ("utf-8", "utf8")
-    and _stdout_reconfigure
-    and _stderr_reconfigure
-):
+if sys.stdout.encoding and sys.stdout.encoding.lower() not in ("utf-8", "utf8") and _stdout_reconfigure and _stderr_reconfigure:
     try:
         _stdout_reconfigure(encoding="utf-8")
         _stderr_reconfigure(encoding="utf-8")
@@ -142,9 +136,7 @@ def check_pytest() -> tuple[bool, str]:
 def check_pyright() -> tuple[bool, str]:
     """类型检查：basedpyright 0 error / 0 warning / 0 note。"""
     # 显式指定解释器：避免 basedpyright 自动探测到空/损坏的 .venv 而解析不到依赖
-    ok, detail = _run(
-        sys.executable, "-m", "basedpyright", "--pythonpath", sys.executable
-    )
+    ok, detail = _run(sys.executable, "-m", "basedpyright", "--pythonpath", sys.executable)
     return ok, detail
 
 
@@ -165,9 +157,7 @@ def check_deadcode() -> tuple[bool, str]:
 
 def check_cli() -> tuple[bool, str]:
     """CLI 输出标准化检查（自动导出所有指令+场景+执行+校验）。"""
-    return _run(
-        sys.executable, str(PROJECT_ROOT / "scripts" / "cli_snapshot.py"), "--check"
-    )
+    return _run(sys.executable, str(PROJECT_ROOT / "scripts" / "cli_snapshot.py"), "--check")
 
 
 def check_rich_output() -> tuple[bool, str]:
@@ -179,7 +169,7 @@ def check_rich_output() -> tuple[bool, str]:
 # 检查注册表（新增检查在此登记即可）
 # ---------------------------------------------------------------------------
 # 元素: (name, is_fast, func)
-CHECKS: List[tuple[str, bool, Callable[[], tuple[bool, str]]]] = [
+CHECKS: list[tuple[str, bool, Callable[[], tuple[bool, str]]]] = [
     ("compile", True, check_compile),  # 语法编译（快速）
     ("i18n", True, check_i18n),  # 多语言 key 一致性（快速）
     ("consistency", False, check_consistency),  # 三位一体一致性
@@ -192,7 +182,7 @@ CHECKS: List[tuple[str, bool, Callable[[], tuple[bool, str]]]] = [
 ]
 
 # 各检查对应的人类可读说明
-CHECKS_HELP: Dict[str, str] = {
+CHECKS_HELP: dict[str, str] = {
     "compile": "语法编译检查（所有 src 文件可编译）",
     "i18n": "i18n key 模版 / EN / ZH 一致性（含占位符）",
     "consistency": "三位一体一致性（CLI命令=注册表=manager方法）",
@@ -210,7 +200,7 @@ CHECKS_HELP: Dict[str, str] = {
 # ---------------------------------------------------------------------------
 
 
-def run_checks(fast: bool = False, skip: Optional[List[str]] = None) -> int:
+def run_checks(fast: bool = False, skip: list[str] | None = None) -> int:
     """运行选定的检查并汇总结果。
 
     Args:
@@ -221,7 +211,7 @@ def run_checks(fast: bool = False, skip: Optional[List[str]] = None) -> int:
         退出码（0 全通过，1 有失败）
     """
     skip = skip or []
-    results: List[tuple[str, bool, str]] = []
+    results: list[tuple[str, bool, str]] = []
 
     print("=" * 60)
     print("🔍 sshm 提交前检查")
@@ -251,10 +241,10 @@ def run_checks(fast: bool = False, skip: Optional[List[str]] = None) -> int:
     return 0
 
 
-def _parse_args(argv: List[str]) -> tuple[bool, List[str]]:
+def _parse_args(argv: list[str]) -> tuple[bool, list[str]]:
     """解析命令行参数"""
     fast = False
-    skip: List[str] = []
+    skip: list[str] = []
     i = 0
     while i < len(argv):
         arg = argv[i]

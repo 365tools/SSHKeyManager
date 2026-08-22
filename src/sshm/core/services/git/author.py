@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 作者服务 - 作者信息的解析 / 关联 / 应用（可复用的服务层）。
 
@@ -11,8 +10,8 @@
 from __future__ import annotations
 
 import subprocess
+from collections.abc import Callable
 from pathlib import Path
-from typing import Callable, Dict, Optional, Union
 
 from ....i18n import _
 from ....language import K
@@ -33,7 +32,7 @@ class AuthorService:
     # git 配置读取
     # ------------------------------------------------------------------
 
-    def git_get_config(self, repo_path: Path, scope: str, key: str) -> Optional[str]:
+    def git_get_config(self, repo_path: Path, scope: str, key: str) -> str | None:
         """读取 git 配置项（local/global）"""
         try:
             result = git(repo_path, "config", f"--{scope}", key)
@@ -48,11 +47,11 @@ class AuthorService:
     def get_author_info(
         self,
         label: str,
-        name: Optional[str] = None,
-        email: Optional[str] = None,
-        repo_path: Optional[Union[str, Path]] = None,
+        name: str | None = None,
+        email: str | None = None,
+        repo_path: str | Path | None = None,
         infer_from_remote: bool = True,
-    ) -> Optional[Dict[str, str]]:
+    ) -> dict[str, str] | None:
         """按优先级获取标签对应的作者信息
 
         infer_from_remote：当标签无显式作者名时，是否从 remote URL 推断用户名。
@@ -60,7 +59,7 @@ class AuthorService:
         （git@github-work:org/repo.git），其 user 段是组织名而非作者名。
         """
         label_lower = label.lower()
-        result: Dict[str, str] = {"name": name or "", "email": email or ""}
+        result: dict[str, str] = {"name": name or "", "email": email or ""}
 
         # 1. 状态文件中的 authors 映射（add 时自动记录）
         stored = self.state_manager.read_authors().get(label_lower)
@@ -91,10 +90,8 @@ class AuthorService:
                 hint="\n".join(
                     [
                         _(K.msg.available_remedies),
-                        f'   - sshm key create {label} <email> --name "name"  # '
-                        + _(K.msg.recreate_key),
-                        f'   - sshm author add {label} --name "name" --email <email>  # '
-                        + _(K.msg.temp_override),
+                        f'   - sshm key create {label} <email> --name "name"  # ' + _(K.msg.recreate_key),
+                        f'   - sshm author add {label} --name "name" --email <email>  # ' + _(K.msg.temp_override),
                     ]
                 ),
             )
@@ -102,14 +99,14 @@ class AuthorService:
 
         return result
 
-    def extract_email_from_pubkey(self, label: str) -> Optional[str]:
+    def extract_email_from_pubkey(self, label: str) -> str | None:
         """从带标签的公钥注释提取邮箱（委托 KeyStore）"""
         key_type = self.keystore.detect_key_type_for_label(label)
         if not key_type:
             return None
         return self.keystore.extract_email_from_pubkey(key_type, label)
 
-    def infer_author_name_from_remote(self, repo_path: Path) -> Optional[str]:
+    def infer_author_name_from_remote(self, repo_path: Path) -> str | None:
         """从 remote URL 推断用户名（git@github.com:allureyc/repo.git → allureyc）"""
         try:
             result = git(repo_path, "remote", "get-url", "origin")
@@ -127,7 +124,7 @@ class AuthorService:
     def apply_auto_author(
         self,
         label: str,
-        repo_path: Optional[str] = None,
+        repo_path: str | None = None,
         scope: str = "local",
         skip_confirm: bool = True,
     ) -> None:
@@ -155,7 +152,4 @@ class AuthorService:
             self._fail(_(K.err.auto_author_failed, err=e), icon=ICON_WARN)
             return
 
-        print(
-            f"{_(K.msg.auto_set_author, label=label)}: "
-            f"{author.get('name', '') or ''} <{author.get('email', '') or ''}>"
-        )
+        print(f"{_(K.msg.auto_set_author, label=label)}: {author.get('name', '') or ''} <{author.get('email', '') or ''}>")

@@ -1,10 +1,7 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """English (EN) translations. Stable keys -> English text."""
 
-from typing import Dict
-
-EN: Dict[str, str] = {
+EN: dict[str, str] = {
     # ---- 通用 (misc) ----
     "misc.error": "error",
     "suggest.did_you_mean": "Did you mean:",

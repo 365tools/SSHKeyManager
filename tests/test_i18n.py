@@ -9,7 +9,7 @@ import re
 from pathlib import Path
 
 from sshm.i18n import EN, ZH
-from sshm.language import KEYS, LANGUAGES, KEY_GROUPS, LanguageDict
+from sshm.language import KEY_GROUPS, KEYS, LANGUAGES, LanguageDict
 
 # 提取字符串中的 {placeholder} 占位符
 _PLACEHOLDER_RE = re.compile(r"\{(\w+)\}")
@@ -72,9 +72,7 @@ def test_placeholder_sets_match_en_zh():
     for k in KEYS:
         en_ph = _placeholders(EN[k])
         zh_ph = _placeholders(ZH[k])
-        assert en_ph == zh_ph, (
-            f"key '{k}' 占位符不一致: EN={sorted(en_ph)} ZH={sorted(zh_ph)}"
-        )
+        assert en_ph == zh_ph, f"key '{k}' 占位符不一致: EN={sorted(en_ph)} ZH={sorted(zh_ph)}"
 
 
 def test_placeholder_keys_valid():
@@ -94,9 +92,7 @@ def test_key_prefix_in_known_groups():
     """每个 key 必须属于 KEY_GROUPS 定义的分组前缀之一"""
     prefixes = tuple(sorted(KEY_GROUPS, key=len, reverse=True))
     for k in KEYS:
-        assert any(k.startswith(p) for p in prefixes), (
-            f"key '{k}' 不属于任何已定义分组前缀"
-        )
+        assert any(k.startswith(p) for p in prefixes), f"key '{k}' 不属于任何已定义分组前缀"
 
 
 def test_key_groups_cover_all():
@@ -163,10 +159,7 @@ def test_k_constants_cover_all_keys():
 
     collected: set = set()
     _walk_k(K, collected)
-    assert collected == set(KEYS), (
-        f"K 与 KEYS 不一致: 缺 {sorted(set(KEYS) - collected)} "
-        f"多 {sorted(collected - set(KEYS))}"
-    )
+    assert collected == set(KEYS), f"K 与 KEYS 不一致: 缺 {sorted(set(KEYS) - collected)} 多 {sorted(collected - set(KEYS))}"
 
 
 def test_used_keys_are_all_in_template():

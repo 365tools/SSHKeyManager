@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """
 未知命令"你是不是要找"建议 - 基于命令注册表层级做模糊匹配。
 
@@ -16,7 +15,7 @@ GROUPS / GROUP_ORDER 层级结构，用 difflib 做模糊匹配，动态给出�
 from __future__ import annotations
 
 import difflib
-from typing import Any, List, Optional
+from typing import Any
 
 from ..i18n import _
 from ..language import K
@@ -31,23 +30,21 @@ _CUTOFF = 0.6
 _NON_INTERFERING = ("-h", "--help", "-v", "--version")
 
 
-def _sub_names(group: str) -> List[str]:
+def _sub_names(group: str) -> list[str]:
     """某分组的子命令名清单（保持注册表顺序）。"""
     return [m.name for m in commands_in_group(group)]
 
 
-def _fuzzy(
-    needle: str, choices: List[str], n: int = 3, cutoff: float = _CUTOFF
-) -> List[str]:
+def _fuzzy(needle: str, choices: list[str], n: int = 3, cutoff: float = _CUTOFF) -> list[str]:
     """返回与 needle 相近的候选（按相似度降序，最多 n 个）。"""
     return difflib.get_close_matches(needle, choices, n=n, cutoff=cutoff)
 
 
-def _known_groups() -> List[str]:
+def _known_groups() -> list[str]:
     return list(GROUP_ORDER)
 
 
-def suggest(argv: List[str]) -> Optional[List[str]]:
+def suggest(argv: list[str]) -> list[str] | None:
     """判断命令路径是否合法，返回建议命令清单；合法 / 不应干预返回 None。
 
     argv 为 `sys.argv[1:]`（不含程序名），仅取非选项 token 判断层级。
@@ -78,7 +75,7 @@ def suggest(argv: List[str]) -> Optional[List[str]]:
         return [f"sshm {first} {m}" for m in matches] if matches else []
 
     # 场景 2：顶层命令错误（如 `sshm list` / `sshm keyz`）
-    suggests: List[str] = []
+    suggests: list[str] = []
     # 2a. 精确子命令全路径（最可能忘写分组）：sshm <group> <sub>
     for g in groups:
         if first in _sub_names(g):
@@ -93,7 +90,7 @@ def suggest(argv: List[str]) -> Optional[List[str]]:
     return _dedup(suggests)
 
 
-def _dedup(items: List[str]) -> List[str]:
+def _dedup(items: list[str]) -> list[str]:
     """去重并保持首次出现顺序。"""
     seen = set()
     result = []
@@ -104,7 +101,7 @@ def _dedup(items: List[str]) -> List[str]:
     return result
 
 
-def render_error(argv: List[str], suggestions: List[str]) -> None:
+def render_error(argv: list[str], suggestions: list[str]) -> None:
     """渲染"未知命令"错误 + 建议 + 本组相关命令（统一 tip 段模板）。
 
     结构（与常规命令底部 tip 完全同源，均走 render_tip_block）：
@@ -121,7 +118,7 @@ def render_error(argv: List[str], suggestions: List[str]) -> None:
     组内错误（first 为合法分组）→ 展示该分组命令；顶层未知 → 展示顶层分组。
     """
     from ..ui.output import print as _print
-    from ..ui.tip import command_list_lines, render_tip_block
+    from ..ui.tip import render_tip_block
 
     args = [a for a in argv if not a.startswith("-") and a]
     first = args[0] if args else ""
@@ -159,7 +156,7 @@ def render_error(argv: List[str], suggestions: List[str]) -> None:
     render_tip_block(command_list_lines(group, cmds), style="dim")
 
 
-def _command_params_block(exc: Any) -> List[str]:
+def _command_params_block(exc: Any) -> list[str]:
     """统一生成"命令参数说明块"（从 Click 命令参数解析、填充数据）。
 
     这是所有用法错误场景复用的唯一解析入口。输出两条信息：
@@ -181,9 +178,7 @@ def _command_params_block(exc: Any) -> List[str]:
     cmd = ctx.command if ctx is not None else None
     if cmd is None or not getattr(cmd, "params", None):
         return []
-    group = (
-        ctx.parent.info_name if (ctx is not None and ctx.parent is not None) else None
-    )
+    group = ctx.parent.info_name if (ctx is not None and ctx.parent is not None) else None
     if group:
         base = f"sshm {group} {cmd.name}"
     elif cmd.name in (None, "sshm"):
@@ -261,7 +256,7 @@ def _command_params_block(exc: Any) -> List[str]:
     return [escape(line) for line in lines]
 
 
-def _infer_group_commands(argv: List[str]) -> List[List[str]]:
+def _infer_group_commands(argv: list[str]) -> list[list[str]]:
     """从 argv 推断当前分组，生成相关命令块（本组 + 跨组 related，各带标题）。
 
     如 `sshm key switch` → 分组 `key` → [本组 key 命令块, 跨组 repo use 块]。
@@ -280,7 +275,7 @@ def _infer_group_commands(argv: List[str]) -> List[List[str]]:
     return related_command_blocks(group, cmds)
 
 
-def render_usage_error(exc: Any, argv: List[str]) -> None:
+def render_usage_error(exc: Any, argv: list[str]) -> None:
     """统一渲染任意 Click 用法错误（缺参数/非法值/未知选项/未知命令等）。
 
     取代 Click 原生 `┌─ Error ─...` 面板，全部走 render_tip_block 统一模板，
@@ -302,7 +297,7 @@ def render_usage_error(exc: Any, argv: List[str]) -> None:
         argv: 原始命令参数（sys.argv[1:]）。
     """
     from ..ui.output import print as _print
-    from ..ui.tip import ITEM_BULLET, command_list_lines, render_tip_block
+    from ..ui.tip import render_tip_block
 
     # 未知命令：复用完整命令建议（含 Did you mean + More commands）
     suggestions = suggest(argv)

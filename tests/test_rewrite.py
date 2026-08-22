@@ -57,9 +57,7 @@ class TestRewrite:
 
     def test_rewrite_email(self, tmp_path):
         repo = setup_repo_with_commits(tmp_path, [("Alice", "alice@x.com")])
-        r = rewrite_history(
-            repo, RewriteConfig(old_email="alice@x.com", new_email="new@x.com")
-        )
+        r = rewrite_history(repo, RewriteConfig(old_email="alice@x.com", new_email="new@x.com"))
         assert r["matched_commits"] >= 1
         log = git(repo, "log", "--format=%ae").stdout
         assert "new@x.com" in log
@@ -87,12 +85,8 @@ class TestRewriteMatchAll:
 
     def test_match_all_unifies_authors(self, tmp_path):
         """多作者历史全量刷新为同一目标 name/email"""
-        repo = setup_repo_with_commits(
-            tmp_path, [("Alice", "a@x.com"), ("Bob", "b@x.com"), ("Carol", "c@x.com")]
-        )
-        r = rewrite_history(
-            repo, RewriteConfig(match_all=True, new_name="Unified", new_email="u@x.com")
-        )
+        repo = setup_repo_with_commits(tmp_path, [("Alice", "a@x.com"), ("Bob", "b@x.com"), ("Carol", "c@x.com")])
+        r = rewrite_history(repo, RewriteConfig(match_all=True, new_name="Unified", new_email="u@x.com"))
         assert r["matched_commits"] > 0
         assert r["rewritten"] > 0
         log = git(repo, "log", "--format=%an|%ae").stdout
@@ -109,9 +103,7 @@ class TestRewriteMatchAll:
 
     def test_match_all_name_keeps_email(self, tmp_path):
         """--name NEW 单值全量：只刷 name，email 保持不变"""
-        repo = setup_repo_with_commits(
-            tmp_path, [("Alice", "a@x.com"), ("Bob", "b@x.com")]
-        )
+        repo = setup_repo_with_commits(tmp_path, [("Alice", "a@x.com"), ("Bob", "b@x.com")])
         r = rewrite_history(repo, RewriteConfig(match_all=True, new_name="Unified"))
         assert r["rewritten"] > 0
         log = git(repo, "log", "--format=%an|%ae").stdout
@@ -122,9 +114,7 @@ class TestRewriteMatchAll:
 
     def test_match_all_email_keeps_name(self, tmp_path):
         """--email NEW 单值全量：只刷 email，name 保持不变"""
-        repo = setup_repo_with_commits(
-            tmp_path, [("Alice", "a@x.com"), ("Bob", "b@x.com")]
-        )
+        repo = setup_repo_with_commits(tmp_path, [("Alice", "a@x.com"), ("Bob", "b@x.com")])
         r = rewrite_history(repo, RewriteConfig(match_all=True, new_email="u@x.com"))
         assert r["rewritten"] > 0
         log = git(repo, "log", "--format=%an|%ae").stdout
@@ -181,12 +171,8 @@ class TestRewriteExcludesOriginalRefs:
 
     def test_authors_after_rewrite_ignores_backup(self, tmp_path):
         """重写邮箱后，预览不应再从 refs/original 看到旧邮箱。"""
-        repo = setup_repo_with_commits(
-            tmp_path, [("Old", "old@x.com"), ("Old", "old@x.com")]
-        )
-        rewrite_history(
-            repo, RewriteConfig(old_email="old@x.com", new_email="new@x.com")
-        )
+        repo = setup_repo_with_commits(tmp_path, [("Old", "old@x.com"), ("Old", "old@x.com")])
+        rewrite_history(repo, RewriteConfig(old_email="old@x.com", new_email="new@x.com"))
         # 确认备份命名空间确实存在（这是触发 bug 的前提）
         refs = self._run_git(repo, "for-each-ref", "--format=%(refname)").stdout
         assert any(r.startswith("refs/original/") for r in refs.splitlines())
