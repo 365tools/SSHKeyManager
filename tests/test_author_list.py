@@ -95,3 +95,37 @@ def test_exact_match_marks_one(manager, repo_dir, capsys):
     marked = [ln for ln in lines if "📍" in ln]
     assert len(marked) == 1
     assert "WORK" in marked[0]
+
+
+def test_add_rejects_duplicate_identity(manager, repo_dir, capsys):
+    """新增与已有记录 name+email 完全相同的作者（不同 label）应被拒绝。"""
+    _seed_authors(manager, [("work", "365tools", "365tools@gmail.com")])
+    cmds = AuthorCommands(manager)
+    cmds.add("dup", "365tools", "365tools@gmail.com")
+    out = capsys.readouterr().out
+    assert "已存在" in out or "already exists" in out
+    # 重复记录不应被写入
+    remaining = manager.state_manager.read_authors()
+    assert "dup" not in remaining
+    assert "work" in remaining
+
+
+def test_add_same_label_is_update(manager, repo_dir, capsys):
+    """同 label 再次 add 视为更新，不应报重复身份。"""
+    _seed_authors(manager, [("work", "365tools", "365tools@gmail.com")])
+    cmds = AuthorCommands(manager)
+    cmds.add("work", "365tools", "365tools.t1@gmail.com")
+    out = capsys.readouterr().out
+    # 同 label 更新不应触发"重复身份"拒绝（under label / 已存在于标签）
+    assert "已存在于标签" not in out and "already exists under label" not in out
+    updated = manager.state_manager.read_authors()["work"]
+    assert updated["email"] == "365tools.t1@gmail.com"
+
+
+def test_add_new_succeeds(manager, repo_dir, capsys):
+    """全新 label + 全新身份应成功写入。"""
+    cmds = AuthorCommands(manager)
+    cmds.add("fresh", "alice", "alice@example.com")
+    out = capsys.readouterr().out
+    assert "已保存" in out or "Saved to author list" in out
+    assert manager.state_manager.read_authors()["fresh"]["name"] == "alice"

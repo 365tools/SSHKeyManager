@@ -247,9 +247,10 @@ class AuthorCommands:
     def add(self, label: str, name: str | None = None, email: str | None = None):
         """添加/更新作者到状态文件（author 列表）"""
         label_lower = label.lower()
+        authors = self.m.state_manager.read_authors()
 
         # 更新语义：未提供的字段保留已有值，邮箱缺失时尝试从公钥注释补全
-        stored = self.m.state_manager.read_authors().get(label_lower, {})
+        stored = authors.get(label_lower, {})
         final_name = name or stored.get("name", "")
         final_email = email or stored.get("email", "") or self.m.author_service.extract_email_from_pubkey(label_lower) or ""
 
@@ -259,9 +260,34 @@ class AuthorCommands:
             print("   " + _(K.msg.fix_author_tip))
             return
 
+        # 唯一性校验：name+email 组合若已被另一条（不同 label）占用，拒绝重复写入
+        dup_label = None
+        for other_label, info in authors.items():
+            if other_label == label_lower:
+                continue
+            other_name = (info.get("name") or "").lower()
+            other_email = (info.get("email") or "").lower()
+            if (
+                final_name
+                and final_email
+                and other_name == final_name.lower()
+                and other_email == final_email.lower()
+            ):
+                dup_label = other_label
+                break
+        if dup_label is not None:
+            self.m._fail(
+                _(K.err.author_dup_identity, name=final_name, email=final_email, label=dup_label),
+                hint=_(K.err.author_dup_hint, label=dup_label),
+            )
+            return
+
         self.m.state_manager.write_author(label_lower, final_name, final_email)
 
         not_set = _(K.misc.not_set)
+        if stored:
+            # 已存在同 label：实为更新，给出明确提示避免误以为新建
+            print("📝  " + _(K.msg.author_update_existing, label=label))
         print_section_header(_(K.hdr.author_saved, label=label))
         print(f"{_(K.lbl.author_name)} {final_name or not_set}")
         print(f"{_(K.lbl.author_email)} {final_email or not_set}")
