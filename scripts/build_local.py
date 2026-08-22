@@ -77,7 +77,7 @@ def build() -> None:
             os.environ["PATH"] = _upx_dir + os.pathsep + os.environ.get("PATH", "")
         print(f"✅ UPX 可用（用于压缩）: {_upx}")
     else:
-        print("ℹ️ 未找到 UPX（跳过可选的 exe/DLL 压缩）")
+        print("📝 未找到 UPX（跳过可选的 exe/DLL 压缩）")
 
     # 复用仓库内的 sshm.spec 打包（而非命令行参数）。
     # spec 内已配置：打入 _version.txt（VERSION 第一来源）+ CHANGELOG.md（回退）
@@ -93,7 +93,7 @@ def build() -> None:
         _d = Path(_dir_name)
         if _d.exists():
             shutil.rmtree(_d, ignore_errors=True)
-            print(f"ℹ️ 清理旧产物: {_dir_name}/")
+            print(f"📝 清理旧产物: {_dir_name}/")
 
     # 用当前解释器执行 PyInstaller（而非裸 'pyinstaller'，避免 PATH 依赖），
     # 加 --noconfirm 避免 dist 存在时交互式覆盖询问卡住构建。

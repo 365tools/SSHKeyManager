@@ -179,5 +179,5 @@ class BackupService:
         # 备份中的 config 仅供存档，不自动覆盖当前配置，提示手动重建别名
         config_backup = backup_path / SSH_CONFIG_NAME
         if config_backup.exists():
-            print("\nℹ️  " + _(K.msg.backup_has_config))
+            print("\n📝  " + _(K.msg.backup_has_config))
             print("   " + _(K.msg.regenerate_alias))

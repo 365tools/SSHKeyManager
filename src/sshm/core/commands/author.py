@@ -206,7 +206,7 @@ class AuthorCommands:
         for item in changed:
             print(f"   - {item}")
         if unchanged:
-            print("\nℹ️ " + _(K.msg.unchanged))
+            print("\n📝 " + _(K.msg.unchanged))
             for item in unchanged:
                 print(f"   - {item}")
         print("\n💡 " + _(K.msg.verify_cmd))
@@ -261,7 +261,7 @@ class AuthorCommands:
                 f"✅ {_(K.msg.cleared_scope, scope=scope_name, keys=', '.join(removed))}"
             )
         else:
-            print("ℹ️  " + _(K.msg.no_config_clear))
+            print("📝  " + _(K.msg.no_config_clear))
 
     def add(self, label: str, name: Optional[str] = None, email: Optional[str] = None):
         """添加/更新作者到状态文件（author 列表）"""

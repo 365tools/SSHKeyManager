@@ -42,7 +42,7 @@ $MarkerRelease = Join-Path $InstallDir '.source_release'
 # 远端资产名
 $ReleaseAssetName = 'sshm-windows-amd64.exe'
 
-function Write-Info { param($msg) Write-Host "ℹ️  $msg" -ForegroundColor Cyan }
+function Write-Info { param($msg) Write-Host "📝  $msg" -ForegroundColor Cyan }
 function Write-Ok { param($msg) Write-Host "✅ $msg" -ForegroundColor Green }
 function Write-Warn { param($msg) Write-Host "⚠️  $msg" -ForegroundColor Yellow }
 function Write-Err { param($msg) Write-Host "❌ $msg" -ForegroundColor Red }

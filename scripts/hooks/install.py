@@ -72,7 +72,7 @@ def remove() -> None:
         TARGET.unlink()
         print(f"🗑️  已移除 pre-commit 钩子: {TARGET}")
     else:
-        print("ℹ️  未找到已安装的 pre-commit 钩子，无需移除。")
+        print("📝  未找到已安装的 pre-commit 钩子，无需移除。")
 
 
 if __name__ == "__main__":

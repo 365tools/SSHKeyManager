@@ -2,11 +2,21 @@
 
 使用 git fast-export / fast-import 流协议：
 1. `git fast-export --all` 导出完整历史（含 author/committer 信息）
-2. Python 逐行解析流，对匹配旧作者名/邮箱的 author/committer 行进行替换
+2. Python 按「字节」解析流，对命令层的 author/committer 行进行替换；
+   `data <n>` 块是字节计数的、内容可为任意二进制，必须原样复制
 3. `git fast-import` 导入重写后的流
 4. 原 refs 先备份到 refs/original/，避免历史丢失
 
 适用于 sshm 打包分发（无 Python 环境），无需额外安装任何工具。
+
+关键正确性约束（曾因违反导致 fast-import 崩溃）：
+- fast-export 流必须按原始字节处理，绝不能用文本 + errors="replace" 读写。
+  仓库历史中的二进制 blob 含非法 UTF-8 字节，一旦经 decode(→U+FFFD)+encode
+  往返，字节数会变化，而 `data <n>` 仍声明旧字节数，fast-import 读偏移后
+  报 `fatal: unsupported command`。
+- 不能对整条流做 CRLF 归一化：那同样会改变 data 块字节数。
+- author/committer 只存在于命令层（commit 头部），data 块内容可能恰好长得像
+  author 行，必须用状态机跳过 data 块，避免误重写并破坏字节数。
 """
 
 from __future__ import annotations
@@ -15,18 +25,23 @@ import os
 import re
 import subprocess
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Iterator, Optional, Tuple
 
 # author/committer 行示例：
 #   author Alice <alice@x.com> 1786862590 +0800
 #   committer Bob <bob@y.com> 1786862590 +0800
 # 解析：前缀(author|committer) + 姓名(可能含空格，到 < 为止) + <邮箱> + 时间戳 + 时区
+# 用 bytes 正则，仅用于命令层（data 块已被跳过）。
 _PERSON_LINE = re.compile(
-    r"^(?P<kind>author|committer) "
-    r"(?P<name>(?:[^<]|\\.)+) "
-    r"<(?P<email>[^>]*)>"
-    r"(?P<rest>[ \t].*)$"
+    rb"^(?P<kind>author|committer) "
+    rb"(?P<name>(?:[^<]|\\.)+) "
+    rb"<(?P<email>[^>]*)>"
+    rb"(?P<rest>[ \t].*)$"
 )
+# `data <count>`：其后紧跟恰好 count 个原始字节（内容可为任意二进制）+ 一个 \n 分隔
+_DATA_COUNT = re.compile(rb"^data (\d+)$")
+# `data <<DELIM`（fast-export 一般不用，但为稳妥支持）：直到独立 DELIM 行结束
+_DATA_DELIM = re.compile(rb"^data <<(?P<delim>\S+)$")
 
 
 class RewriteConfig:
@@ -62,29 +77,38 @@ def _clean_git_env() -> dict:
 def _run_git(
     repo: Path,
     args: list,
+    input_bytes: Optional[bytes] = None,
     input_text: Optional[str] = None,
     capture: bool = True,
-    binary_input: bool = False,
+    binary_output: bool = False,
 ) -> subprocess.CompletedProcess:
     """在指定仓库执行 git 命令。
 
-    - input_text：可选的 stdin 文本输入
-    - binary_input：为 True 时以 UTF-8 编码的 bytes 写入 stdin，
-      避免 Windows 下 text mode 把 \\n 转成 \\r\\n 污染 fast-import 流
+    - input_bytes：以原始 bytes 写入 stdin（用于 fast-import，绝不经过文本层，
+      否则 Windows 换行转换或 UTF-8 往返会破坏 data 块字节数）
+    - input_text：可选文本 stdin（仅用于无二进制内容的命令）
+    - binary_output：为 True 时以原始 bytes 读取 stdout（用于 fast-export，
+      避免 errors="replace" 把二进制 blob 内容改坏）
     - 统一使用干净 env，屏蔽外部 GIT_DIR 等环境变量干扰
     """
     cmd = ["git", "-C", str(repo)] + args
     env = _clean_git_env()
-    if binary_input and input_text is not None:
+    if input_bytes is not None:
+        return subprocess.run(cmd, input=input_bytes, capture_output=capture, env=env)
+    if input_text is not None:
         return subprocess.run(
             cmd,
-            input=input_text.encode("utf-8"),
+            input=input_text,
             capture_output=capture,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
             env=env,
         )
+    if binary_output:
+        return subprocess.run(cmd, capture_output=capture, env=env)
     return subprocess.run(
         cmd,
-        input=input_text,
         capture_output=capture,
         text=True,
         encoding="utf-8",
@@ -93,65 +117,147 @@ def _run_git(
     )
 
 
-def _count_matches(stream: str, cfg: RewriteConfig) -> int:
-    """统计流中匹配旧作者/邮箱的提交行数（用于预览与结果确认）。
+def _walk_person_lines(stream: bytes) -> Iterator[Tuple[int, int, "re.Match"]]:
+    """逐字节遍历 fast-export 流，仅 yield 命令层的 author/committer 行。
 
-    match_all 时统计所有作者/提交者行（全量刷新）。
+    yield (行起始字节下标, 行结束字节下标, 匹配对象)。
+    data 块内容原样跳过，绝不到达 person 匹配分支。
+    """
+    n = len(stream)
+    i = 0
+    while i < n:
+        nl = stream.find(b"\n", i)
+        line_end = (nl + 1) if nl != -1 else n
+        content = stream[i:nl if nl != -1 else n]
+
+        dm = _DATA_COUNT.match(content)
+        if dm:
+            count = int(dm.group(1))
+            i = nl + 1 + count  # 跳过 count 个原始字节
+            if i < n and stream[i : i + 1] == b"\n":
+                i += 1  # 跳过 data 后的 \n 分隔符
+            continue
+
+        dm2 = _DATA_DELIM.match(content)
+        if dm2:
+            delim = dm2.group("delim")
+            j = nl + 1
+            while j < n:
+                lf = stream.find(b"\n", j)
+                if lf == -1:
+                    j = n
+                    break
+                if stream[j:lf] == delim:
+                    j = lf + 1
+                    break
+                j = lf + 1
+            i = j
+            continue
+
+        m = _PERSON_LINE.match(content)
+        if m:
+            yield i, line_end, m
+        i = line_end
+
+
+def _count_matches(stream: bytes, cfg: RewriteConfig) -> int:
+    """统计流中命令层匹配旧作者/邮箱的提交行数（用于预览与结果确认）。
+
+    match_all 时统计所有命令层作者/提交者行（全量刷新）。
+    data 块内容不计入，避免误判二进制里恰好形似 author 的片段。
     """
     count = 0
-    for line in stream.splitlines():
-        m = _PERSON_LINE.match(line)
-        if not m:
-            continue
+    for _s, _e, m in _walk_person_lines(stream):
         if cfg.match_all:
             count += 1
             continue
         name = m.group("name")
         email = m.group("email")
-        if cfg.old_name and name == cfg.old_name:
+        if cfg.old_name and name == cfg.old_name.encode("utf-8"):
             count += 1
-        elif cfg.old_email and email == cfg.old_email:
+        elif cfg.old_email and email == cfg.old_email.encode("utf-8"):
             count += 1
     return count
 
 
-def _rewrite_stream(stream: str, cfg: RewriteConfig) -> Tuple[str, int]:
-    """重写 fast-export 流，返回 (新流, 替换次数)。"""
-    lines = stream.splitlines(keepends=True)
-    out: list[str] = []
+def _rewrite_stream(stream: bytes, cfg: RewriteConfig) -> Tuple[bytes, int]:
+    """字节级重写 fast-export 流，返回 (新流 bytes, 替换次数)。
+
+    data 块按原始字节整体复制，命令层 author/committer 行按规则替换。
+    """
+    out = bytearray()
     replaced = 0
-    for line in lines:
-        stripped = line.rstrip("\r\n")
-        m = _PERSON_LINE.match(stripped)
-        if not m:
-            out.append(line)
+    n = len(stream)
+    i = 0
+    while i < n:
+        nl = stream.find(b"\n", i)
+        line_end = (nl + 1) if nl != -1 else n
+        content = stream[i:nl if nl != -1 else n]
+
+        dm = _DATA_COUNT.match(content)
+        if dm:
+            count = int(dm.group(1))
+            out += stream[i:nl + 1]               # 'data <n>\n'
+            out += stream[nl + 1 : nl + 1 + count]  # 原样复制 count 个原始字节
+            i = nl + 1 + count
+            if i < n and stream[i : i + 1] == b"\n":
+                out += b"\n"
+                i += 1
             continue
-        name = m.group("name")
-        email = m.group("email")
-        new_name = name
-        new_email = email
-        hit = False
-        if cfg.match_all:
-            # 全量刷新：所有作者/提交者统一为 new_name/new_email
-            new_name = cfg.new_name if cfg.new_name is not None else name
-            new_email = cfg.new_email if cfg.new_email is not None else email
-            hit = True
-        elif cfg.old_name and name == cfg.old_name:
-            new_name = cfg.new_name if cfg.new_name is not None else name
-            hit = True
-        elif cfg.old_email and email == cfg.old_email:
-            new_email = cfg.new_email if cfg.new_email is not None else email
-            hit = True
-        if hit:
-            replaced += 1
-            rest = m.group("rest")
-            # 统一输出 LF（\n），避免 Windows CRLF 混入 fast-import 流
-            out.append(f"{m.group('kind')} {new_name} <{new_email}>{rest}\n")
+
+        dm2 = _DATA_DELIM.match(content)
+        if dm2:
+            delim = dm2.group("delim")
+            j = nl + 1
+            end = n
+            while j < n:
+                lf = stream.find(b"\n", j)
+                if lf == -1:
+                    end = n
+                    break
+                if stream[j:lf] == delim:
+                    end = lf + 1
+                    break
+                j = lf + 1
+            out += stream[i:end]
+            i = end
+            continue
+
+        m = _PERSON_LINE.match(content)
+        if m:
+            name = m.group("name")
+            email = m.group("email")
+            new_name = name
+            new_email = email
+            hit = False
+            if cfg.match_all:
+                # 全量刷新：所有作者/提交者统一为 new_name/new_email
+                if cfg.new_name is not None:
+                    new_name = cfg.new_name.encode("utf-8")
+                if cfg.new_email is not None:
+                    new_email = cfg.new_email.encode("utf-8")
+                hit = True
+            elif cfg.old_name and name == cfg.old_name.encode("utf-8"):
+                if cfg.new_name is not None:
+                    new_name = cfg.new_name.encode("utf-8")
+                hit = True
+            elif cfg.old_email and email == cfg.old_email.encode("utf-8"):
+                if cfg.new_email is not None:
+                    new_email = cfg.new_email.encode("utf-8")
+                hit = True
+            if hit:
+                replaced += 1
+                rest = m.group("rest")
+                out += (
+                    m.group("kind") + b" " + new_name + b" <" + new_email + b">" + rest + b"\n"
+                )
+            else:
+                out += stream[i:line_end]
         else:
-            # 保留原始行，但确保以 LF 结尾
-            line = line.rstrip("\r\n") + "\n"
-            out.append(line)
-    return "".join(out), replaced
+            out += stream[i:line_end]
+        i = line_end
+
+    return bytes(out), replaced
 
 
 def _active_refs(repo: Path) -> list:
@@ -243,18 +349,19 @@ def rewrite_history(repo_path: Path, cfg: RewriteConfig) -> dict:
 
     repo = Path(repo_path)
 
-    # 1. 导出原始流，统计受影响提交数。
+    # 1. 导出原始字节流（binary_output），统计受影响提交数。
     #    显式传入活跃 refs（排除 refs/original/ 备份）。不能依赖 `--all --exclude`
     #    （git 不会过滤 --all 预展开的 refs），否则旧备份历史会被反复重写，
     #    且 matched 计数会反复命中已重写过的旧提交。
     active = _active_refs(repo)
     if not active:
         return {"matched_commits": 0, "rewritten": 0}
-    export = _run_git(repo, ["fast-export"] + active)
+    export = _run_git(repo, ["fast-export"] + active, binary_output=True)
     if export.returncode != 0:
-        raise RuntimeError(f"git fast-export failed: {export.stderr.strip()}")
-    # 归一化换行：Windows 下 git 可能输出 CRLF，统一为 LF 避免污染 fast-import 流
-    original = (export.stdout or "").replace("\r\n", "\n").replace("\r", "\n")
+        raise RuntimeError(
+            f"git fast-export failed: {export.stderr.decode('utf-8', 'replace').strip()}"
+        )
+    original = export.stdout
 
     matched = _count_matches(original, cfg)
     if matched == 0:
@@ -263,18 +370,15 @@ def rewrite_history(repo_path: Path, cfg: RewriteConfig) -> dict:
     # 2. 备份原 refs
     _backup_refs(repo)
 
-    # 3. 重写流
+    # 3. 字节级重写流（data 块原样保留，author/committer 替换）
     new_stream, replaced = _rewrite_stream(original, cfg)
 
-    # 4. 导入重写后的流（二进制 stdin，避免 Windows 换行污染）
-    imp = _run_git(
-        repo,
-        ["fast-import", "--quiet", "--force"],
-        input_text=new_stream,
-        binary_input=True,
-    )
+    # 4. 导入重写后的流（原始 bytes stdin，绝不经过文本层）
+    imp = _run_git(repo, ["fast-import", "--quiet", "--force"], input_bytes=new_stream)
     if imp.returncode != 0:
-        raise RuntimeError(f"git fast-import failed: {imp.stderr.strip()}")
+        raise RuntimeError(
+            f"git fast-import failed: {imp.stderr.decode('utf-8', 'replace').strip()}"
+        )
 
     # 5. 更新当前分支指向
     _update_current_branch(repo)

@@ -32,9 +32,9 @@
 - **`author remove <label>`**：删除已保存的作者（支持 `-y` 跳过确认）
 - **打包体积优化**：exe 从 ~30.8MB 降至 ~12MB（排除 numpy/PIL 等无关重库 + 自动启用 UPX 压缩）
 - **rich 输出落地（L2 语义着色 + L3 进度条）**：
-  - `ui.output` 默认改用 `RichOutput`（tty 感知）：真实终端显示语义颜色（按 `✅/⚠️/❌/ℹ️` 等 emoji 自动着色，零侵入）+ rich 表格；非 tty（管道/重定向/测试）自动回退 `ConsoleOutput` 的 ASCII 行为，输出可预测、无 ANSI 码
+  - `ui.output` 默认改用 `RichOutput`（tty 感知）：真实终端显示语义颜色（按 `✅/⚠️/❌/📝` 等 emoji 自动着色，零侵入）+ rich 表格；非 tty（管道/重定向/测试）自动回退 `ConsoleOutput` 的 ASCII 行为，输出可预测、无 ANSI 码
   - 新增 `progress()` / `status()` 上下文管理器：`sshm update` 下载改用真实进度条；`history rewrite` 历史重写显示 spinner；rich 不可用时静默降级，不阻断业务
-- **emoji 收敛（UI 规范化）**：移除字段/区块级的纯装饰性 emoji（`📂📁🔗📊🔑🔧🗝️📝🌐👤📧⬇️🧑`），只保留表达状态/结果的语义 emoji（`✅❌⚠️ℹ️💡✨🎉🔀🧪💾`）与表格状态列；统一中英文提示（修复 `hdr.interactive` 中文多出的 `🔑`）；`-v` 表格保留图标列。移除无需改动测试（测试不依赖装饰性 emoji）
+- **emoji 收敛（UI 规范化）**：移除字段/区块级的纯装饰性 emoji（`📂📁🔗📊🔑🔧🗝️📝🌐👤📧⬇️🧑`），只保留表达状态/结果的语义 emoji（`✅❌⚠️📝💡✨🎉🔀🧪💾`）与表格状态列；统一中英文提示（修复 `hdr.interactive` 中文多出的 `🔑`）；`-v` 表格保留图标列。移除无需改动测试（测试不依赖装饰性 emoji）
 - **`config lang` 更名为 `config language`**：全链路同步（CLI 命令、命令注册表、manager 方法 `SystemCommands.language`、i18n key `cmd.config_language`、脚本、测试、文档与 cli-report 快照），不保留旧名、不兼容旧命令
 - **错误提示富化与自适应排版**：
   - `Usage` 续行改为基于 rich Console 实际终端宽度自适应折行，缩进用显示宽度精确对齐 `💡 Usage: ` 前缀（修复固定 78 列在窄/宽终端下换行参差的问题）

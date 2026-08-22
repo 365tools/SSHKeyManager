@@ -73,7 +73,6 @@ ICON_ERR = "❌"
 ICON_WARN = "⚠️"
 ICON_TIP = "💡"
 ICON_BULLET = "➖"
-ICON_INFO = "ℹ️"
 
 
 class ConsoleOutput(Output):
@@ -89,10 +88,9 @@ class ConsoleOutput(Output):
         "❗": "yellow",
         ICON_ERR: "bold red",
         "✘": "bold red",
-        ICON_INFO: "cyan",
         ICON_TIP: "cyan",
         "🔀": "cyan",
-        "⚙️": "cyan",
+        "📝": "cyan",
     }
     _style_map = {
         "info": "cyan",
@@ -267,13 +265,21 @@ def progress(total: Optional[float] = None, desc: str = "") -> Iterator:
     注意：在需要实时刷新的 for 循环里，务必将进度条置于 `with` 内并逐次 advance。
     """
     console = _RichConsole(force_terminal=False)
+    # 仅在「创建/启动」进度条阶段降级：非 tty / rich 渲染不可用时返回空句柄，
+    # 业务照常执行。body 内抛出的异常必须原样向上传播，绝不能在 except 里再次
+    # yield（那会触发 contextlib 的 "generator didn't stop after throw()"，
+    # 并掩盖真实的业务错误）。
     try:
-        with _RichProgress(console=console, transient=True) as prog:
-            task_id = prog.add_task(desc, total=total)
-            yield _RichProgressHandle(prog, task_id, total)
+        prog = _RichProgress(console=console, transient=True)
+        prog.__enter__()
     except Exception:
-        # 非 tty / 任何渲染异常都静默降级为无操作，绝不阻断业务
         yield _NoopProgress(total, desc)
+        return
+    try:
+        task_id = prog.add_task(desc, total=total)
+        yield _RichProgressHandle(prog, task_id, total)
+    finally:
+        prog.__exit__(None, None, None)
 
 
 @contextmanager
@@ -284,9 +290,17 @@ def status(desc: str = "") -> Iterator:
     非 tty 时静默无操作。
     """
     console = _RichConsole(force_terminal=False)
+    # 仅在「创建/启动」spinner 阶段降级：非 tty / rich 渲染不可用时静默无操作，
+    # 业务照常执行。body 内抛出的异常必须原样向上传播，绝不能在 except 里再次
+    # yield（那会触发 contextlib 的 "generator didn't stop after throw()"，
+    # 并掩盖真实的业务错误——例如 history rewrite 中 fast-import 的真实失败原因）。
     try:
-        with console.status(desc, spinner="dots"):
-            yield
+        status_obj = console.status(desc, spinner="dots")
+        status_obj.__enter__()
     except Exception:
-        # 非 tty / 任何渲染异常都静默降级，绝不阻断业务
         yield
+        return
+    try:
+        yield
+    finally:
+        status_obj.__exit__(None, None, None)

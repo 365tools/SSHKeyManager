@@ -17,7 +17,7 @@ from ...i18n import _
 from ...language import K
 from ...ui.output import (
     ICON_WARN,
-    print,
+    print as rich_print,
     section as print_section_header,
     status as output_status,
     confirm as prompt_confirm,
@@ -119,13 +119,13 @@ class HistoryCommands:
                 return
 
         print_section_header(_(K.hdr.rewrite))
-        print(f"{_(K.lbl.repo_path)} {repo_path}")
+        rich_print(f"\n{_(K.lbl.repo_path)} {repo_path}")
 
         # 预览：列出历史中的作者
         authors = get_authors_in_repo(repo_path)
-        print(f"\n{_(K.lbl.current_authors)}")
+        rich_print(f"\n{_(K.lbl.current_authors)}")
         for a in authors:
-            print(f"   - {a}")
+            rich_print(f"   - {a}")
 
         # 构造规则并预估受影响提交
         cfg = RewriteConfig(
@@ -153,7 +153,7 @@ class HistoryCommands:
                 match_desc.append(
                     f"{_(K.misc.email)} '{old_email}' -> '{new_email or old_email}'"
                 )
-        print(f"\n⚙️ {_(K.lbl.rules)} {', '.join(match_desc)}")
+        rich_print(f"\n🛠 {_(K.lbl.rules)} {', '.join(match_desc)}")
 
         # 用 dry-run 预估（fast-export 到临时流，不导入）。
         # 显式传活跃 refs（排除 refs/original/ 备份），避免 matched 计数
@@ -162,24 +162,23 @@ class HistoryCommands:
             from ..services.git.rewrite import _active_refs, _count_matches
 
             active = _active_refs(repo_path)
+            # 用原始字节导出（仓库历史可能含二进制 blob，文本模式 errors="replace"
+            # 会改坏 data 块字节数；这里只用于统计，同样必须按字节）。
             export = subprocess.run(
                 ["git", "-C", str(repo_path), "fast-export"] + active,
                 capture_output=True,
-                text=True,
-                encoding="utf-8",
-                errors="replace",
             )
-            matched = _count_matches(export.stdout or "", cfg)
+            matched = _count_matches(export.stdout, cfg)
         except Exception:
             matched = 0
         if matched == 0:
             self.m._fail(_(K.err.no_matches), icon=ICON_WARN)
             return
-        print(f"ℹ️  {_(K.msg.will_rewrite_count, count=matched)}")
+        rich_print(f"📝  {_(K.msg.will_rewrite_count, count=matched)}")
 
         # 破坏性操作确认
-        print(f"\n⚠️  {_(K.msg.rewrites_history)}")
-        print("   " + _(K.msg.force_push))
+        rich_print(f"\n⚠️  {_(K.msg.rewrites_history)}")
+        rich_print("   " + _(K.msg.force_push))
         if not skip_confirm:
             if not prompt_confirm(_(K.msg.continue_rewrite)):
                 self.m._fail(_(K.misc.operation_cancelled))
@@ -192,8 +191,8 @@ class HistoryCommands:
             self.m._fail(_(K.err.rewrite_failed, err=e))
             return
 
-        print(f"\n✅ {_(K.msg.history_rewritten)}")
-        print(f"   {_(K.msg.matched_commits, count=result.get('matched_commits', 0))}")
-        print(f"   {_(K.msg.rewritten_lines, count=result.get('rewritten', 0))}")
-        print(f"\n⚠️  {_(K.msg.refs_backed_up)}")
-        print(f"   {_(K.msg.force_push_all)}")
+        rich_print(f"\n✅ {_(K.msg.history_rewritten)}")
+        rich_print(f"   {_(K.msg.matched_commits, count=result.get('matched_commits', 0))}")
+        rich_print(f"   {_(K.msg.rewritten_lines, count=result.get('rewritten', 0))}")
+        rich_print(f"\n⚠️  {_(K.msg.refs_backed_up)}")
+        rich_print(f"   {_(K.msg.force_push_all)}")
