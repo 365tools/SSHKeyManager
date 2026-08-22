@@ -215,10 +215,14 @@ def test_add_duplicate_key(cli_runner, tmp_ssh_dir):
         m.key.create("github", "a@b.com")
 
 
-def test_use_nonexistent_label(cli_runner, manager, git_repo):
-    """使用不存在的标签应报错（_had_error）"""
+def test_use_nonexistent_label(cli_runner, manager, git_repo, capsys):
+    """使用不存在的标签应报错（_had_error）且给出查看可用 key 的提示"""
     manager.repo.use("nonexistent", str(git_repo), skip_confirm=True)
     assert manager._had_error is True
+    out = capsys.readouterr().out
+    assert "nonexistent" in out
+    # 统一报错应带 💡 引导：提示用 sshm key list 查看可用 label
+    assert "key list" in out.lower()
 
 
 def test_fix_author_requires_match(cli_runner, manager, git_repo):

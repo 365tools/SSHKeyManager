@@ -58,7 +58,7 @@ class RepoCommands:
         key_type = self.m.keystore.detect_key_type_for_label(label)
         if not key_type:
             msg = _(K.err.key_not_found_short, label=label)
-            self.m._fail(msg)
+            self.m._fail(msg, hint=_(K.msg.use_all_keys_tip))
             return
 
         print_section_header(_(K.hdr.configure, label=label))
@@ -325,7 +325,7 @@ class RepoCommands:
 
             keys_by_label = self.m.keystore.scan_all_keys()
             if not keys_by_label:
-                self.m._fail(_(K.err.no_keys))
+                self.m._fail(_(K.err.no_keys), hint=_(K.msg.use_all_keys_tip))
                 return
 
             results = []
