@@ -177,7 +177,7 @@ flowchart TB
 ### 步骤
 
 ```bash
-git clone https://github.com/Eavelabs/sshm.git
+git clone https://github.com/eavelabs-community/sshm.git
 cd SSHManager
 pip install -e .            # 安装运行时依赖（typer / wcwidth）
 pip install -e ".[dev]"     # 安装开发依赖（pytest / basedpyright / pyinstaller）

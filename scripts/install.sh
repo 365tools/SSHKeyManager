@@ -3,9 +3,9 @@
 # Features: auto-download, rename, add to PATH, and uninstall
 # 
 # Usage:
-#   Online install:curl -fsSL https://raw.githubusercontent.com/Eavelabs/sshm/main/scripts/install.sh | bash
+#   Online install:curl -fsSL https://raw.githubusercontent.com/eavelabs-community/sshm/main/scripts/install.sh | bash
 #   Local install: bash install.sh
-#   Online uninstall:curl -fsSL https://raw.githubusercontent.com/Eavelabs/sshm/main/scripts/install.sh | bash -s -- --uninstall
+#   Online uninstall:curl -fsSL https://raw.githubusercontent.com/eavelabs-community/sshm/main/scripts/install.sh | bash -s -- --uninstall
 #   Local uninstall: bash install.sh --uninstall
 
 set -e
@@ -164,7 +164,7 @@ info "Detected platform: $PLATFORM"
 echo ""
 
 # Get version info
-REPO="Eavelabs/sshm"
+REPO="eavelabs-community/sshm"
 info "Getting version info..."
 
 if [ "$VERSION" = "latest" ]; then

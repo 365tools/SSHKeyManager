@@ -9,13 +9,13 @@ SSH Manager 提供跨平台的一键安装/卸载脚本，自动下载预编译�
 **一键在线安装（推荐）**
 
 ```powershell
-irm https://raw.githubusercontent.com/Eavelabs/sshm/main/scripts/install.ps1 | iex
+irm https://raw.githubusercontent.com/eavelabs-community/sshm/main/scripts/install.ps1 | iex
 ```
 
 **下载后安装**
 
 ```powershell
-Invoke-WebRequest -Uri https://raw.githubusercontent.com/Eavelabs/sshm/main/scripts/install.ps1 -OutFile install.ps1
+Invoke-WebRequest -Uri https://raw.githubusercontent.com/eavelabs-community/sshm/main/scripts/install.ps1 -OutFile install.ps1
 powershell -ExecutionPolicy Bypass -File .\install.ps1
 ```
 
@@ -56,14 +56,14 @@ powershell -ExecutionPolicy Bypass -File .\install.ps1 -Uninstall
 **一键在线安装（推荐）**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Eavelabs/sshm/main/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/eavelabs-community/sshm/main/scripts/install.sh | bash
 ```
 
 **自定义安装**
 
 ```bash
 # 下载安装脚本
-curl -O https://raw.githubusercontent.com/Eavelabs/sshm/main/scripts/install.sh
+curl -O https://raw.githubusercontent.com/eavelabs-community/sshm/main/scripts/install.sh
 chmod +x install.sh
 
 # 默认安装（最新版）

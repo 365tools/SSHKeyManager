@@ -27,7 +27,7 @@ from ....ui.tip import render_business_error
 class UpdateManager:
     """更新管理器"""
 
-    GITHUB_API = "https://api.github.com/repos/Eavelabs/sshm/releases/latest"
+    GITHUB_API = "https://api.github.com/repos/eavelabs-community/sshm/releases/latest"
     CACHE_FILE = Path.home() / ".sshm_update_cache"
     CACHE_VALID_HOURS = 24
 

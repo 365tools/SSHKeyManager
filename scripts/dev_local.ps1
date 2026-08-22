@@ -111,7 +111,7 @@ function Invoke-InstallLocal {
 
 # ---------- install-release ----------
 function Invoke-InstallRelease {
-    $repo = 'Eavelabs/sshm'
+    $repo = 'eavelabs-community/sshm'
     Write-Info "获取最新 release 信息..."
     try {
         $release = Invoke-RestMethod "https://api.github.com/repos/$repo/releases/latest"

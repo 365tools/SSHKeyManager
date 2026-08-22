@@ -2,21 +2,21 @@
 
 # 🔑 sshm
 
-[![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white)](https://github.com/Eavelabs/sshm/releases/latest)
-[![Linux](https://img.shields.io/badge/Linux-FCC624?logo=linux&logoColor=black)](https://github.com/Eavelabs/sshm/releases/latest)
-[![macOS](https://img.shields.io/badge/macOS-000000?logo=apple&logoColor=white)](https://github.com/Eavelabs/sshm/releases/latest)
+[![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white)](https://github.com/eavelabs-community/sshm/releases/latest)
+[![Linux](https://img.shields.io/badge/Linux-FCC624?logo=linux&logoColor=black)](https://github.com/eavelabs-community/sshm/releases/latest)
+[![macOS](https://img.shields.io/badge/macOS-000000?logo=apple&logoColor=white)](https://github.com/eavelabs-community/sshm/releases/latest)
 
 **企业级多账号 SSH 密钥管理工具 · 中英双语 · 跨平台**
 
 [![Python Version](https://img.shields.io/badge/python-3.14%2B-blue)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Release](https://img.shields.io/github/v/release/Eavelabs/sshm)](https://github.com/Eavelabs/sshm/releases)
-[![Build](https://img.shields.io/github/actions/workflow/status/Eavelabs/sshm/build-release.yml)](https://github.com/Eavelabs/sshm/actions)
+[![Release](https://img.shields.io/github/v/release/eavelabs-community/sshm)](https://github.com/eavelabs-community/sshm/releases)
+[![Build](https://img.shields.io/github/actions/workflow/status/eavelabs-community/sshm/build-release.yml)](https://github.com/eavelabs-community/sshm/actions)
 
-[![Stars](https://img.shields.io/github/stars/Eavelabs/sshm?style=social)](https://github.com/Eavelabs/sshm/stargazers)
-[![Downloads](https://img.shields.io/github/downloads/Eavelabs/sshm/total?label=Downloads)](https://github.com/Eavelabs/sshm/releases)
-[![Last Commit](https://img.shields.io/github/last-commit/Eavelabs/sshm)](https://github.com/Eavelabs/sshm/commits)
-[![Language](https://img.shields.io/github/languages/top/Eavelabs/sshm?label=Python)](https://github.com/Eavelabs/sshm)
+[![Stars](https://img.shields.io/github/stars/eavelabs-community/sshm?style=social)](https://github.com/eavelabs-community/sshm/stargazers)
+[![Downloads](https://img.shields.io/github/downloads/eavelabs-community/sshm/total?label=Downloads)](https://github.com/eavelabs-community/sshm/releases)
+[![Last Commit](https://img.shields.io/github/last-commit/eavelabs-community/sshm)](https://github.com/eavelabs-community/sshm/commits)
+[![Language](https://img.shields.io/github/languages/top/eavelabs-community/sshm?label=Python)](https://github.com/eavelabs-community/sshm)
 
 [快速开始](#-快速开始) • [功能特性](#-功能特性) • [使用文档](#-使用文档) • [常见问题](docs/FAQ.md) • [开发者文档](docs/DEVELOPER.md)
 
@@ -78,13 +78,13 @@
 **Windows (PowerShell)**
 
 ```powershell
-irm https://raw.githubusercontent.com/Eavelabs/sshm/main/scripts/install.ps1 | iex
+irm https://raw.githubusercontent.com/eavelabs-community/sshm/main/scripts/install.ps1 | iex
 ```
 
 **Linux / macOS**
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Eavelabs/sshm/main/scripts/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/eavelabs-community/sshm/main/scripts/install.sh | bash
 ```
 
 > 💡 **`sshm` 显示旧版本 / 运行报错？** 通常是 PATH 中残留了旧的 sshm 目录（如本地构建产物）抢先命中。重新运行安装脚本并加清理参数即可：
@@ -92,14 +92,14 @@ curl -fsSL https://raw.githubusercontent.com/Eavelabs/sshm/main/scripts/install.
 > **Windows**
 > 
 > ```powershell
-> irm https://raw.githubusercontent.com/Eavelabs/sshm/main/scripts/install.ps1 -OutFile install.ps1
+> irm https://raw.githubusercontent.com/eavelabs-community/sshm/main/scripts/install.ps1 -OutFile install.ps1
 > powershell -ExecutionPolicy Bypass -File .\install.ps1 -CleanPath
 > ```
 > 
 > **Linux / macOS**
 > 
 > ```bash
-> curl -fsSL https://raw.githubusercontent.com/Eavelabs/sshm/main/scripts/install.sh -o install.sh
+> curl -fsSL https://raw.githubusercontent.com/eavelabs-community/sshm/main/scripts/install.sh -o install.sh
 > bash install.sh --clean-path
 > ```
 > 
@@ -107,12 +107,12 @@ curl -fsSL https://raw.githubusercontent.com/Eavelabs/sshm/main/scripts/install.
 
 #### 方式 B：手动下载
 
-前往 [Releases 页面](https://github.com/Eavelabs/sshm/releases) 下载对应平台文件，重命名为 `sshm` 后放入 PATH 路径即可。
+前往 [Releases 页面](https://github.com/eavelabs-community/sshm/releases) 下载对应平台文件，重命名为 `sshm` 后放入 PATH 路径即可。
 
 #### 方式 C：源码运行
 
 ```bash
-git clone https://github.com/Eavelabs/sshm.git
+git clone https://github.com/eavelabs-community/sshm.git
 cd sshm
 python -m sshm --version
 python -m sshm key list
